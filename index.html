@@ -153,11 +153,10 @@
       const module = await import('https://cdn.jsdelivr.net/npm/barcode-detector@2/dist/es/index.min.js');
       log('Polyfill module loaded');
 
-      const PolyDetector = module.BarcodeDetectorPolyfill || module.default;
+      const PolyDetector = module.BarcodeDetector || module.BarcodeDetectorPolyfill || module.default;
       if (!PolyDetector) {
-        // Check all exports
         log('Module exports: ' + Object.keys(module).join(', '));
-        throw new Error('BarcodeDetectorPolyfill not found in module');
+        throw new Error('No BarcodeDetector found in module');
       }
 
       const polyFormats = await PolyDetector.getSupportedFormats();
