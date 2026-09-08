@@ -319,13 +319,15 @@
     <div class="scan-zone-name" id="scan-zone-label">Zone: —</div>
     <p class="scan-instructions" id="scan-instructions">Point camera at the <strong>PDF417 barcode</strong> on the back of the license</p>
 
-    <div id="scanner-container"></div>
-    <div class="scan-status" id="scan-status">Starting camera…</div>
-
-    <div style="display:flex; gap:8px; margin-bottom:16px;" id="scan-buttons">
-      <button class="btn" style="flex:1; justify-content:center;" onclick="takePhoto()">📸 Take photo instead</button>
-      <input type="file" accept="image/*" capture="environment" id="photo-input" style="display:none" onchange="scanPhoto(this)" />
+    <div style="display:flex; gap:8px; margin-bottom:10px;" id="scan-buttons">
+      <button class="btn" style="flex:1; justify-content:center; padding:10px;" id="photo-btn" onclick="takePhoto()">📸 Take photo instead</button>
+      <input type="file" accept="image/*" capture="environment" id="photo-input" style="display:none" />
     </div>
+
+    <div id="scanner-container"></div>
+    <div id="file-scanner-container" style="display:none;"></div>
+    <img id="photo-preview" style="display:none; max-width:100%; border-radius:8px; margin-bottom:12px;" />
+    <div class="scan-status" id="scan-status">Starting camera…</div>
 
     <div class="parsed-fields" id="parsed-fields"></div>
 
@@ -553,6 +555,10 @@ function resetScanUI() {
   document.getElementById('scan-status').textContent = 'Starting camera…';
   document.getElementById('scan-status').style.display = '';
   document.getElementById('scan-buttons').style.display = 'none';
+  document.getElementById('photo-preview').style.display = 'none';
+  document.getElementById('photo-btn').disabled = false;
+  document.getElementById('photo-btn').textContent = '📸 Take photo instead';
+  document.getElementById('file-scanner-container').innerHTML = '';
   document.getElementById('parsed-fields').style.display = 'none';
   document.getElementById('parsed-fields').innerHTML = '';
   document.getElementById('addr-field').style.display = 'none';
@@ -617,34 +623,59 @@ function takePhoto() {
   document.getElementById('photo-input').click();
 }
 
-async function scanPhoto(input) {
-  const file = input.files[0];
+// Use event listener instead of inline onchange (more reliable on iOS)
+document.getElementById('photo-input').addEventListener('change', async function() {
+  const file = this.files[0];
   if (!file) return;
 
-  document.getElementById('scan-status').textContent = 'Scanning photo…';
+  const statusEl = document.getElementById('scan-status');
+  const photoBtn = document.getElementById('photo-btn');
+  photoBtn.disabled = true;
+  photoBtn.textContent = 'Processing…';
 
-  // Stop live scanner if running
+  // Show photo preview
+  const preview = document.getElementById('photo-preview');
+  preview.src = URL.createObjectURL(file);
+  preview.style.display = 'block';
+
+  // Stop live scanner
   stopScanner();
   document.getElementById('scanner-container').style.display = 'none';
+  statusEl.textContent = 'Reading barcode from photo…';
+
+  // Small delay to let UI update
+  await new Promise(r => setTimeout(r, 200));
 
   try {
-    // Create a fresh instance for file scanning (no format restriction — try everything)
-    const fileScanner = new Html5Qrcode('scanner-container', {
+    // Use a dedicated container for file scanning
+    const fileScanDiv = document.getElementById('file-scanner-container');
+    fileScanDiv.innerHTML = '';
+
+    const fileScanner = new Html5Qrcode('file-scanner-container', {
       experimentalFeatures: { useBarCodeDetectorIfSupported: true }
     });
-    const result = await fileScanner.scanFile(file, /* showImage */ false);
-    fileScanner.clear();
-    onScanSuccess(result);
+
+    const decodedText = await fileScanner.scanFile(file, false);
+    await fileScanner.clear().catch(() => {});
+
+    // Success
+    preview.style.display = 'none';
+    onScanSuccess(decodedText);
+
   } catch (err) {
     console.error('Photo scan failed:', err);
-    document.getElementById('scan-status').textContent = 'Could not read barcode from photo. Try again — hold the phone steady, fill the frame with the barcode, good lighting.';
+    statusEl.textContent = 'Could not read barcode. Tips: fill the frame with just the barcode, use good lighting, avoid glare.';
+    preview.style.display = 'none';
     document.getElementById('scanner-container').style.display = '';
+    photoBtn.disabled = false;
+    photoBtn.textContent = '📸 Take photo instead';
     // Restart live scanner
     startScanner();
   }
-  // Reset file input so the same file can be re-selected
-  input.value = '';
-}
+
+  // Reset file input so same file can be re-selected
+  this.value = '';
+});
 
 function onScanSuccess(decodedText) {
   // Stop scanning immediately
