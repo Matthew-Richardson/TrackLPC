@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Evac Zone Query Tool</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/esri-leaflet/3.0.12/esri-leaflet.min.js"></script>
+<script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
+<style>
+  :root {
+    --bg: #f7f7f8;
+    --surface: #ffffff;
+    --border: #d4d4d8;
+    --text: #1a1a2e;
+    --text-muted: #6b7280;
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --accent-light: #dbeafe;
+    --green: #10b981;
+    --green-bg: #d1fae5;
+    --green-dark: #065f46;
+    --red: #ef4444;
+    --red-bg: #fee2e2;
+    --red-dark: #991b1b;
+    --amber: #f59e0b;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* ---- HEADER ---- */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+
+  header h1 {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
+
+  .select-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 180px;
+  }
+
+  .select-wrap select {
+    width: 100%;
+    padding: 7px 28px 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    background: var(--surface);
+    color: var(--text);
+    appearance: none;
+    cursor: pointer;
+  }
+
+  .select-wrap::after {
+    content: '▾';
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 11px;
+    color: var(--text-muted);
+    pointer-events: none;
+  }
+
+  .header-right {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .header-stats {
+    display: flex;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .header-stats .stat strong {
+    color: var(--text);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .btn {
+    padding: 7px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .btn:hover { background: var(--bg); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-scan {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+
+  .btn-scan:hover { background: var(--accent-hover); }
+  .btn-scan:disabled { background: var(--accent); }
+
+  /* ---- MAP ---- */
+  #map-container {
+    height: 35%;
+    min-height: 180px;
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  #map { height: 100%; width: 100%; }
+
+  .map-legend {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    background: rgba(255,255,255,0.92);
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 10px;
+    z-index: 1000;
+    border: 1px solid var(--border);
+    line-height: 1.7;
+  }
+
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+
+  .legend-swatch {
+    width: 12px; height: 8px;
+    border-radius: 2px;
+    border: 1px solid rgba(0,0,0,0.15);
+  }
+
+  .loading-bar {
+    height: 3px;
+    background: var(--accent-light);
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    z-index: 1001;
+    overflow: hidden;
+    display: none;
+  }
+
+  .loading-bar.active { display: block; }
+
+  .loading-bar::after {
+    content: '';
+    display: block;
+    height: 100%;
+    width: 30%;
+    background: var(--accent);
+    animation: slide 1.2s ease-in-out infinite;
+  }
+
+  @keyframes slide {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(400%); }
+  }
+
+  /* ---- TABLE SECTION ---- */
+  .table-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-top: 1px solid var(--border);
+  }
+
+  .tab-bar {
+    display: flex;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 14px;
+    flex-shrink: 0;
+  }
+
+  .tab {
+    padding: 9px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .tab:hover { color: var(--text); }
+
+  .tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  .tab .count {
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--bg);
+    padding: 1px 6px;
+    border-radius: 10px;
+    margin-left: 5px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .search-bar {
+    padding: 0 14px;
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+
+  .search-bar input {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    font-size: 13px;
+    margin: 6px 0;
+    outline: none;
+  }
+
+  .search-bar input:focus { border-color: var(--accent); }
+
+  .table-wrap { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+  thead { position: sticky; top: 0; z-index: 2; }
+
+  th {
+    background: var(--bg);
+    text-align: left;
+    padding: 8px 12px;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 7px 12px;
+    border-bottom: 1px solid #f0f0f0;
+    white-space: nowrap;
+  }
+
+  tr:hover td { background: #fafafa; }
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-muted);
+    font-size: 13px;
+    gap: 6px;
+    padding: 40px 20px;
+    text-align: center;
+  }
+
+  .empty-state .icon { font-size: 28px; opacity: 0.4; }
+
+  /* ---- SCAN MODAL ---- */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 2000;
+    align-items: flex-end;
+    justify-content: center;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    width: 100%;
+    max-width: 500px;
+    max-height: 92dvh;
+    border-radius: 16px 16px 0 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 20px;
+    animation: slideUp 0.25s ease-out;
+  }
+
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+
+  @media (min-width: 600px) {
+    .modal-overlay { align-items: center; }
+    .modal { border-radius: 12px; max-height: 85vh; }
+  }
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .modal-header h2 {
+    font-size: 17px;
+    font-weight: 600;
+  }
+
+  .modal-close {
+    width: 30px; height: 30px;
+    border: none;
+    background: var(--bg);
+    border-radius: 50%;
+    font-size: 16px;
+    cursor: pointer;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .scan-zone-name {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+    padding: 8px 10px;
+    background: var(--accent-light);
+    border-radius: 6px;
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  .capture-area {
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    padding: 30px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s;
+    margin-bottom: 16px;
+    position: relative;
+  }
+
+  .capture-area:hover { border-color: var(--accent); }
+
+  .capture-area .icon { font-size: 32px; margin-bottom: 8px; }
+
+  .capture-area p { font-size: 13px; color: var(--text-muted); }
+
+  .capture-area input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .preview-img {
+    max-width: 100%;
+    max-height: 200px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    display: none;
+  }
+
+  .ocr-progress {
+    display: none;
+    margin-bottom: 16px;
+  }
+
+  .ocr-progress .bar-track {
+    height: 6px;
+    background: var(--bg);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 6px;
+  }
+
+  .ocr-progress .bar-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 3px;
+    width: 0%;
+    transition: width 0.3s;
+  }
+
+  .ocr-progress .status {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .ocr-raw {
+    display: none;
+    margin-bottom: 12px;
+  }
+
+  .ocr-raw summary {
+    font-size: 11px;
+    color: var(--text-muted);
+    cursor: pointer;
+    margin-bottom: 4px;
+  }
+
+  .ocr-raw pre {
+    font-size: 11px;
+    background: var(--bg);
+    padding: 8px;
+    border-radius: 6px;
+    max-height: 120px;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .addr-field {
+    margin-bottom: 16px;
+  }
+
+  .addr-field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: var(--text-muted);
+  }
+
+  .addr-field input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 15px;
+    outline: none;
+  }
+
+  .addr-field input:focus { border-color: var(--accent); }
+
+  .btn-check {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    margin-bottom: 12px;
+  }
+
+  .btn-check:hover { background: var(--accent-hover); }
+  .btn-check:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* ---- RESULT BANNER ---- */
+  .result-banner {
+    display: none;
+    border-radius: 12px;
+    padding: 24px 20px;
+    text-align: center;
+    margin-bottom: 12px;
+  }
+
+  .result-banner .verdict {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    letter-spacing: -0.02em;
+  }
+
+  .result-banner .detail {
+    font-size: 13px;
+  }
+
+  .result-banner .addr-echo {
+    font-size: 12px;
+    margin-top: 8px;
+    opacity: 0.8;
+    font-style: italic;
+  }
+
+  .result-inside {
+    background: var(--green-bg);
+    border: 2px solid var(--green);
+  }
+
+  .result-inside .verdict { color: var(--green-dark); }
+  .result-inside .detail { color: var(--green-dark); }
+
+  .result-outside {
+    background: var(--red-bg);
+    border: 2px solid var(--red);
+  }
+
+  .result-outside .verdict { color: var(--red-dark); }
+  .result-outside .detail { color: var(--red-dark); }
+
+  .result-error {
+    background: #fef3c7;
+    border: 2px solid var(--amber);
+  }
+
+  .result-error .verdict { color: #92400e; }
+  .result-error .detail { color: #92400e; }
+
+  .btn-reset-scan {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    font-size: 14px;
+    cursor: pointer;
+    color: var(--text);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Evac Zone Query</h1>
+  <div class="select-wrap">
+    <select id="zone-select">
+      <option value="">Select a zone…</option>
+    </select>
+  </div>
+  <div class="header-right">
+    <div class="header-stats" id="stats" style="display:none">
+      <div class="stat">P: <strong id="parcel-count">0</strong></div>
+      <div class="stat">A: <strong id="addr-count">0</strong></div>
+    </div>
+    <button class="btn" id="export-btn" disabled onclick="exportCSV()">CSV</button>
+    <button class="btn btn-scan" id="scan-btn" disabled onclick="openScan()">📷 Scan DL</button>
+  </div>
+</header>
+
+<div id="map-container">
+  <div class="loading-bar" id="loading"></div>
+  <div id="map"></div>
+  <div class="map-legend" id="legend" style="display:none">
+    <div class="legend-item"><div class="legend-swatch" style="background:rgba(37,99,235,0.15);border-color:rgba(37,99,235,0.6)"></div> Evac zones</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:rgba(245,158,11,0.25);border-color:#f59e0b"></div> Selected</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#ef4444;border-color:#ef4444;border-radius:50%;width:10px;height:10px"></div> Scanned addr</div>
+  </div>
+</div>
+
+<div class="table-section">
+  <div class="tab-bar">
+    <div class="tab active" data-tab="parcels" onclick="switchTab('parcels')">
+      Parcels <span class="count" id="tab-parcel-count">0</span>
+    </div>
+    <div class="tab" data-tab="addresses" onclick="switchTab('addresses')">
+      Addresses <span class="count" id="tab-addr-count">0</span>
+    </div>
+  </div>
+  <div class="search-bar">
+    <input type="text" id="table-search" placeholder="Filter results…" oninput="filterTable()" />
+  </div>
+  <div class="table-wrap" id="table-wrap">
+    <div class="empty-state" id="empty-state">
+      <div class="icon">📍</div>
+      <div>Select a zone from the dropdown or click one on the map</div>
+    </div>
+    <table id="data-table" style="display:none">
+      <thead id="table-head"></thead>
+      <tbody id="table-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- SCAN MODAL -->
+<div class="modal-overlay" id="scan-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Scan Driver License</h2>
+      <button class="modal-close" onclick="closeScan()">✕</button>
+    </div>
+
+    <div class="scan-zone-name" id="scan-zone-label">Zone: —</div>
+
+    <div class="capture-area" id="capture-area">
+      <div class="icon">📷</div>
+      <p>Tap to photograph the front of the license</p>
+      <input type="file" accept="image/*" capture="environment" id="dl-input" onchange="handleCapture(this)" />
+    </div>
+
+    <img id="preview-img" class="preview-img" />
+
+    <div class="ocr-progress" id="ocr-progress">
+      <div class="bar-track"><div class="bar-fill" id="ocr-bar"></div></div>
+      <div class="status" id="ocr-status">Initializing OCR…</div>
+    </div>
+
+    <details class="ocr-raw" id="ocr-raw">
+      <summary>Raw OCR text</summary>
+      <pre id="ocr-text"></pre>
+    </details>
+
+    <div class="addr-field" id="addr-field" style="display:none">
+      <label>Extracted address — edit if needed</label>
+      <input type="text" id="addr-input" placeholder="123 Main St, Durango, CO 81301" />
+    </div>
+
+    <button class="btn-check" id="check-btn" style="display:none" onclick="checkAddress()">
+      Check address against zone
+    </button>
+
+    <div class="result-banner" id="result-banner">
+      <div class="verdict" id="result-verdict"></div>
+      <div class="detail" id="result-detail"></div>
+      <div class="addr-echo" id="result-addr"></div>
+    </div>
+
+    <button class="btn-reset-scan" id="reset-scan-btn" style="display:none" onclick="resetScan()">
+      Scan another license
+    </button>
+  </div>
+</div>
+
+<script>
+// ---- SERVICE URLS ----
+const EVAC_URL = 'https://services2.arcgis.com/ilLrLpXfElYxSy9y/ArcGIS/rest/services/LPC_Evac_Zones_View/FeatureServer/0';
+const PARCEL_URL = 'https://gis.lpcgov.org/arcgis/rest/services/JS_website/MapLayersCitizenserve/MapServer/1';
+const ADDR_URL = 'https://gis.lpcgov.org/arcgis/rest/services/JS_website/MapLayersCitizenserve/MapServer/0';
+const GEOCODE_URL = 'https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates';
+
+const PARCEL_FIELDS = ['APN','SITE_ADDR','NAME','ACRES','SITE_CITY','SITE_ZIP'];
+const PARCEL_HEADERS = ['Parcel #','Site Address','Owner','Acres','City','ZIP'];
+const ADDR_FIELDS = ['PROPERTY_A','NAME','APN','ADDR_HN','SITE_ST','City','ZIP'];
+const ADDR_HEADERS = ['Address','Name','Parcel #','House #','Street','City','ZIP'];
+
+let map, evacLayer, selectedLayer, scanMarker;
+let zones = [];
+let selectedZoneGeom = null; // GeoJSON geometry of selected zone (4326)
+let selectedZoneId = null;
+let parcelData = [], addrData = [];
+let activeTab = 'parcels';
+
+// ---- MAP INIT ----
+map = L.map('map', { zoomControl: true }).setView([37.28, -107.88], 10);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© OpenStreetMap © CARTO', maxZoom: 19
+}).addTo(map);
+
+selectedLayer = L.geoJSON(null, {
+  style: { color: '#f59e0b', weight: 3, fillColor: '#f59e0b', fillOpacity: 0.25 }
+}).addTo(map);
+
+evacLayer = L.esri.featureLayer({
+  url: EVAC_URL,
+  style: () => ({ color: 'rgba(37,99,235,0.6)', weight: 1.5, fillColor: 'rgba(37,99,235,0.12)', fillOpacity: 1 }),
+  onEachFeature(feature, layer) {
+    const p = feature.properties;
+    const label = p.zonename || p.incident || `Zone ${p.OBJECTID}`;
+    layer.bindTooltip(label, { sticky: true });
+    layer.on('click', () => selectZoneById(p.OBJECTID));
+  }
+}).addTo(map);
+
+evacLayer.once('load', () => {
+  document.getElementById('legend').style.display = '';
+  evacLayer.eachFeature(layer => {
+    const p = layer.feature.properties;
+    zones.push({
+      id: p.OBJECTID,
+      name: p.zonename,
+      incident: p.incident,
+      status: p.STATUS,
+      feature: layer.feature
+    });
+  });
+  zones.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  const sel = document.getElementById('zone-select');
+  zones.forEach(z => {
+    const opt = document.createElement('option');
+    opt.value = z.id;
+    opt.textContent = [z.name, z.incident, z.status].filter(Boolean).join(' — ');
+    sel.appendChild(opt);
+  });
+  const bounds = evacLayer.getBounds();
+  if (bounds.isValid()) map.fitBounds(bounds, { padding: [20, 20] });
+});
+
+document.getElementById('zone-select').addEventListener('change', function() {
+  if (this.value) selectZoneById(parseInt(this.value));
+});
+
+// ---- ZONE SELECTION ----
+async function selectZoneById(oid) {
+  document.getElementById('zone-select').value = oid;
+  selectedZoneId = oid;
+  const zone = zones.find(z => z.id === oid);
+  if (!zone) return;
+
+  // Store GeoJSON geometry for point-in-polygon checks
+  selectedZoneGeom = zone.feature.geometry;
+
+  selectedLayer.clearLayers();
+  selectedLayer.addData(zone.feature);
+  map.fitBounds(selectedLayer.getBounds(), { padding: [30, 30] });
+
+  // Enable scan button
+  document.getElementById('scan-btn').disabled = false;
+
+  setLoading(true);
+  try {
+    // Get geometry in 3857 for spatial queries against on-prem services
+    const geomRes = await fetch(`${EVAC_URL}/query?where=OBJECTID=${oid}&outFields=OBJECTID&returnGeometry=true&outSR=3857&f=json`);
+    const geomJson = await geomRes.json();
+    if (!geomJson.features || !geomJson.features.length) { setLoading(false); return; }
+    const geometry = geomJson.features[0].geometry;
+
+    const [parcels, addresses] = await Promise.all([
+      spatialQuery(PARCEL_URL, geometry, PARCEL_FIELDS),
+      spatialQuery(ADDR_URL, geometry, ADDR_FIELDS)
+    ]);
+
+    parcelData = parcels;
+    addrData = addresses;
+    updateCounts();
+    renderTable();
+  } catch (err) {
+    console.error('Query failed:', err);
+  }
+  setLoading(false);
+}
+
+async function spatialQuery(serviceUrl, geometry, fields) {
+  const all = [];
+  let offset = 0;
+  const batch = 2000;
+  while (true) {
+    const params = new URLSearchParams({
+      geometry: JSON.stringify(geometry),
+      geometryType: 'esriGeometryPolygon',
+      spatialRel: 'esriSpatialRelIntersects',
+      inSR: '3857',
+      outFields: fields.join(','),
+      returnGeometry: 'false',
+      resultOffset: offset,
+      resultRecordCount: batch,
+      f: 'json'
+    });
+    const res = await fetch(`${serviceUrl}/query`, { method: 'POST', body: params });
+    const json = await res.json();
+    if (json.error) { console.error(json.error); break; }
+    const features = json.features || [];
+    features.forEach(f => all.push(f.attributes));
+    if (!json.exceededTransferLimit && features.length < batch) break;
+    offset += features.length;
+  }
+  return all;
+}
+
+function updateCounts() {
+  document.getElementById('parcel-count').textContent = parcelData.length.toLocaleString();
+  document.getElementById('addr-count').textContent = addrData.length.toLocaleString();
+  document.getElementById('tab-parcel-count').textContent = parcelData.length.toLocaleString();
+  document.getElementById('tab-addr-count').textContent = addrData.length.toLocaleString();
+  document.getElementById('stats').style.display = '';
+  document.getElementById('export-btn').disabled = false;
+}
+
+// ---- TABLE ----
+function switchTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.getElementById('table-search').value = '';
+  renderTable();
+}
+
+function renderTable(filtered) {
+  const data = filtered || (activeTab === 'parcels' ? parcelData : addrData);
+  const fields = activeTab === 'parcels' ? PARCEL_FIELDS : ADDR_FIELDS;
+  const headers = activeTab === 'parcels' ? PARCEL_HEADERS : ADDR_HEADERS;
+  if (!parcelData.length && !addrData.length) {
+    document.getElementById('data-table').style.display = 'none';
+    document.getElementById('empty-state').style.display = '';
+    return;
+  }
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('data-table').style.display = '';
+  document.getElementById('table-head').innerHTML = '<tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr>';
+  document.getElementById('table-body').innerHTML = data.map(row =>
+    '<tr>' + fields.map(f => {
+      let v = row[f]; if (v == null) v = '';
+      if (f === 'ACRES' && v !== '') v = parseFloat(v).toFixed(2);
+      return `<td>${v}</td>`;
+    }).join('') + '</tr>'
+  ).join('');
+}
+
+function filterTable() {
+  const q = document.getElementById('table-search').value.toLowerCase().trim();
+  if (!q) { renderTable(); return; }
+  const fields = activeTab === 'parcels' ? PARCEL_FIELDS : ADDR_FIELDS;
+  const source = activeTab === 'parcels' ? parcelData : addrData;
+  renderTable(source.filter(row => fields.some(f => String(row[f] || '').toLowerCase().includes(q))));
+}
+
+function exportCSV() {
+  const data = activeTab === 'parcels' ? parcelData : addrData;
+  const fields = activeTab === 'parcels' ? PARCEL_FIELDS : ADDR_FIELDS;
+  const headers = activeTab === 'parcels' ? PARCEL_HEADERS : ADDR_HEADERS;
+  if (!data.length) return;
+  const rows = [headers.join(',')];
+  data.forEach(row => {
+    rows.push(fields.map(f => {
+      let v = String(row[f] ?? '');
+      if (v.includes(',') || v.includes('"')) v = `"${v.replace(/"/g, '""')}"`;
+      return v;
+    }).join(','));
+  });
+  const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `evac_${activeTab}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+}
+
+function setLoading(on) {
+  document.getElementById('loading').classList.toggle('active', on);
+}
+
+// ---- SCAN MODAL ----
+function openScan() {
+  if (!selectedZoneId) return;
+  const zone = zones.find(z => z.id === selectedZoneId);
+  document.getElementById('scan-zone-label').textContent =
+    'Zone: ' + [zone?.name, zone?.incident].filter(Boolean).join(' — ');
+  document.getElementById('scan-modal').classList.add('open');
+  resetScan();
+}
+
+function closeScan() {
+  document.getElementById('scan-modal').classList.remove('open');
+}
+
+function resetScan() {
+  document.getElementById('dl-input').value = '';
+  document.getElementById('preview-img').style.display = 'none';
+  document.getElementById('capture-area').style.display = '';
+  document.getElementById('ocr-progress').style.display = 'none';
+  document.getElementById('ocr-raw').style.display = 'none';
+  document.getElementById('addr-field').style.display = 'none';
+  document.getElementById('check-btn').style.display = 'none';
+  document.getElementById('result-banner').style.display = 'none';
+  document.getElementById('reset-scan-btn').style.display = 'none';
+  document.getElementById('addr-input').value = '';
+}
+
+async function handleCapture(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  // Show preview
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = document.getElementById('preview-img');
+    img.src = e.target.result;
+    img.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+  document.getElementById('capture-area').style.display = 'none';
+
+  // Run OCR
+  const progress = document.getElementById('ocr-progress');
+  const bar = document.getElementById('ocr-bar');
+  const status = document.getElementById('ocr-status');
+  progress.style.display = 'block';
+
+  try {
+    const result = await Tesseract.recognize(file, 'eng', {
+      logger: m => {
+        if (m.status === 'recognizing text') {
+          bar.style.width = Math.round((m.progress || 0) * 100) + '%';
+          status.textContent = `Reading text… ${Math.round((m.progress || 0) * 100)}%`;
+        } else {
+          status.textContent = m.status || 'Processing…';
+        }
+      }
+    });
+
+    const rawText = result.data.text;
+    document.getElementById('ocr-text').textContent = rawText;
+    document.getElementById('ocr-raw').style.display = 'block';
+
+    // Parse address
+    const addr = parseAddressFromDL(rawText);
+    document.getElementById('addr-input').value = addr;
+    document.getElementById('addr-field').style.display = 'block';
+    document.getElementById('check-btn').style.display = 'block';
+
+    status.textContent = 'Done — review the address below';
+    bar.style.width = '100%';
+  } catch (err) {
+    console.error('OCR error:', err);
+    status.textContent = 'OCR failed — try a clearer photo';
+    bar.style.width = '0%';
+    document.getElementById('capture-area').style.display = '';
+  }
+}
+
+function parseAddressFromDL(text) {
+  // Clean up OCR text
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+
+  // Strategy: look for a line with a street number + name, then a city/state/zip line
+  // Colorado DLs typically have address fields labeled or in known positions
+
+  let addrLine = '';
+  let cityLine = '';
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Look for a line starting with a number (street address)
+    // Skip lines that look like dates, DL numbers, DOB, heights, weights
+    if (/^\d+\s+[A-Za-z]/.test(line) &&
+        !/^\d{2}[\/-]\d{2}[\/-]\d{2,4}/.test(line) &&
+        !/^\d{2}\s?\d{3}/.test(line) &&
+        line.length > 6) {
+
+      // Check if this looks like a street address (has road-type words or just letters after number)
+      if (/\b(ST|RD|AVE|DR|LN|CT|PL|WAY|BLVD|CIR|TRL|HWY|CR|ROAD|STREET|DRIVE|LANE|PLACE|COURT|TRAIL|LOOP)\b/i.test(line) ||
+          /^\d+\s+[A-Za-z]{2,}/.test(line)) {
+        addrLine = line;
+
+        // Next line might be city/state/zip
+        if (i + 1 < lines.length) {
+          const next = lines[i + 1];
+          if (/\b(CO|COLORADO)\b/i.test(next) || /\b\d{5}\b/.test(next)) {
+            cityLine = next;
+          }
+        }
+        break;
+      }
+    }
+  }
+
+  // If we didn't find a city line, look for any line with CO + zip
+  if (!cityLine) {
+    for (const line of lines) {
+      if (/\b(CO|COLORADO)\b/i.test(line) && /\b\d{5}\b/.test(line)) {
+        cityLine = line;
+        break;
+      }
+    }
+  }
+
+  // If we still don't have an address line, try a broader match
+  if (!addrLine) {
+    for (const line of lines) {
+      if (/^\d+\s+\w/.test(line) && line.length > 5 && !/^\d{2}[\/-]/.test(line)) {
+        addrLine = line;
+        break;
+      }
+    }
+  }
+
+  const full = [addrLine, cityLine].filter(Boolean).join(', ');
+  return full || '';
+}
+
+// ---- ADDRESS CHECK ----
+async function checkAddress() {
+  const addr = document.getElementById('addr-input').value.trim();
+  if (!addr) return;
+  if (!selectedZoneGeom) return;
+
+  const btn = document.getElementById('check-btn');
+  btn.disabled = true;
+  btn.textContent = 'Geocoding…';
+
+  try {
+    // Geocode with Esri
+    const params = new URLSearchParams({
+      SingleLine: addr,
+      f: 'json',
+      outFields: 'Match_addr,Score',
+      maxLocations: 1,
+      // Bias to La Plata County area
+      location: '-107.88,37.28',
+      distance: 80000
+    });
+
+    const res = await fetch(`${GEOCODE_URL}?${params}`);
+    const json = await res.json();
+
+    if (!json.candidates || !json.candidates.length) {
+      showResult('error', 'Could not geocode', 'No match found for this address. Try editing it.', addr);
+      btn.disabled = false;
+      btn.textContent = 'Check address against zone';
+      return;
+    }
+
+    const candidate = json.candidates[0];
+    const lng = candidate.location.x;
+    const lat = candidate.location.y;
+    const matchAddr = candidate.attributes?.Match_addr || addr;
+    const score = candidate.attributes?.Score || 0;
+
+    // Show point on map
+    if (scanMarker) map.removeLayer(scanMarker);
+    scanMarker = L.circleMarker([lat, lng], {
+      radius: 8, color: '#ef4444', fillColor: '#ef4444', fillOpacity: 0.9, weight: 2
+    }).addTo(map).bindPopup(`<strong>${matchAddr}</strong><br>Score: ${score}`);
+
+    // Point-in-polygon check
+    const inside = pointInPolygon([lng, lat], selectedZoneGeom);
+
+    if (score < 70) {
+      showResult('error', 'Low confidence match',
+        `Geocode score: ${score}/100. Result may not be accurate.`, matchAddr);
+    } else if (inside) {
+      showResult('inside', '✓ INSIDE ZONE',
+        'This address is within the selected evacuation zone.', matchAddr);
+    } else {
+      showResult('outside', '✗ OUTSIDE ZONE',
+        'This address is not within the selected evacuation zone.', matchAddr);
+    }
+
+    document.getElementById('reset-scan-btn').style.display = 'block';
+
+  } catch (err) {
+    console.error('Geocode error:', err);
+    showResult('error', 'Geocode failed', 'Network error — check connection.', addr);
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Check address against zone';
+}
+
+function showResult(type, verdict, detail, addr) {
+  const banner = document.getElementById('result-banner');
+  banner.style.display = 'block';
+  banner.className = 'result-banner result-' + type;
+  document.getElementById('result-verdict').textContent = verdict;
+  document.getElementById('result-detail').textContent = detail;
+  document.getElementById('result-addr').textContent = addr;
+}
+
+// ---- POINT IN POLYGON (ray casting) ----
+function pointInPolygon(point, geometry) {
+  // Handle both Polygon and MultiPolygon
+  let rings = [];
+  if (geometry.type === 'Polygon') {
+    rings = geometry.coordinates;
+  } else if (geometry.type === 'MultiPolygon') {
+    // Check each polygon
+    for (const poly of geometry.coordinates) {
+      if (raycastCheck(point, poly)) return true;
+    }
+    return false;
+  }
+  return raycastCheck(point, rings);
+}
+
+function raycastCheck(point, rings) {
+  // First ring is exterior, rest are holes
+  const [px, py] = point;
+  let inside = rayCast(px, py, rings[0]);
+  // Subtract holes
+  for (let i = 1; i < rings.length; i++) {
+    if (rayCast(px, py, rings[i])) inside = false;
+  }
+  return inside;
+}
+
+function rayCast(px, py, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const xi = ring[i][0], yi = ring[i][1];
+    const xj = ring[j][0], yj = ring[j][1];
+    if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+</script>
+
+</body>
+</html>
