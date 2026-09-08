@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/esri-leaflet/3.0.12/esri-leaflet.min.js"></script>
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
 <style>
   :root {
     --bg: #f7f7f8;
@@ -319,14 +319,18 @@
     <div class="scan-zone-name" id="scan-zone-label">Zone: —</div>
     <p class="scan-instructions" id="scan-instructions">Point camera at the <strong>PDF417 barcode</strong> on the back of the license</p>
 
+    <div id="scanner-container" style="position:relative; border-radius:10px; overflow:hidden; background:#000; margin-bottom:10px;">
+      <video id="scan-video" autoplay playsinline muted style="width:100%; display:block; border-radius:10px;"></video>
+      <div id="scan-guide" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+        width:85%; height:80px; border:2px solid rgba(255,255,255,0.7); border-radius:6px;
+        box-shadow:0 0 0 2000px rgba(0,0,0,0.3); pointer-events:none;"></div>
+    </div>
+
     <div style="display:flex; gap:8px; margin-bottom:10px;" id="scan-buttons">
       <button class="btn" style="flex:1; justify-content:center; padding:10px;" id="photo-btn" onclick="takePhoto()">📸 Take photo instead</button>
       <input type="file" accept="image/*" capture="environment" id="photo-input" style="display:none" />
     </div>
 
-    <div id="scanner-container"></div>
-    <div id="file-scanner-container" style="display:none;"></div>
-    <img id="photo-preview" style="display:none; max-width:100%; border-radius:8px; margin-bottom:12px;" />
     <div class="scan-status" id="scan-status">Starting camera…</div>
 
     <div class="parsed-fields" id="parsed-fields"></div>
@@ -363,7 +367,9 @@ const ADDR_HEADERS = ['Address','Name','Parcel #','House #','Street','City','ZIP
 let map, evacLayer, selectedLayer, scanMarker;
 let zones = [], selectedZoneGeom = null, selectedZoneId = null;
 let parcelData = [], addrData = [], activeTab = 'parcels';
-let html5QrCode = null;
+let barcodeDetector = null;
+let videoStream = null;
+let scanInterval = null;
 
 // ---- MAP ----
 map = L.map('map', { zoomControl: true }).setView([37.28, -107.88], 10);
@@ -528,7 +534,7 @@ function exportCSV() {
 
 function setLoading(on) { document.getElementById('loading').classList.toggle('active', on); }
 
-// ---- BARCODE SCANNER ----
+// ---- BARCODE SCANNER (native BarcodeDetector API) ----
 function openScan() {
   if (!selectedZoneId) return;
   const zone = zones.find(z => z.id === selectedZoneId);
@@ -553,12 +559,9 @@ function resetScanUI() {
   document.getElementById('scan-instructions').style.display = '';
   document.getElementById('scanner-container').style.display = '';
   document.getElementById('scan-status').textContent = 'Starting camera…';
-  document.getElementById('scan-status').style.display = '';
   document.getElementById('scan-buttons').style.display = 'none';
-  document.getElementById('photo-preview').style.display = 'none';
   document.getElementById('photo-btn').disabled = false;
   document.getElementById('photo-btn').textContent = '📸 Take photo instead';
-  document.getElementById('file-scanner-container').innerHTML = '';
   document.getElementById('parsed-fields').style.display = 'none';
   document.getElementById('parsed-fields').innerHTML = '';
   document.getElementById('addr-field').style.display = 'none';
@@ -570,60 +573,93 @@ function resetScanUI() {
 
 async function startScanner() {
   stopScanner();
+  const statusEl = document.getElementById('scan-status');
 
-  // formatsToSupport goes in the constructor, not the scan config
-  // Allow all formats — PDF417 plus common fallbacks
-  html5QrCode = new Html5Qrcode('scanner-container', {
-    formatsToSupport: [
-      Html5QrcodeSupportedFormats.PDF_417,
-      Html5QrcodeSupportedFormats.QR_CODE,
-      Html5QrcodeSupportedFormats.DATA_MATRIX,
-      Html5QrcodeSupportedFormats.AZTEC
-    ],
-    experimentalFeatures: { useBarCodeDetectorIfSupported: true }
-  });
-
-  // Wide scan region for PDF417 (they're ~3:1 aspect ratio)
-  const config = {
-    fps: 15,
-    qrbox: function(viewfinderWidth, viewfinderHeight) {
-      // Use 85% of viewfinder width, keep 3:1 aspect for PDF417
-      const w = Math.min(Math.floor(viewfinderWidth * 0.85), 500);
-      const h = Math.min(Math.floor(w / 3), Math.floor(viewfinderHeight * 0.5));
-      return { width: w, height: Math.max(h, 100) };
-    },
-    aspectRatio: 1.0,
-    disableFlip: false
-  };
+  // Check for BarcodeDetector support
+  if (!('BarcodeDetector' in window)) {
+    statusEl.textContent = 'BarcodeDetector not supported in this browser. Use the photo button below.';
+    document.getElementById('scan-buttons').style.display = 'flex';
+    document.getElementById('scanner-container').style.display = 'none';
+    return;
+  }
 
   try {
-    await html5QrCode.start(
-      { facingMode: 'environment' },
-      config,
-      onScanSuccess,
-      () => {} // no barcode in frame yet — ignore
-    );
-    document.getElementById('scan-status').textContent = 'Scanning… hold the barcode steady in the box';
+    const formats = await BarcodeDetector.getSupportedFormats();
+    if (!formats.includes('pdf417')) {
+      statusEl.textContent = 'PDF417 not supported on this device. Use the photo button below.';
+      document.getElementById('scan-buttons').style.display = 'flex';
+      return;
+    }
+
+    barcodeDetector = new BarcodeDetector({ formats: ['pdf417'] });
+  } catch (e) {
+    statusEl.textContent = 'Barcode scanner init failed. Use the photo button.';
     document.getElementById('scan-buttons').style.display = 'flex';
+    return;
+  }
+
+  // Start camera
+  const video = document.getElementById('scan-video');
+  try {
+    videoStream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: 'environment',
+        width: { ideal: 1920 },
+        height: { ideal: 1080 }
+      }
+    });
+    video.srcObject = videoStream;
+    await video.play();
+
+    statusEl.textContent = 'Scanning… hold the barcode steady in the box';
+    document.getElementById('scan-buttons').style.display = 'flex';
+
+    // Start detection loop
+    scanInterval = setInterval(() => detectBarcode(video), 300);
+
   } catch (err) {
     console.error('Camera error:', err);
-    document.getElementById('scan-status').textContent = 'Camera not available — use the photo button below';
+    statusEl.textContent = 'Camera not available — use the photo button below';
     document.getElementById('scan-buttons').style.display = 'flex';
+    document.getElementById('scanner-container').style.display = 'none';
+  }
+}
+
+async function detectBarcode(video) {
+  if (!barcodeDetector || video.readyState < 2) return;
+
+  try {
+    const barcodes = await barcodeDetector.detect(video);
+    if (barcodes.length > 0) {
+      const raw = barcodes[0].rawValue;
+      if (raw && raw.length > 20) {
+        // Found a barcode with real data
+        stopScanner();
+        onScanSuccess(raw);
+      }
+    }
+  } catch (err) {
+    // detect() can throw on some frames — ignore
   }
 }
 
 function stopScanner() {
-  if (html5QrCode) {
-    try { if (html5QrCode.isScanning) html5QrCode.stop().catch(() => {}); }
-    catch(e) {}
+  if (scanInterval) {
+    clearInterval(scanInterval);
+    scanInterval = null;
   }
+  if (videoStream) {
+    videoStream.getTracks().forEach(t => t.stop());
+    videoStream = null;
+  }
+  const video = document.getElementById('scan-video');
+  if (video) video.srcObject = null;
 }
 
 function takePhoto() {
   document.getElementById('photo-input').click();
 }
 
-// Use event listener instead of inline onchange (more reliable on iOS)
 document.getElementById('photo-input').addEventListener('change', async function() {
   const file = this.files[0];
   if (!file) return;
@@ -633,47 +669,37 @@ document.getElementById('photo-input').addEventListener('change', async function
   photoBtn.disabled = true;
   photoBtn.textContent = 'Processing…';
 
-  // Show photo preview
-  const preview = document.getElementById('photo-preview');
-  preview.src = URL.createObjectURL(file);
-  preview.style.display = 'block';
-
-  // Stop live scanner
   stopScanner();
   document.getElementById('scanner-container').style.display = 'none';
   statusEl.textContent = 'Reading barcode from photo…';
 
-  // Small delay to let UI update
-  await new Promise(r => setTimeout(r, 200));
-
   try {
-    // Use a dedicated container for file scanning
-    const fileScanDiv = document.getElementById('file-scanner-container');
-    fileScanDiv.innerHTML = '';
+    // Load image into an ImageBitmap for BarcodeDetector
+    const bitmap = await createImageBitmap(file);
 
-    const fileScanner = new Html5Qrcode('file-scanner-container', {
-      experimentalFeatures: { useBarCodeDetectorIfSupported: true }
-    });
+    let detector = barcodeDetector;
+    if (!detector) {
+      detector = new BarcodeDetector({ formats: ['pdf417'] });
+    }
 
-    const decodedText = await fileScanner.scanFile(file, false);
-    await fileScanner.clear().catch(() => {});
+    const barcodes = await detector.detect(bitmap);
+    bitmap.close();
 
-    // Success
-    preview.style.display = 'none';
-    onScanSuccess(decodedText);
+    if (barcodes.length > 0 && barcodes[0].rawValue && barcodes[0].rawValue.length > 20) {
+      onScanSuccess(barcodes[0].rawValue);
+    } else {
+      throw new Error('No PDF417 barcode found');
+    }
 
   } catch (err) {
     console.error('Photo scan failed:', err);
-    statusEl.textContent = 'Could not read barcode. Tips: fill the frame with just the barcode, use good lighting, avoid glare.';
-    preview.style.display = 'none';
+    statusEl.textContent = 'No barcode found. Fill the frame with just the barcode, use good lighting, avoid glare.';
     document.getElementById('scanner-container').style.display = '';
     photoBtn.disabled = false;
     photoBtn.textContent = '📸 Take photo instead';
-    // Restart live scanner
     startScanner();
   }
 
-  // Reset file input so same file can be re-selected
   this.value = '';
 });
 
