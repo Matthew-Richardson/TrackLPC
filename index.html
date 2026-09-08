@@ -3,908 +3,293 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Evac Zone Query Tool</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/esri-leaflet/3.0.12/esri-leaflet.min.js"></script>
-
+<title>DL Barcode Scan Test</title>
 <style>
-  :root {
-    --bg: #f7f7f8;
-    --surface: #ffffff;
-    --border: #d4d4d8;
-    --text: #1a1a2e;
-    --text-muted: #6b7280;
-    --accent: #2563eb;
-    --accent-hover: #1d4ed8;
-    --accent-light: #dbeafe;
-    --green: #10b981;
-    --green-bg: #d1fae5;
-    --green-dark: #065f46;
-    --red: #ef4444;
-    --red-bg: #fee2e2;
-    --red-dark: #991b1b;
-    --amber: #f59e0b;
-  }
-
   * { margin: 0; padding: 0; box-sizing: border-box; }
-
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    height: 100vh;
-    height: 100dvh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    -webkit-text-size-adjust: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    padding: 20px;
+    max-width: 500px;
+    margin: 0 auto;
+    background: #f7f7f8;
+    color: #1a1a2e;
   }
-
-  header {
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    padding: 10px 14px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-shrink: 0;
-    flex-wrap: wrap;
-  }
-
-  header h1 { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; }
-
-  .select-wrap { position: relative; flex: 1; min-width: 160px; }
-
-  .select-wrap select {
-    width: 100%;
-    padding: 7px 28px 7px 10px;
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    font-size: 13px;
-    background: var(--surface);
-    color: var(--text);
-    appearance: none;
-    cursor: pointer;
-  }
-
-  .select-wrap::after {
-    content: '▾'; position: absolute; right: 10px; top: 50%;
-    transform: translateY(-50%); font-size: 11px; color: var(--text-muted); pointer-events: none;
-  }
-
-  .header-right { display: flex; gap: 8px; align-items: center; }
-
-  .header-stats { display: flex; gap: 12px; font-size: 12px; color: var(--text-muted); }
-  .header-stats .stat strong { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
-
-  .btn {
-    padding: 7px 12px; border: 1px solid var(--border); border-radius: 6px;
-    font-size: 12px; font-weight: 500; background: var(--surface); color: var(--text);
-    cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px;
-  }
-  .btn:hover { background: var(--bg); }
-  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-  .btn-scan { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
-  .btn-scan:hover { background: var(--accent-hover); }
-
-  #map-container { height: 35%; min-height: 180px; flex-shrink: 0; position: relative; }
-  #map { height: 100%; width: 100%; }
-
-  .map-legend {
-    position: absolute; bottom: 8px; right: 8px; background: rgba(255,255,255,0.92);
-    border-radius: 6px; padding: 6px 8px; font-size: 10px; z-index: 1000;
-    border: 1px solid var(--border); line-height: 1.7;
-  }
-  .legend-item { display: flex; align-items: center; gap: 5px; }
-  .legend-swatch { width: 12px; height: 8px; border-radius: 2px; border: 1px solid rgba(0,0,0,0.15); }
-
-  .loading-bar {
-    height: 3px; background: var(--accent-light); position: absolute;
-    top: 0; left: 0; right: 0; z-index: 1001; overflow: hidden; display: none;
-  }
-  .loading-bar.active { display: block; }
-  .loading-bar::after {
-    content: ''; display: block; height: 100%; width: 30%; background: var(--accent);
-    animation: slide 1.2s ease-in-out infinite;
-  }
-  @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(400%); } }
-
-  .table-section { flex: 1; display: flex; flex-direction: column; overflow: hidden; border-top: 1px solid var(--border); }
-
-  .tab-bar {
-    display: flex; background: var(--surface); border-bottom: 1px solid var(--border);
-    padding: 0 14px; flex-shrink: 0;
-  }
-  .tab {
-    padding: 9px 14px; font-size: 13px; font-weight: 500; color: var(--text-muted);
-    border-bottom: 2px solid transparent; cursor: pointer; user-select: none;
-  }
-  .tab:hover { color: var(--text); }
-  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
-  .tab .count {
-    font-size: 11px; font-weight: 600; background: var(--bg);
-    padding: 1px 6px; border-radius: 10px; margin-left: 5px; font-variant-numeric: tabular-nums;
-  }
-
-  .search-bar { padding: 0 14px; background: var(--surface); flex-shrink: 0; }
-  .search-bar input {
-    width: 100%; padding: 6px 10px; border: 1px solid var(--border);
-    border-radius: 5px; font-size: 13px; margin: 6px 0; outline: none;
-  }
-  .search-bar input:focus { border-color: var(--accent); }
-
-  .table-wrap { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  thead { position: sticky; top: 0; z-index: 2; }
-  th {
-    background: var(--bg); text-align: left; padding: 8px 12px; font-weight: 600;
-    font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;
-    color: var(--text-muted); border-bottom: 1px solid var(--border); white-space: nowrap;
-  }
-  td { padding: 7px 12px; border-bottom: 1px solid #f0f0f0; white-space: nowrap; }
-  tr:hover td { background: #fafafa; }
-
-  .empty-state {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    height: 100%; color: var(--text-muted); font-size: 13px; gap: 6px;
-    padding: 40px 20px; text-align: center;
-  }
-  .empty-state .icon { font-size: 28px; opacity: 0.4; }
-
-  /* ---- SCAN MODAL ---- */
-  .modal-overlay {
-    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
-    z-index: 2000; align-items: flex-end; justify-content: center;
-  }
-  .modal-overlay.open { display: flex; }
-
-  .modal {
-    background: var(--surface); width: 100%; max-width: 500px; max-height: 94dvh;
-    border-radius: 16px 16px 0 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
-    padding: 20px; animation: slideUp 0.25s ease-out;
-  }
-  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-  @media (min-width: 600px) {
-    .modal-overlay { align-items: center; }
-    .modal { border-radius: 12px; max-height: 85vh; }
-  }
-
-  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-  .modal-header h2 { font-size: 17px; font-weight: 600; }
-  .modal-close {
-    width: 30px; height: 30px; border: none; background: var(--bg); border-radius: 50%;
-    font-size: 16px; cursor: pointer; color: var(--text-muted);
-    display: flex; align-items: center; justify-content: center;
-  }
-
-  .scan-zone-name {
-    font-size: 13px; margin-bottom: 16px; padding: 8px 10px;
-    background: var(--accent-light); border-radius: 6px; color: var(--accent); font-weight: 500;
-  }
-
-  .scan-instructions {
-    font-size: 13px; color: var(--text-muted); margin-bottom: 12px;
-    text-align: center; line-height: 1.5;
-  }
-
-  #scanner-container {
-    width: 100%;
-    border-radius: 10px;
-    overflow: hidden;
+  h1 { font-size: 20px; margin-bottom: 8px; }
+  .status {
+    padding: 10px 12px;
+    border-radius: 8px;
     margin-bottom: 16px;
-    background: #000;
-    min-height: 250px;
+    font-size: 13px;
+    font-weight: 500;
   }
+  .status-loading { background: #dbeafe; color: #1e40af; }
+  .status-ready { background: #d1fae5; color: #065f46; }
+  .status-error { background: #fee2e2; color: #991b1b; }
+  .status-working { background: #fef3c7; color: #92400e; }
 
-  #scanner-container video { border-radius: 10px; }
-
-  .scan-status {
-    font-size: 12px; color: var(--text-muted); text-align: center;
-    margin-bottom: 12px; min-height: 18px;
+  .scan-btn {
+    width: 100%;
+    padding: 16px;
+    font-size: 18px;
+    font-weight: 600;
+    border: none;
+    border-radius: 10px;
+    background: #2563eb;
+    color: #fff;
+    cursor: pointer;
+    margin-bottom: 16px;
   }
+  .scan-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .scan-btn:active { background: #1d4ed8; }
 
-  .parsed-fields {
+  #photo-input { display: none; }
+
+  .preview {
+    max-width: 100%;
+    border-radius: 8px;
+    margin-bottom: 12px;
     display: none;
-    background: var(--bg);
+  }
+
+  .log {
+    background: #fff;
+    border: 1px solid #d4d4d8;
     border-radius: 8px;
     padding: 12px;
+    font-family: 'SF Mono', Menlo, monospace;
+    font-size: 12px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 300px;
+    overflow-y: auto;
     margin-bottom: 16px;
-    font-size: 13px;
+    line-height: 1.6;
   }
 
-  .parsed-field {
-    display: flex;
-    justify-content: space-between;
-    padding: 4px 0;
-    border-bottom: 1px solid rgba(0,0,0,0.06);
+  .result-box {
+    display: none;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
   }
+  .result-success { display: block; background: #d1fae5; border: 2px solid #10b981; }
+  .result-fail { display: block; background: #fee2e2; border: 2px solid #ef4444; }
 
-  .parsed-field:last-child { border-bottom: none; }
-  .parsed-field .label { color: var(--text-muted); font-size: 11px; font-weight: 600; text-transform: uppercase; }
-  .parsed-field .value { font-weight: 500; text-align: right; }
-
-  .addr-field { margin-bottom: 16px; }
-  .addr-field label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: var(--text-muted); }
-  .addr-field input {
-    width: 100%; padding: 10px 12px; border: 1px solid var(--border);
-    border-radius: 8px; font-size: 15px; outline: none;
-  }
-  .addr-field input:focus { border-color: var(--accent); }
-
-  .btn-check {
-    width: 100%; padding: 14px; border: none; border-radius: 10px;
-    font-size: 16px; font-weight: 600; background: var(--accent); color: #fff;
-    cursor: pointer; margin-bottom: 12px;
-  }
-  .btn-check:hover { background: var(--accent-hover); }
-  .btn-check:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  .result-banner {
-    display: none; border-radius: 12px; padding: 24px 20px;
-    text-align: center; margin-bottom: 12px;
-  }
-  .result-banner .verdict { font-size: 28px; font-weight: 700; margin-bottom: 4px; letter-spacing: -0.02em; }
-  .result-banner .detail { font-size: 13px; }
-  .result-banner .addr-echo { font-size: 12px; margin-top: 8px; opacity: 0.8; font-style: italic; }
-
-  .result-inside { background: var(--green-bg); border: 2px solid var(--green); }
-  .result-inside .verdict, .result-inside .detail { color: var(--green-dark); }
-
-  .result-outside { background: var(--red-bg); border: 2px solid var(--red); }
-  .result-outside .verdict, .result-outside .detail { color: var(--red-dark); }
-
-  .result-error { background: #fef3c7; border: 2px solid var(--amber); }
-  .result-error .verdict, .result-error .detail { color: #92400e; }
-
-  .btn-reset-scan {
-    width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px;
-    background: var(--surface); font-size: 14px; cursor: pointer; color: var(--text);
-  }
+  .field { margin-bottom: 6px; }
+  .field-label { font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; }
+  .field-value { font-size: 15px; font-weight: 500; }
 </style>
 </head>
 <body>
 
-<header>
-  <h1>Evac Zone Query</h1>
-  <div class="select-wrap">
-    <select id="zone-select"><option value="">Select a zone…</option></select>
-  </div>
-  <div class="header-right">
-    <div class="header-stats" id="stats" style="display:none">
-      <div class="stat">P: <strong id="parcel-count">0</strong></div>
-      <div class="stat">A: <strong id="addr-count">0</strong></div>
-    </div>
-    <button class="btn" id="export-btn" disabled onclick="exportCSV()">CSV</button>
-    <button class="btn btn-scan" id="scan-btn" disabled onclick="openScan()">📷 Scan DL</button>
-  </div>
-</header>
+<h1>DL Barcode Scan Test</h1>
+<p style="font-size:13px; color:#6b7280; margin-bottom:16px;">Testing PDF417 barcode scanning. Take a photo of the <strong>back</strong> of a driver license.</p>
 
-<div id="map-container">
-  <div class="loading-bar" id="loading"></div>
-  <div id="map"></div>
-  <div class="map-legend" id="legend" style="display:none">
-    <div class="legend-item"><div class="legend-swatch" style="background:rgba(37,99,235,0.15);border-color:rgba(37,99,235,0.6)"></div> Evac zones</div>
-    <div class="legend-item"><div class="legend-swatch" style="background:rgba(245,158,11,0.25);border-color:#f59e0b"></div> Selected</div>
-    <div class="legend-item"><div class="legend-swatch" style="background:#ef4444;border-color:#ef4444;border-radius:50%;width:10px;height:10px"></div> Scanned addr</div>
-  </div>
+<div class="status status-loading" id="status">Loading barcode scanner…</div>
+
+<button class="scan-btn" id="scan-btn" disabled onclick="document.getElementById('photo-input').click()">
+  📷 Scan Driver License
+</button>
+<input type="file" accept="image/*" capture="environment" id="photo-input" />
+
+<img id="preview" class="preview" />
+
+<div class="log" id="log"></div>
+
+<div class="result-box" id="result-box">
+  <div id="result-fields"></div>
 </div>
 
-<div class="table-section">
-  <div class="tab-bar">
-    <div class="tab active" data-tab="parcels" onclick="switchTab('parcels')">Parcels <span class="count" id="tab-parcel-count">0</span></div>
-    <div class="tab" data-tab="addresses" onclick="switchTab('addresses')">Addresses <span class="count" id="tab-addr-count">0</span></div>
-  </div>
-  <div class="search-bar"><input type="text" id="table-search" placeholder="Filter results…" oninput="filterTable()" /></div>
-  <div class="table-wrap" id="table-wrap">
-    <div class="empty-state" id="empty-state">
-      <div class="icon">📍</div>
-      <div>Select a zone from the dropdown or click one on the map</div>
-    </div>
-    <table id="data-table" style="display:none">
-      <thead id="table-head"></thead>
-      <tbody id="table-body"></tbody>
-    </table>
-  </div>
-</div>
+<script type="module">
+  const logEl = document.getElementById('log');
+  const statusEl = document.getElementById('status');
+  const scanBtn = document.getElementById('scan-btn');
+  const preview = document.getElementById('preview');
+  const resultBox = document.getElementById('result-box');
+  const resultFields = document.getElementById('result-fields');
 
-<!-- SCAN MODAL -->
-<div class="modal-overlay" id="scan-modal">
-  <div class="modal">
-    <div class="modal-header">
-      <h2>Scan Driver License</h2>
-      <button class="modal-close" onclick="closeScan()">✕</button>
-    </div>
-    <div class="scan-zone-name" id="scan-zone-label">Zone: —</div>
-    <p class="scan-instructions" id="scan-instructions">Point camera at the <strong>PDF417 barcode</strong> on the back of the license</p>
-
-    <div id="scanner-container" style="position:relative; border-radius:10px; overflow:hidden; background:#000; margin-bottom:10px;">
-      <video id="scan-video" autoplay playsinline muted style="width:100%; display:block; border-radius:10px;"></video>
-      <div id="scan-guide" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
-        width:85%; height:80px; border:2px solid rgba(255,255,255,0.7); border-radius:6px;
-        box-shadow:0 0 0 2000px rgba(0,0,0,0.3); pointer-events:none;"></div>
-    </div>
-
-    <div style="display:flex; gap:8px; margin-bottom:10px;" id="scan-buttons">
-      <button class="btn" style="flex:1; justify-content:center; padding:10px;" id="photo-btn" onclick="takePhoto()">📸 Take photo instead</button>
-      <input type="file" accept="image/*" capture="environment" id="photo-input" style="display:none" />
-    </div>
-
-    <div class="scan-status" id="scan-status">Starting camera…</div>
-
-    <div class="parsed-fields" id="parsed-fields"></div>
-
-    <div class="addr-field" id="addr-field" style="display:none">
-      <label>Address from barcode — edit if needed</label>
-      <input type="text" id="addr-input" placeholder="123 Main St, Durango, CO 81301" />
-    </div>
-
-    <button class="btn-check" id="check-btn" style="display:none" onclick="checkAddress()">Check address against zone</button>
-
-    <div class="result-banner" id="result-banner">
-      <div class="verdict" id="result-verdict"></div>
-      <div class="detail" id="result-detail"></div>
-      <div class="addr-echo" id="result-addr"></div>
-    </div>
-
-    <button class="btn-reset-scan" id="reset-scan-btn" style="display:none" onclick="resetScan()">Scan another license</button>
-  </div>
-</div>
-
-<script>
-// ---- SERVICES ----
-const EVAC_URL = 'https://services2.arcgis.com/ilLrLpXfElYxSy9y/ArcGIS/rest/services/LPC_Evac_Zones_View/FeatureServer/0';
-const PARCEL_URL = 'https://gis.lpcgov.org/arcgis/rest/services/JS_website/MapLayersCitizenserve/MapServer/1';
-const ADDR_URL = 'https://gis.lpcgov.org/arcgis/rest/services/JS_website/MapLayersCitizenserve/MapServer/0';
-const GEOCODE_URL = 'https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates';
-
-const PARCEL_FIELDS = ['APN','SITE_ADDR','NAME','ACRES','SITE_CITY','SITE_ZIP'];
-const PARCEL_HEADERS = ['Parcel #','Site Address','Owner','Acres','City','ZIP'];
-const ADDR_FIELDS = ['PROPERTY_A','NAME','APN','ADDR_HN','SITE_ST','City','ZIP'];
-const ADDR_HEADERS = ['Address','Name','Parcel #','House #','Street','City','ZIP'];
-
-let map, evacLayer, selectedLayer, scanMarker;
-let zones = [], selectedZoneGeom = null, selectedZoneId = null;
-let parcelData = [], addrData = [], activeTab = 'parcels';
-let barcodeDetector = null;
-let videoStream = null;
-let scanInterval = null;
-
-// ---- MAP ----
-map = L.map('map', { zoomControl: true }).setView([37.28, -107.88], 10);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-  attribution: '© OSM © CARTO', maxZoom: 19
-}).addTo(map);
-
-selectedLayer = L.geoJSON(null, {
-  style: { color: '#f59e0b', weight: 3, fillColor: '#f59e0b', fillOpacity: 0.25 }
-}).addTo(map);
-
-evacLayer = L.esri.featureLayer({
-  url: EVAC_URL,
-  style: () => ({ color: 'rgba(37,99,235,0.6)', weight: 1.5, fillColor: 'rgba(37,99,235,0.12)', fillOpacity: 1 }),
-  onEachFeature(feature, layer) {
-    const p = feature.properties;
-    layer.bindTooltip(p.zonename || p.incident || `Zone ${p.OBJECTID}`, { sticky: true });
-    layer.on('click', () => selectZoneById(p.OBJECTID));
-  }
-}).addTo(map);
-
-evacLayer.once('load', () => {
-  document.getElementById('legend').style.display = '';
-  evacLayer.eachFeature(layer => {
-    const p = layer.feature.properties;
-    zones.push({ id: p.OBJECTID, name: p.zonename, incident: p.incident, status: p.STATUS, feature: layer.feature });
-  });
-  zones.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  const sel = document.getElementById('zone-select');
-  zones.forEach(z => {
-    const opt = document.createElement('option');
-    opt.value = z.id;
-    opt.textContent = [z.name, z.incident, z.status].filter(Boolean).join(' — ');
-    sel.appendChild(opt);
-  });
-  const bounds = evacLayer.getBounds();
-  if (bounds.isValid()) map.fitBounds(bounds, { padding: [20, 20] });
-});
-
-document.getElementById('zone-select').addEventListener('change', function() {
-  if (this.value) selectZoneById(parseInt(this.value));
-});
-
-// ---- ZONE SELECTION ----
-async function selectZoneById(oid) {
-  document.getElementById('zone-select').value = oid;
-  selectedZoneId = oid;
-  const zone = zones.find(z => z.id === oid);
-  if (!zone) return;
-
-  selectedZoneGeom = zone.feature.geometry;
-  selectedLayer.clearLayers();
-  selectedLayer.addData(zone.feature);
-  map.fitBounds(selectedLayer.getBounds(), { padding: [30, 30] });
-  document.getElementById('scan-btn').disabled = false;
-
-  setLoading(true);
-  try {
-    const geomRes = await fetch(`${EVAC_URL}/query?where=OBJECTID=${oid}&outFields=OBJECTID&returnGeometry=true&outSR=3857&f=json`);
-    const geomJson = await geomRes.json();
-    if (!geomJson.features?.length) { setLoading(false); return; }
-    const geometry = geomJson.features[0].geometry;
-
-    const [parcels, addresses] = await Promise.all([
-      spatialQuery(PARCEL_URL, geometry, PARCEL_FIELDS),
-      spatialQuery(ADDR_URL, geometry, ADDR_FIELDS)
-    ]);
-    parcelData = parcels;
-    addrData = addresses;
-    updateCounts();
-    renderTable();
-  } catch (err) { console.error('Query failed:', err); }
-  setLoading(false);
-}
-
-async function spatialQuery(serviceUrl, geometry, fields) {
-  const all = [];
-  let offset = 0;
-  const batch = 2000;
-  while (true) {
-    const params = new URLSearchParams({
-      geometry: JSON.stringify(geometry), geometryType: 'esriGeometryPolygon',
-      spatialRel: 'esriSpatialRelIntersects', inSR: '3857',
-      outFields: fields.join(','), returnGeometry: 'false',
-      resultOffset: offset, resultRecordCount: batch, f: 'json'
-    });
-    const res = await fetch(`${serviceUrl}/query`, { method: 'POST', body: params });
-    const json = await res.json();
-    if (json.error) { console.error(json.error); break; }
-    const features = json.features || [];
-    features.forEach(f => all.push(f.attributes));
-    if (!json.exceededTransferLimit && features.length < batch) break;
-    offset += features.length;
-  }
-  return all;
-}
-
-function updateCounts() {
-  document.getElementById('parcel-count').textContent = parcelData.length.toLocaleString();
-  document.getElementById('addr-count').textContent = addrData.length.toLocaleString();
-  document.getElementById('tab-parcel-count').textContent = parcelData.length.toLocaleString();
-  document.getElementById('tab-addr-count').textContent = addrData.length.toLocaleString();
-  document.getElementById('stats').style.display = '';
-  document.getElementById('export-btn').disabled = false;
-}
-
-// ---- TABLE ----
-function switchTab(tab) {
-  activeTab = tab;
-  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-  document.getElementById('table-search').value = '';
-  renderTable();
-}
-
-function renderTable(filtered) {
-  const data = filtered || (activeTab === 'parcels' ? parcelData : addrData);
-  const fields = activeTab === 'parcels' ? PARCEL_FIELDS : ADDR_FIELDS;
-  const headers = activeTab === 'parcels' ? PARCEL_HEADERS : ADDR_HEADERS;
-  if (!parcelData.length && !addrData.length) {
-    document.getElementById('data-table').style.display = 'none';
-    document.getElementById('empty-state').style.display = '';
-    return;
-  }
-  document.getElementById('empty-state').style.display = 'none';
-  document.getElementById('data-table').style.display = '';
-  document.getElementById('table-head').innerHTML = '<tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr>';
-  document.getElementById('table-body').innerHTML = data.map(row =>
-    '<tr>' + fields.map(f => {
-      let v = row[f]; if (v == null) v = '';
-      if (f === 'ACRES' && v !== '') v = parseFloat(v).toFixed(2);
-      return `<td>${v}</td>`;
-    }).join('') + '</tr>'
-  ).join('');
-}
-
-function filterTable() {
-  const q = document.getElementById('table-search').value.toLowerCase().trim();
-  if (!q) { renderTable(); return; }
-  const fields = activeTab === 'parcels' ? PARCEL_FIELDS : ADDR_FIELDS;
-  const source = activeTab === 'parcels' ? parcelData : addrData;
-  renderTable(source.filter(row => fields.some(f => String(row[f] || '').toLowerCase().includes(q))));
-}
-
-function exportCSV() {
-  const data = activeTab === 'parcels' ? parcelData : addrData;
-  const fields = activeTab === 'parcels' ? PARCEL_FIELDS : ADDR_FIELDS;
-  const headers = activeTab === 'parcels' ? PARCEL_HEADERS : ADDR_HEADERS;
-  if (!data.length) return;
-  const rows = [headers.join(',')];
-  data.forEach(row => {
-    rows.push(fields.map(f => {
-      let v = String(row[f] ?? '');
-      if (v.includes(',') || v.includes('"')) v = `"${v.replace(/"/g, '""')}"`;
-      return v;
-    }).join(','));
-  });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([rows.join('\n')], { type: 'text/csv' }));
-  a.download = `evac_${activeTab}_${new Date().toISOString().slice(0,10)}.csv`;
-  a.click();
-}
-
-function setLoading(on) { document.getElementById('loading').classList.toggle('active', on); }
-
-// ---- BARCODE SCANNER (native BarcodeDetector API) ----
-function openScan() {
-  if (!selectedZoneId) return;
-  const zone = zones.find(z => z.id === selectedZoneId);
-  document.getElementById('scan-zone-label').textContent =
-    'Zone: ' + [zone?.name, zone?.incident].filter(Boolean).join(' — ');
-  document.getElementById('scan-modal').classList.add('open');
-  resetScanUI();
-  startScanner();
-}
-
-function closeScan() {
-  stopScanner();
-  document.getElementById('scan-modal').classList.remove('open');
-}
-
-function resetScan() {
-  resetScanUI();
-  startScanner();
-}
-
-function resetScanUI() {
-  document.getElementById('scan-instructions').style.display = '';
-  document.getElementById('scanner-container').style.display = '';
-  document.getElementById('scan-status').textContent = 'Starting camera…';
-  document.getElementById('scan-buttons').style.display = 'none';
-  document.getElementById('photo-btn').disabled = false;
-  document.getElementById('photo-btn').textContent = '📸 Take photo instead';
-  document.getElementById('parsed-fields').style.display = 'none';
-  document.getElementById('parsed-fields').innerHTML = '';
-  document.getElementById('addr-field').style.display = 'none';
-  document.getElementById('check-btn').style.display = 'none';
-  document.getElementById('result-banner').style.display = 'none';
-  document.getElementById('reset-scan-btn').style.display = 'none';
-  document.getElementById('addr-input').value = '';
-}
-
-async function startScanner() {
-  stopScanner();
-  const statusEl = document.getElementById('scan-status');
-
-  // Check for BarcodeDetector support
-  if (!('BarcodeDetector' in window)) {
-    statusEl.textContent = 'BarcodeDetector not supported in this browser. Use the photo button below.';
-    document.getElementById('scan-buttons').style.display = 'flex';
-    document.getElementById('scanner-container').style.display = 'none';
-    return;
+  function log(msg) {
+    const ts = new Date().toLocaleTimeString();
+    logEl.textContent += `[${ts}] ${msg}\n`;
+    logEl.scrollTop = logEl.scrollHeight;
+    console.log(msg);
   }
 
-  try {
-    const formats = await BarcodeDetector.getSupportedFormats();
-    if (!formats.includes('pdf417')) {
-      statusEl.textContent = 'PDF417 not supported on this device. Use the photo button below.';
-      document.getElementById('scan-buttons').style.display = 'flex';
-      return;
-    }
-
-    barcodeDetector = new BarcodeDetector({ formats: ['pdf417'] });
-  } catch (e) {
-    statusEl.textContent = 'Barcode scanner init failed. Use the photo button.';
-    document.getElementById('scan-buttons').style.display = 'flex';
-    return;
+  function setStatus(msg, type) {
+    statusEl.textContent = msg;
+    statusEl.className = 'status status-' + type;
   }
 
-  // Start camera
-  const video = document.getElementById('scan-video');
-  try {
-    videoStream = await navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: 'environment',
-        width: { ideal: 1920 },
-        height: { ideal: 1080 }
+  // ---- LOAD SCANNER ----
+  let detector = null;
+
+  async function initScanner() {
+    log('Checking native BarcodeDetector…');
+
+    // Try native first
+    if ('BarcodeDetector' in window) {
+      try {
+        const formats = await BarcodeDetector.getSupportedFormats();
+        log('Native formats: ' + formats.join(', '));
+        if (formats.includes('pdf417')) {
+          detector = new BarcodeDetector({ formats: ['pdf417'] });
+          log('Using NATIVE BarcodeDetector (pdf417 supported)');
+          setStatus('Ready — native scanner', 'ready');
+          scanBtn.disabled = false;
+          return;
+        }
+      } catch (e) {
+        log('Native BarcodeDetector error: ' + e.message);
       }
-    });
-    video.srcObject = videoStream;
-    await video.play();
-
-    statusEl.textContent = 'Scanning… hold the barcode steady in the box';
-    document.getElementById('scan-buttons').style.display = 'flex';
-
-    // Start detection loop
-    scanInterval = setInterval(() => detectBarcode(video), 300);
-
-  } catch (err) {
-    console.error('Camera error:', err);
-    statusEl.textContent = 'Camera not available — use the photo button below';
-    document.getElementById('scan-buttons').style.display = 'flex';
-    document.getElementById('scanner-container').style.display = 'none';
-  }
-}
-
-async function detectBarcode(video) {
-  if (!barcodeDetector || video.readyState < 2) return;
-
-  try {
-    const barcodes = await barcodeDetector.detect(video);
-    if (barcodes.length > 0) {
-      const raw = barcodes[0].rawValue;
-      if (raw && raw.length > 20) {
-        // Found a barcode with real data
-        stopScanner();
-        onScanSuccess(raw);
-      }
-    }
-  } catch (err) {
-    // detect() can throw on some frames — ignore
-  }
-}
-
-function stopScanner() {
-  if (scanInterval) {
-    clearInterval(scanInterval);
-    scanInterval = null;
-  }
-  if (videoStream) {
-    videoStream.getTracks().forEach(t => t.stop());
-    videoStream = null;
-  }
-  const video = document.getElementById('scan-video');
-  if (video) video.srcObject = null;
-}
-
-function takePhoto() {
-  document.getElementById('photo-input').click();
-}
-
-document.getElementById('photo-input').addEventListener('change', async function() {
-  const file = this.files[0];
-  if (!file) return;
-
-  const statusEl = document.getElementById('scan-status');
-  const photoBtn = document.getElementById('photo-btn');
-  photoBtn.disabled = true;
-  photoBtn.textContent = 'Processing…';
-
-  stopScanner();
-  document.getElementById('scanner-container').style.display = 'none';
-  statusEl.textContent = 'Reading barcode from photo…';
-
-  try {
-    // Load image into an ImageBitmap for BarcodeDetector
-    const bitmap = await createImageBitmap(file);
-
-    let detector = barcodeDetector;
-    if (!detector) {
-      detector = new BarcodeDetector({ formats: ['pdf417'] });
-    }
-
-    const barcodes = await detector.detect(bitmap);
-    bitmap.close();
-
-    if (barcodes.length > 0 && barcodes[0].rawValue && barcodes[0].rawValue.length > 20) {
-      onScanSuccess(barcodes[0].rawValue);
     } else {
-      throw new Error('No PDF417 barcode found');
+      log('Native BarcodeDetector not available');
+      log('Secure context: ' + window.isSecureContext);
+      log('Protocol: ' + location.protocol);
     }
 
-  } catch (err) {
-    console.error('Photo scan failed:', err);
-    statusEl.textContent = 'No barcode found. Fill the frame with just the barcode, use good lighting, avoid glare.';
-    document.getElementById('scanner-container').style.display = '';
-    photoBtn.disabled = false;
-    photoBtn.textContent = '📸 Take photo instead';
-    startScanner();
+    // Fall back to polyfill
+    log('Loading ZXing WASM polyfill…');
+    try {
+      const module = await import('https://cdn.jsdelivr.net/npm/barcode-detector@2/dist/es/index.min.js');
+      log('Polyfill module loaded');
+
+      const PolyDetector = module.BarcodeDetectorPolyfill || module.default;
+      if (!PolyDetector) {
+        // Check all exports
+        log('Module exports: ' + Object.keys(module).join(', '));
+        throw new Error('BarcodeDetectorPolyfill not found in module');
+      }
+
+      const polyFormats = await PolyDetector.getSupportedFormats();
+      log('Polyfill formats: ' + polyFormats.join(', '));
+
+      detector = new PolyDetector({ formats: ['pdf417'] });
+      log('Using POLYFILL BarcodeDetector');
+      setStatus('Ready — polyfill scanner', 'ready');
+      scanBtn.disabled = false;
+
+    } catch (e) {
+      log('Polyfill load FAILED: ' + e.message);
+      log('Stack: ' + e.stack);
+      setStatus('Scanner failed to load — see log', 'error');
+    }
   }
 
-  this.value = '';
-});
+  // ---- SCAN PHOTO ----
+  document.getElementById('photo-input').addEventListener('change', async function() {
+    const file = this.files[0];
+    if (!file) return;
 
-function onScanSuccess(decodedText) {
-  // Stop scanning immediately
-  stopScanner();
-  document.getElementById('scanner-container').style.display = 'none';
-  document.getElementById('scan-instructions').style.display = 'none';
-  document.getElementById('scan-buttons').style.display = 'none';
-  document.getElementById('scan-status').textContent = 'Barcode read successfully';
+    log('Photo captured: ' + file.name + ' (' + (file.size / 1024).toFixed(0) + ' KB, ' + file.type + ')');
+    setStatus('Processing photo…', 'working');
+    scanBtn.disabled = true;
 
-  // Parse AAMVA data
-  const parsed = parseAAMVA(decodedText);
-  showParsedFields(parsed);
+    // Show preview
+    const url = URL.createObjectURL(file);
+    preview.src = url;
+    preview.style.display = 'block';
 
-  // Build address string
-  const addrParts = [parsed.street, parsed.city, parsed.state, parsed.zip].filter(Boolean);
-  const fullAddr = addrParts.length >= 2
-    ? `${parsed.street || ''}, ${parsed.city || ''}, ${parsed.state || ''} ${parsed.zip || ''}`.replace(/^,\s*/, '').replace(/,\s*,/g, ',')
-    : '';
+    // Reset result
+    resultBox.className = 'result-box';
+    resultBox.style.display = 'none';
 
-  document.getElementById('addr-input').value = fullAddr;
-  document.getElementById('addr-field').style.display = 'block';
-  document.getElementById('check-btn').style.display = 'block';
-}
+    try {
+      log('Creating ImageBitmap…');
+      const bitmap = await createImageBitmap(file);
+      log('Bitmap created: ' + bitmap.width + 'x' + bitmap.height);
 
-function parseAAMVA(raw) {
-  // AAMVA PDF417 barcode format:
-  // Fields are 3-letter codes followed by values, separated by line breaks or specific delimiters
-  const fields = {};
+      if (!detector) throw new Error('Scanner not initialized');
 
-  // Common AAMVA field codes
-  const fieldMap = {
-    'DCS': 'lastName',
-    'DCT': 'firstName',
-    'DAC': 'firstName',   // alternate
-    'DAB': 'lastName',    // alternate
-    'DBB': 'dob',
-    'DAG': 'street',
-    'DAH': 'street2',
-    'DAI': 'city',
-    'DAJ': 'state',
-    'DAK': 'zip',
-    'DAQ': 'licenseNum',
-    'DBA': 'expiry',
-    'DAY': 'suffix',
-    'DAD': 'middleName',
-    'DBD': 'issued',
-  };
+      log('Running barcode detection…');
+      const startTime = performance.now();
+      const results = await detector.detect(bitmap);
+      const elapsed = (performance.now() - startTime).toFixed(0);
+      bitmap.close();
 
-  // Split on common delimiters (newline, carriage return, record separator)
-  const lines = raw.split(/[\n\r\x1e\x1d]+/);
+      log('Detection complete in ' + elapsed + 'ms');
+      log('Barcodes found: ' + results.length);
 
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (trimmed.length < 4) continue;
+      if (results.length > 0) {
+        const barcode = results[0];
+        log('Format: ' + barcode.format);
+        log('Raw length: ' + barcode.rawValue.length + ' chars');
+        log('Raw value (first 200): ' + barcode.rawValue.substring(0, 200));
 
-    // Try matching 3-letter field codes
-    const code = trimmed.substring(0, 3);
-    const value = trimmed.substring(3).trim();
+        // Parse AAMVA
+        const parsed = parseAAMVA(barcode.rawValue);
+        showResult(parsed);
+        setStatus('Barcode read successfully!', 'ready');
+      } else {
+        log('No barcodes detected in image');
+        setStatus('No barcode found — try again with better lighting', 'error');
+      }
 
-    if (fieldMap[code] && value) {
-      const key = fieldMap[code];
-      // Don't overwrite if we already have a value (some codes are alternates)
-      if (!fields[key]) {
-        fields[key] = value;
+    } catch (e) {
+      log('ERROR: ' + e.message);
+      log('Stack: ' + e.stack);
+      setStatus('Scan failed — see log', 'error');
+    }
+
+    scanBtn.disabled = false;
+    scanBtn.textContent = '📷 Scan Again';
+    this.value = '';
+  });
+
+  // ---- AAMVA PARSER ----
+  function parseAAMVA(raw) {
+    const fields = {};
+    const fieldMap = {
+      'DCS': 'lastName', 'DCT': 'firstName', 'DAC': 'firstName',
+      'DAB': 'lastName', 'DBB': 'dob', 'DAG': 'street', 'DAH': 'street2',
+      'DAI': 'city', 'DAJ': 'state', 'DAK': 'zip', 'DAQ': 'licenseNum',
+      'DBA': 'expiry', 'DAY': 'suffix', 'DAD': 'middleName', 'DBD': 'issued',
+    };
+
+    const lines = raw.split(/[\n\r\x1e\x1d\x0a\x0d]+/);
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (trimmed.length < 4) continue;
+      const code = trimmed.substring(0, 3);
+      const value = trimmed.substring(3).trim();
+      if (fieldMap[code] && value && !fields[fieldMap[code]]) {
+        fields[fieldMap[code]] = value;
       }
     }
-  }
 
-  // Clean up zip (sometimes has trailing spaces or extra digits)
-  if (fields.zip) {
-    fields.zip = fields.zip.replace(/\s+/g, '').substring(0, 10);
-    // Format as 5-digit or 5+4
-    if (fields.zip.length > 5 && !fields.zip.includes('-')) {
-      fields.zip = fields.zip.substring(0, 5) + '-' + fields.zip.substring(5);
+    if (fields.zip) {
+      fields.zip = fields.zip.replace(/\s+/g, '').substring(0, 10);
+      if (fields.zip.length > 5 && !fields.zip.includes('-'))
+        fields.zip = fields.zip.substring(0, 5) + '-' + fields.zip.substring(5);
     }
+    if (fields.dob && fields.dob.length === 8)
+      fields.dob = fields.dob.substring(0,2) + '/' + fields.dob.substring(2,4) + '/' + fields.dob.substring(4);
+
+    return fields;
   }
 
-  // Title case the name and city
-  if (fields.firstName) fields.firstName = titleCase(fields.firstName);
-  if (fields.lastName) fields.lastName = titleCase(fields.lastName);
-  if (fields.city) fields.city = titleCase(fields.city);
-  if (fields.street) fields.street = titleCase(fields.street);
+  function titleCase(s) { return s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase()); }
 
-  // Format DOB
-  if (fields.dob && fields.dob.length === 8) {
-    fields.dob = `${fields.dob.substring(0,2)}/${fields.dob.substring(2,4)}/${fields.dob.substring(4)}`;
+  function showResult(parsed) {
+    const display = [
+      { label: 'Name', value: [parsed.firstName, parsed.middleName, parsed.lastName].filter(Boolean).map(titleCase).join(' ') },
+      { label: 'DOB', value: parsed.dob },
+      { label: 'License #', value: parsed.licenseNum },
+      { label: 'Address', value: [parsed.street, parsed.street2].filter(Boolean).map(titleCase).join(' ') },
+      { label: 'City/State/ZIP', value: [parsed.city ? titleCase(parsed.city) : '', parsed.state, parsed.zip].filter(Boolean).join(', ') },
+    ].filter(d => d.value);
+
+    resultFields.innerHTML = display.map(d =>
+      `<div class="field"><div class="field-label">${d.label}</div><div class="field-value">${d.value}</div></div>`
+    ).join('');
+
+    resultBox.className = 'result-box result-success';
+    resultBox.style.display = 'block';
+
+    log('Parsed fields: ' + JSON.stringify(parsed, null, 2));
   }
 
-  return fields;
-}
-
-function titleCase(str) {
-  return str.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
-}
-
-function showParsedFields(parsed) {
-  const container = document.getElementById('parsed-fields');
-  const display = [
-    { label: 'Name', value: [parsed.firstName, parsed.middleName, parsed.lastName, parsed.suffix].filter(Boolean).join(' ') },
-    { label: 'DOB', value: parsed.dob },
-    { label: 'License #', value: parsed.licenseNum },
-    { label: 'Address', value: [parsed.street, parsed.street2].filter(Boolean).join(' ') },
-    { label: 'City/State/ZIP', value: [parsed.city, parsed.state, parsed.zip].filter(Boolean).join(', ') }
-  ].filter(d => d.value);
-
-  container.innerHTML = display.map(d =>
-    `<div class="parsed-field"><span class="label">${d.label}</span><span class="value">${d.value}</span></div>`
-  ).join('');
-  container.style.display = 'block';
-}
-
-// ---- ADDRESS CHECK ----
-async function checkAddress() {
-  const addr = document.getElementById('addr-input').value.trim();
-  if (!addr || !selectedZoneGeom) return;
-
-  const btn = document.getElementById('check-btn');
-  btn.disabled = true;
-  btn.textContent = 'Geocoding…';
-
-  try {
-    const params = new URLSearchParams({
-      SingleLine: addr, f: 'json', outFields: 'Match_addr,Score',
-      maxLocations: 1, location: '-107.88,37.28', distance: 80000
-    });
-    const res = await fetch(`${GEOCODE_URL}?${params}`);
-    const json = await res.json();
-
-    if (!json.candidates?.length) {
-      showResult('error', 'Could not geocode', 'No match found for this address. Try editing it.', addr);
-      btn.disabled = false;
-      btn.textContent = 'Check address against zone';
-      return;
-    }
-
-    const c = json.candidates[0];
-    const lng = c.location.x, lat = c.location.y;
-    const matchAddr = c.attributes?.Match_addr || addr;
-    const score = c.attributes?.Score || 0;
-
-    // Map marker
-    if (scanMarker) map.removeLayer(scanMarker);
-    scanMarker = L.circleMarker([lat, lng], {
-      radius: 8, color: '#ef4444', fillColor: '#ef4444', fillOpacity: 0.9, weight: 2
-    }).addTo(map).bindPopup(`<strong>${matchAddr}</strong><br>Score: ${score}`);
-
-    const inside = pointInPolygon([lng, lat], selectedZoneGeom);
-
-    if (score < 70) {
-      showResult('error', 'Low confidence', `Geocode score: ${score}/100. Result may not be accurate.`, matchAddr);
-    } else if (inside) {
-      showResult('inside', '✓ INSIDE ZONE', 'This address is within the selected evacuation zone.', matchAddr);
-    } else {
-      showResult('outside', '✗ OUTSIDE ZONE', 'This address is not within the selected evacuation zone.', matchAddr);
-    }
-
-    document.getElementById('reset-scan-btn').style.display = 'block';
-  } catch (err) {
-    console.error('Geocode error:', err);
-    showResult('error', 'Geocode failed', 'Network error — check connection.', addr);
-  }
-  btn.disabled = false;
-  btn.textContent = 'Check address against zone';
-}
-
-function showResult(type, verdict, detail, addr) {
-  const banner = document.getElementById('result-banner');
-  banner.style.display = 'block';
-  banner.className = 'result-banner result-' + type;
-  document.getElementById('result-verdict').textContent = verdict;
-  document.getElementById('result-detail').textContent = detail;
-  document.getElementById('result-addr').textContent = addr;
-}
-
-// ---- POINT IN POLYGON ----
-function pointInPolygon(point, geometry) {
-  if (geometry.type === 'Polygon') {
-    return raycastCheck(point, geometry.coordinates);
-  } else if (geometry.type === 'MultiPolygon') {
-    return geometry.coordinates.some(poly => raycastCheck(point, poly));
-  }
-  return false;
-}
-
-function raycastCheck(point, rings) {
-  let inside = rayCast(point[0], point[1], rings[0]);
-  for (let i = 1; i < rings.length; i++) {
-    if (rayCast(point[0], point[1], rings[i])) inside = false;
-  }
-  return inside;
-}
-
-function rayCast(px, py, ring) {
-  let inside = false;
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const xi = ring[i][0], yi = ring[i][1];
-    const xj = ring[j][0], yj = ring[j][1];
-    if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) {
-      inside = !inside;
-    }
-  }
-  return inside;
-}
+  // ---- INIT ----
+  initScanner();
 </script>
 </body>
 </html>
