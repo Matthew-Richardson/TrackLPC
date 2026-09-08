@@ -322,6 +322,11 @@
     <div id="scanner-container"></div>
     <div class="scan-status" id="scan-status">Starting camera…</div>
 
+    <div style="display:flex; gap:8px; margin-bottom:16px;" id="scan-buttons">
+      <button class="btn" style="flex:1; justify-content:center;" onclick="takePhoto()">📸 Take photo instead</button>
+      <input type="file" accept="image/*" capture="environment" id="photo-input" style="display:none" onchange="scanPhoto(this)" />
+    </div>
+
     <div class="parsed-fields" id="parsed-fields"></div>
 
     <div class="addr-field" id="addr-field" style="display:none">
@@ -547,6 +552,7 @@ function resetScanUI() {
   document.getElementById('scanner-container').style.display = '';
   document.getElementById('scan-status').textContent = 'Starting camera…';
   document.getElementById('scan-status').style.display = '';
+  document.getElementById('scan-buttons').style.display = 'none';
   document.getElementById('parsed-fields').style.display = 'none';
   document.getElementById('parsed-fields').innerHTML = '';
   document.getElementById('addr-field').style.display = 'none';
@@ -559,12 +565,29 @@ function resetScanUI() {
 async function startScanner() {
   stopScanner();
 
-  html5QrCode = new Html5Qrcode('scanner-container');
+  // formatsToSupport goes in the constructor, not the scan config
+  // Allow all formats — PDF417 plus common fallbacks
+  html5QrCode = new Html5Qrcode('scanner-container', {
+    formatsToSupport: [
+      Html5QrcodeSupportedFormats.PDF_417,
+      Html5QrcodeSupportedFormats.QR_CODE,
+      Html5QrcodeSupportedFormats.DATA_MATRIX,
+      Html5QrcodeSupportedFormats.AZTEC
+    ],
+    experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+  });
 
+  // Wide scan region for PDF417 (they're ~3:1 aspect ratio)
   const config = {
-    fps: 10,
-    qrbox: { width: 300, height: 150 },
-    formatsToSupport: [Html5QrcodeSupportedFormats.PDF_417]
+    fps: 15,
+    qrbox: function(viewfinderWidth, viewfinderHeight) {
+      // Use 85% of viewfinder width, keep 3:1 aspect for PDF417
+      const w = Math.min(Math.floor(viewfinderWidth * 0.85), 500);
+      const h = Math.min(Math.floor(w / 3), Math.floor(viewfinderHeight * 0.5));
+      return { width: w, height: Math.max(h, 100) };
+    },
+    aspectRatio: 1.0,
+    disableFlip: false
   };
 
   try {
@@ -572,19 +595,55 @@ async function startScanner() {
       { facingMode: 'environment' },
       config,
       onScanSuccess,
-      () => {} // ignore scan failures (no barcode in frame yet)
+      () => {} // no barcode in frame yet — ignore
     );
     document.getElementById('scan-status').textContent = 'Scanning… hold the barcode steady in the box';
+    document.getElementById('scan-buttons').style.display = 'flex';
   } catch (err) {
     console.error('Camera error:', err);
-    document.getElementById('scan-status').textContent = 'Camera access denied or unavailable. Grant camera permission and reload.';
+    document.getElementById('scan-status').textContent = 'Camera not available — use the photo button below';
+    document.getElementById('scan-buttons').style.display = 'flex';
   }
 }
 
 function stopScanner() {
-  if (html5QrCode && html5QrCode.isScanning) {
-    html5QrCode.stop().catch(() => {});
+  if (html5QrCode) {
+    try { if (html5QrCode.isScanning) html5QrCode.stop().catch(() => {}); }
+    catch(e) {}
   }
+}
+
+function takePhoto() {
+  document.getElementById('photo-input').click();
+}
+
+async function scanPhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  document.getElementById('scan-status').textContent = 'Scanning photo…';
+
+  // Stop live scanner if running
+  stopScanner();
+  document.getElementById('scanner-container').style.display = 'none';
+
+  try {
+    // Create a fresh instance for file scanning (no format restriction — try everything)
+    const fileScanner = new Html5Qrcode('scanner-container', {
+      experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+    });
+    const result = await fileScanner.scanFile(file, /* showImage */ false);
+    fileScanner.clear();
+    onScanSuccess(result);
+  } catch (err) {
+    console.error('Photo scan failed:', err);
+    document.getElementById('scan-status').textContent = 'Could not read barcode from photo. Try again — hold the phone steady, fill the frame with the barcode, good lighting.';
+    document.getElementById('scanner-container').style.display = '';
+    // Restart live scanner
+    startScanner();
+  }
+  // Reset file input so the same file can be re-selected
+  input.value = '';
 }
 
 function onScanSuccess(decodedText) {
@@ -592,6 +651,7 @@ function onScanSuccess(decodedText) {
   stopScanner();
   document.getElementById('scanner-container').style.display = 'none';
   document.getElementById('scan-instructions').style.display = 'none';
+  document.getElementById('scan-buttons').style.display = 'none';
   document.getElementById('scan-status').textContent = 'Barcode read successfully';
 
   // Parse AAMVA data
