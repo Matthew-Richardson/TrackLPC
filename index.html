@@ -3,537 +3,622 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Evac Zone Query Tool</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<title>LPC Evac Checkpoint</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/esri-leaflet/3.0.12/esri-leaflet.min.js"></script>
 <style>
-  :root {
-    --bg: #f7f7f8;
-    --surface: #ffffff;
-    --border: #d4d4d8;
-    --text: #1a1a2e;
-    --text-muted: #6b7280;
-    --accent: #2563eb;
-    --accent-hover: #1d4ed8;
-    --accent-light: #dbeafe;
-    --green: #10b981;
-    --green-bg: #d1fae5;
-    --green-dark: #065f46;
-    --red: #ef4444;
-    --red-bg: #fee2e2;
-    --red-dark: #991b1b;
-    --amber: #f59e0b;
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-    background: var(--bg); color: var(--text);
-    height: 100vh; height: 100dvh;
-    display: flex; flex-direction: column; overflow: hidden;
-    -webkit-text-size-adjust: 100%;
-  }
+:root{--bg:#f4f5f7;--surface:#fff;--border:#d4d4d8;--text:#1a1a2e;--muted:#6b7280;--accent:#2563eb;--accent2:#1d4ed8;--alight:#dbeafe;--green:#10b981;--gbg:#d1fae5;--gdark:#065f46;--red:#ef4444;--rbg:#fee2e2;--rdark:#991b1b;--amber:#f59e0b;--abg:#fef3c7}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);height:100dvh;display:flex;flex-direction:column;overflow:hidden;-webkit-text-size-adjust:100%}
 
-  /* HEADER */
-  header {
-    background: var(--surface); border-bottom: 1px solid var(--border);
-    padding: 10px 14px; display: flex; align-items: center;
-    gap: 10px; flex-shrink: 0; flex-wrap: wrap;
-  }
-  header h1 { font-size: 15px; font-weight: 600; white-space: nowrap; }
-  .select-wrap { position: relative; flex: 1; min-width: 160px; }
-  .select-wrap select {
-    width: 100%; padding: 7px 28px 7px 10px; border: 1px solid var(--border);
-    border-radius: 6px; font-size: 13px; background: var(--surface);
-    color: var(--text); appearance: none; cursor: pointer;
-  }
-  .select-wrap::after {
-    content: '▾'; position: absolute; right: 10px; top: 50%;
-    transform: translateY(-50%); font-size: 11px; color: var(--text-muted); pointer-events: none;
-  }
-  .header-right { display: flex; gap: 8px; align-items: center; }
-  .header-stats { display: flex; gap: 12px; font-size: 12px; color: var(--text-muted); }
-  .header-stats .stat strong { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
-  .btn {
-    padding: 7px 12px; border: 1px solid var(--border); border-radius: 6px;
-    font-size: 12px; font-weight: 500; background: var(--surface); color: var(--text);
-    cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px;
-  }
-  .btn:hover { background: var(--bg); }
-  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-  .btn-scan { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
-  .btn-scan:hover { background: var(--accent-hover); }
+/* HEADER */
+header{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap}
+header h1{font-size:14px;font-weight:700;white-space:nowrap}
+.sel-wrap{position:relative;flex:1;min-width:140px}
+.sel-wrap select{width:100%;padding:7px 26px 7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:var(--surface);color:var(--text);appearance:none;cursor:pointer}
+.sel-wrap::after{content:'▾';position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:10px;color:var(--muted);pointer-events:none}
+.hdr-right{display:flex;gap:6px;align-items:center}
+.hdr-stats{display:flex;gap:10px;font-size:11px;color:var(--muted)}
+.hdr-stats strong{color:var(--text);font-weight:600}
+.b{padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-weight:500;background:var(--surface);color:var(--text);cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+.b:hover{background:var(--bg)}.b:disabled{opacity:.4;cursor:not-allowed}
+.b-accent{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600}
+.b-accent:hover{background:var(--accent2)}
+.op-badge{font-size:11px;background:var(--alight);color:var(--accent);padding:3px 8px;border-radius:10px;font-weight:600;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-  /* MAP */
-  #map-container { height: 35%; min-height: 180px; flex-shrink: 0; position: relative; }
-  #map { height: 100%; width: 100%; }
-  .map-legend {
-    position: absolute; bottom: 8px; right: 8px; background: rgba(255,255,255,0.92);
-    border-radius: 6px; padding: 6px 8px; font-size: 10px; z-index: 1000;
-    border: 1px solid var(--border); line-height: 1.7;
-  }
-  .legend-item { display: flex; align-items: center; gap: 5px; }
-  .legend-swatch { width: 12px; height: 8px; border-radius: 2px; border: 1px solid rgba(0,0,0,0.15); }
-  .loading-bar {
-    height: 3px; background: var(--accent-light); position: absolute;
-    top: 0; left: 0; right: 0; z-index: 1001; overflow: hidden; display: none;
-  }
-  .loading-bar.active { display: block; }
-  .loading-bar::after {
-    content: ''; display: block; height: 100%; width: 30%; background: var(--accent);
-    animation: slide 1.2s ease-in-out infinite;
-  }
-  @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(400%); } }
+/* MAP */
+#mc{height:30%;min-height:160px;flex-shrink:0;position:relative}
+#map{height:100%;width:100%}
+.legend{position:absolute;bottom:6px;right:6px;background:rgba(255,255,255,.92);border-radius:6px;padding:5px 7px;font-size:9px;z-index:1000;border:1px solid var(--border);line-height:1.7}
+.li{display:flex;align-items:center;gap:4px}
+.ls{width:11px;height:7px;border-radius:2px;border:1px solid rgba(0,0,0,.12)}
+.lbar{height:3px;background:var(--alight);position:absolute;top:0;left:0;right:0;z-index:1001;overflow:hidden;display:none}
+.lbar.on{display:block}
+.lbar::after{content:'';display:block;height:100%;width:30%;background:var(--accent);animation:sl 1.2s ease-in-out infinite}
+@keyframes sl{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}
 
-  /* TABLE */
-  .table-section { flex: 1; display: flex; flex-direction: column; overflow: hidden; border-top: 1px solid var(--border); }
-  .tab-bar { display: flex; background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 14px; flex-shrink: 0; }
-  .tab { padding: 9px 14px; font-size: 13px; font-weight: 500; color: var(--text-muted); border-bottom: 2px solid transparent; cursor: pointer; user-select: none; }
-  .tab:hover { color: var(--text); }
-  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
-  .tab .count { font-size: 11px; font-weight: 600; background: var(--bg); padding: 1px 6px; border-radius: 10px; margin-left: 5px; font-variant-numeric: tabular-nums; }
-  .search-bar { padding: 0 14px; background: var(--surface); flex-shrink: 0; }
-  .search-bar input { width: 100%; padding: 6px 10px; border: 1px solid var(--border); border-radius: 5px; font-size: 13px; margin: 6px 0; outline: none; }
-  .search-bar input:focus { border-color: var(--accent); }
-  .table-wrap { flex: 1; overflow: auto; -webkit-overflow-scrolling: touch; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  thead { position: sticky; top: 0; z-index: 2; }
-  th { background: var(--bg); text-align: left; padding: 8px 12px; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); border-bottom: 1px solid var(--border); white-space: nowrap; }
-  td { padding: 7px 12px; border-bottom: 1px solid #f0f0f0; white-space: nowrap; }
-  tr:hover td { background: #fafafa; }
-  .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); font-size: 13px; gap: 6px; padding: 40px 20px; text-align: center; }
-  .empty-state .icon { font-size: 28px; opacity: 0.4; }
+/* TABS + TABLE */
+.tsec{flex:1;display:flex;flex-direction:column;overflow:hidden;border-top:1px solid var(--border)}
+.tbar{display:flex;background:var(--surface);border-bottom:1px solid var(--border);padding:0 14px;flex-shrink:0}
+.t{padding:8px 12px;font-size:13px;font-weight:500;color:var(--muted);border-bottom:2px solid transparent;cursor:pointer;user-select:none}
+.t:hover{color:var(--text)}.t.on{color:var(--accent);border-bottom-color:var(--accent)}
+.t .c{font-size:10px;font-weight:600;background:var(--bg);padding:1px 5px;border-radius:9px;margin-left:4px}
+.sbar{padding:0 14px;background:var(--surface);flex-shrink:0}
+.sbar input{width:100%;padding:5px 10px;border:1px solid var(--border);border-radius:5px;font-size:13px;margin:5px 0;outline:none}
+.sbar input:focus{border-color:var(--accent)}
+.tw{flex:1;overflow:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead{position:sticky;top:0;z-index:2}
+th{background:var(--bg);text-align:left;padding:7px 10px;font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:6px 10px;border-bottom:1px solid #f0f0f0;white-space:nowrap}
+tr:hover td{background:#fafafa}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:13px;gap:6px;padding:30px;text-align:center}
+.empty .ic{font-size:26px;opacity:.4}
+.dir-in{color:var(--green);font-weight:600}.dir-out{color:var(--red);font-weight:600}
+.log-time{font-variant-numeric:tabular-nums;color:var(--muted)}
 
-  /* MODAL */
-  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000; align-items: flex-end; justify-content: center; }
-  .modal-overlay.open { display: flex; }
-  .modal { background: var(--surface); width: 100%; max-width: 500px; max-height: 94dvh; border-radius: 16px 16px 0 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 20px; animation: slideUp 0.25s ease-out; }
-  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-  @media (min-width: 600px) { .modal-overlay { align-items: center; } .modal { border-radius: 12px; max-height: 85vh; } }
-  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-  .modal-header h2 { font-size: 17px; font-weight: 600; }
-  .modal-close { width: 30px; height: 30px; border: none; background: var(--bg); border-radius: 50%; font-size: 16px; cursor: pointer; color: var(--text-muted); display: flex; align-items: center; justify-content: center; }
-  .scan-zone-name { font-size: 13px; margin-bottom: 16px; padding: 8px 10px; background: var(--accent-light); border-radius: 6px; color: var(--accent); font-weight: 500; }
+/* MODAL */
+.mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;align-items:flex-end;justify-content:center}
+.mo.open{display:flex}
+.md{background:var(--surface);width:100%;max-width:500px;max-height:94dvh;border-radius:16px 16px 0 0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:20px;animation:su .25s ease-out}
+@keyframes su{from{transform:translateY(100%)}to{transform:translateY(0)}}
+@media(min-width:600px){.mo{align-items:center}.md{border-radius:12px;max-height:85vh}}
+.mh{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.mh h2{font-size:17px;font-weight:600}
+.mx{width:30px;height:30px;border:none;background:var(--bg);border-radius:50%;font-size:16px;cursor:pointer;color:var(--muted);display:flex;align-items:center;justify-content:center}
+.zn{font-size:13px;margin-bottom:14px;padding:8px 10px;background:var(--alight);border-radius:6px;color:var(--accent);font-weight:500}
+.sb{width:100%;padding:14px;font-size:16px;font-weight:600;border:none;border-radius:10px;background:var(--accent);color:#fff;cursor:pointer;margin-bottom:8px}
+.sb:hover{background:var(--accent2)}.sb:disabled{opacity:.4;cursor:not-allowed}
+#pi{display:none}
+.ss{font-size:12px;color:var(--muted);text-align:center;margin-bottom:12px;min-height:16px}
+.pf{display:none;background:var(--bg);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:13px}
+.pf-row{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(0,0,0,.05)}
+.pf-row:last-child{border-bottom:none}
+.pf-l{color:var(--muted);font-size:10px;font-weight:600;text-transform:uppercase}
+.pf-v{font-weight:500;text-align:right}
+.dv{display:flex;align-items:center;gap:10px;margin:12px 0}
+.dv::before,.dv::after{content:'';flex:1;height:1px;background:var(--border)}
+.dv span{font-size:12px;color:var(--muted)}
+.af input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:16px;outline:none;margin-bottom:14px}
+.af input:focus{border-color:var(--accent)}
+.af label{display:block;font-size:12px;font-weight:600;margin-bottom:4px;color:var(--muted)}
+.cb{width:100%;padding:14px;border:none;border-radius:10px;font-size:16px;font-weight:600;background:var(--accent);color:#fff;cursor:pointer;margin-bottom:12px}
+.cb:hover{background:var(--accent2)}.cb:disabled{opacity:.5;cursor:not-allowed}
 
-  .scan-btn-big { width: 100%; padding: 14px; font-size: 16px; font-weight: 600; border: none; border-radius: 10px; background: var(--accent); color: #fff; cursor: pointer; margin-bottom: 8px; }
-  .scan-btn-big:hover { background: var(--accent-hover); }
-  .scan-btn-big:disabled { opacity: 0.4; cursor: not-allowed; }
-  #photo-input { display: none; }
-  .scan-status { font-size: 12px; color: var(--text-muted); text-align: center; margin-bottom: 12px; min-height: 16px; }
+.rb{display:none;border-radius:12px;padding:22px 18px;text-align:center;margin-bottom:12px}
+.rb .vd{font-size:28px;font-weight:700;margin-bottom:3px;letter-spacing:-.02em}
+.rb .dt{font-size:13px}.rb .ae{font-size:12px;margin-top:6px;opacity:.8;font-style:italic}
+.r-in{background:var(--gbg);border:2px solid var(--green)}.r-in .vd,.r-in .dt{color:var(--gdark)}
+.r-out{background:var(--rbg);border:2px solid var(--red)}.r-out .vd,.r-out .dt{color:var(--rdark)}
+.r-err{background:var(--abg);border:2px solid var(--amber)}.r-err .vd,.r-err .dt{color:#92400e}
 
-  .parsed-fields { display: none; background: var(--bg); border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 13px; }
-  .parsed-field { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid rgba(0,0,0,0.06); }
-  .parsed-field:last-child { border-bottom: none; }
-  .parsed-field .label { color: var(--text-muted); font-size: 11px; font-weight: 600; text-transform: uppercase; }
-  .parsed-field .value { font-weight: 500; text-align: right; }
+/* STEP 2: phone + direction */
+#step2{display:none}
+.dir-btns{display:flex;gap:10px;margin-bottom:14px}
+.dir-btn{flex:1;padding:16px;border:2px solid var(--border);border-radius:10px;font-size:18px;font-weight:700;cursor:pointer;text-align:center;background:var(--surface);transition:all .15s}
+.dir-btn:hover{border-color:var(--accent)}
+.dir-btn.in-btn:hover,.dir-btn.in-btn.sel{background:var(--gbg);border-color:var(--green);color:var(--gdark)}
+.dir-btn.out-btn:hover,.dir-btn.out-btn.sel{background:var(--rbg);border-color:var(--red);color:var(--rdark)}
 
-  .divider { display: flex; align-items: center; gap: 10px; margin: 12px 0; }
-  .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
-  .divider span { font-size: 12px; color: var(--text-muted); }
-
-  .addr-field { margin-bottom: 16px; }
-  .addr-field input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 16px; outline: none; }
-  .addr-field input:focus { border-color: var(--accent); }
-  .btn-check { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; background: var(--accent); color: #fff; cursor: pointer; margin-bottom: 12px; }
-  .btn-check:hover { background: var(--accent-hover); }
-  .btn-check:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  .result-banner { display: none; border-radius: 12px; padding: 24px 20px; text-align: center; margin-bottom: 12px; }
-  .result-banner .verdict { font-size: 28px; font-weight: 700; margin-bottom: 4px; letter-spacing: -0.02em; }
-  .result-banner .detail { font-size: 13px; }
-  .result-banner .addr-echo { font-size: 12px; margin-top: 8px; opacity: 0.8; font-style: italic; }
-  .result-inside { background: var(--green-bg); border: 2px solid var(--green); }
-  .result-inside .verdict, .result-inside .detail { color: var(--green-dark); }
-  .result-outside { background: var(--red-bg); border: 2px solid var(--red); }
-  .result-outside .verdict, .result-outside .detail { color: var(--red-dark); }
-  .result-error { background: #fef3c7; border: 2px solid var(--amber); }
-  .result-error .verdict, .result-error .detail { color: #92400e; }
-  .btn-reset { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); font-size: 14px; cursor: pointer; color: var(--text); }
+.rst{width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);font-size:14px;cursor:pointer;color:var(--text)}
 </style>
 </head>
 <body>
 
 <header>
-  <h1>Evac Zone Query</h1>
-  <div class="select-wrap">
-    <select id="zone-select"><option value="">Select a zone…</option></select>
+  <h1>LPC Checkpoint</h1>
+  <div class="sel-wrap">
+    <select id="zs"><option value="">Select zone…</option></select>
   </div>
-  <div class="header-right">
-    <div class="header-stats" id="stats" style="display:none">
-      <div class="stat">P: <strong id="parcel-count">0</strong></div>
-      <div class="stat">A: <strong id="addr-count">0</strong></div>
+  <div class="hdr-right">
+    <div class="hdr-stats" id="stats" style="display:none">
+      <span>P:<strong id="pc">0</strong></span>
+      <span>A:<strong id="ac">0</strong></span>
     </div>
-    <button class="btn" id="export-btn" disabled onclick="exportCSV()">CSV</button>
-    <button class="btn btn-scan" id="scan-btn" disabled onclick="openScan()">📷 Scan DL</button>
+    <span class="op-badge" id="op-badge" title="Operator"></span>
+    <button class="b" id="csv-btn" disabled onclick="exportCSV()">CSV</button>
+    <button class="b b-accent" id="scan-btn" disabled onclick="openModal()">📷 Scan</button>
   </div>
 </header>
 
-<div id="map-container">
-  <div class="loading-bar" id="loading"></div>
+<div id="mc">
+  <div class="lbar" id="lbar"></div>
   <div id="map"></div>
-  <div class="map-legend" id="legend" style="display:none">
-    <div class="legend-item"><div class="legend-swatch" style="background:rgba(37,99,235,0.15);border-color:rgba(37,99,235,0.6)"></div> Evac zones</div>
-    <div class="legend-item"><div class="legend-swatch" style="background:rgba(245,158,11,0.25);border-color:#f59e0b"></div> Selected</div>
-    <div class="legend-item"><div class="legend-swatch" style="background:#ef4444;border-radius:50%;width:10px;height:10px"></div> Scanned addr</div>
+  <div class="legend" id="leg" style="display:none">
+    <div class="li"><div class="ls" style="background:rgba(37,99,235,.15);border-color:rgba(37,99,235,.6)"></div>Zones</div>
+    <div class="li"><div class="ls" style="background:rgba(245,158,11,.25);border-color:#f59e0b"></div>Selected</div>
   </div>
 </div>
 
-<div class="table-section">
-  <div class="tab-bar">
-    <div class="tab active" data-tab="parcels" onclick="switchTab('parcels')">Parcels <span class="count" id="tab-parcel-count">0</span></div>
-    <div class="tab" data-tab="addresses" onclick="switchTab('addresses')">Addresses <span class="count" id="tab-addr-count">0</span></div>
+<div class="tsec">
+  <div class="tbar">
+    <div class="t on" data-t="parcels" onclick="switchTab('parcels')">Parcels<span class="c" id="tpc">0</span></div>
+    <div class="t" data-t="addrs" onclick="switchTab('addrs')">Addresses<span class="c" id="tac">0</span></div>
+    <div class="t" data-t="log" onclick="switchTab('log')">Activity<span class="c" id="tlc">0</span></div>
   </div>
-  <div class="search-bar"><input type="text" id="table-search" placeholder="Filter results…" oninput="filterTable()" /></div>
-  <div class="table-wrap">
-    <div class="empty-state" id="empty-state"><div class="icon">📍</div><div>Select a zone from the dropdown or click one on the map</div></div>
-    <table id="data-table" style="display:none"><thead id="table-head"></thead><tbody id="table-body"></tbody></table>
+  <div class="sbar" id="sbar"><input type="text" id="tsearch" placeholder="Filter…" oninput="filterTable()"/></div>
+  <div class="tw">
+    <div class="empty" id="emp"><div class="ic">📍</div><div>Select a zone to begin</div></div>
+    <table id="dt" style="display:none"><thead id="dth"></thead><tbody id="dtb"></tbody></table>
   </div>
 </div>
 
-<!-- ADDRESS CHECK MODAL -->
-<div class="modal-overlay" id="scan-modal">
-  <div class="modal">
-    <div class="modal-header">
-      <h2>Address Check</h2>
-      <button class="modal-close" onclick="closeScan()">✕</button>
-    </div>
-    <div class="scan-zone-name" id="scan-zone-label">Zone: —</div>
+<!-- MODAL -->
+<div class="mo" id="modal">
+ <div class="md">
+  <div class="mh"><h2>Checkpoint</h2><button class="mx" onclick="closeModal()">✕</button></div>
+  <div class="zn" id="mzn">Zone: —</div>
 
-    <button class="scan-btn-big" id="do-scan-btn" onclick="document.getElementById('photo-input').click()">📷 Scan DL Barcode</button>
-    <input type="file" accept="image/*" capture="environment" id="photo-input" />
-    <div class="scan-status" id="scan-status"></div>
-
-    <div class="parsed-fields" id="parsed-fields"></div>
-
-    <div class="divider" id="manual-divider"><span>or type address</span></div>
-
-    <div class="addr-field">
-      <input type="text" id="addr-input" placeholder="123 Main St, Durango, CO 81301" />
-    </div>
-
-    <button class="btn-check" id="check-btn" onclick="checkAddress()">Check address against zone</button>
-
-    <div class="result-banner" id="result-banner">
-      <div class="verdict" id="result-verdict"></div>
-      <div class="detail" id="result-detail"></div>
-      <div class="addr-echo" id="result-addr"></div>
-    </div>
-
-    <button class="btn-reset" id="reset-btn" style="display:none" onclick="resetModal()">Check another address</button>
+  <!-- STEP 1: scan + address check -->
+  <div id="step1">
+    <button class="sb" id="sbtn" onclick="document.getElementById('pi').click()">📷 Scan DL Barcode</button>
+    <input type="file" accept="image/*" capture="environment" id="pi"/>
+    <div class="ss" id="ss"></div>
+    <div class="pf" id="pf"></div>
+    <div class="dv" id="mdv"><span>or type address</span></div>
+    <div class="af"><input type="text" id="ai" placeholder="123 Main St, Durango, CO 81301"/></div>
+    <button class="cb" id="chk" onclick="checkAddress()">Check address</button>
+    <div class="rb" id="rb"><div class="vd" id="rv"></div><div class="dt" id="rd"></div><div class="ae" id="ra"></div></div>
   </div>
+
+  <!-- STEP 2: phone + direction + save -->
+  <div id="step2">
+    <div class="pf" id="s2info" style="display:block"></div>
+    <div class="af">
+      <label>Phone number</label>
+      <input type="tel" id="phone" placeholder="(970) 555-1234"/>
+    </div>
+    <div class="af">
+      <label>Direction</label>
+      <div class="dir-btns">
+        <div class="dir-btn in-btn" onclick="pickDir('IN',this)">⬇ IN</div>
+        <div class="dir-btn out-btn" onclick="pickDir('OUT',this)">⬆ OUT</div>
+      </div>
+    </div>
+    <div class="af">
+      <label>Notes (optional)</label>
+      <input type="text" id="notes" placeholder="Vehicle, occupants, etc."/>
+    </div>
+    <button class="cb" id="savebtn" disabled onclick="saveRecord()">Save record</button>
+    <div class="rb" id="s2rb"><div class="vd" id="s2rv"></div><div class="dt" id="s2rd"></div></div>
+  </div>
+
+  <button class="rst" id="rstbtn" style="display:none" onclick="resetModal()">Next check</button>
+ </div>
+</div>
+
+<!-- OPERATOR PROMPT -->
+<div class="mo open" id="opModal">
+ <div class="md" style="max-width:380px">
+  <div class="mh"><h2>Operator Name</h2></div>
+  <div class="af"><input type="text" id="opInput" placeholder="Your name" style="text-align:center;font-size:18px"/></div>
+  <button class="cb" onclick="setOperator()">Start</button>
+ </div>
 </div>
 
 <script>
-const EVAC_URL = 'https://services2.arcgis.com/ilLrLpXfElYxSy9y/ArcGIS/rest/services/LPC_Evac_Zones_View/FeatureServer/0';
-const PARCEL_URL = 'https://gis.lpcgov.org/arcgis/rest/services/JS_website/MapLayersCitizenserve/MapServer/1';
-const ADDR_URL = 'https://gis.lpcgov.org/arcgis/rest/services/JS_website/MapLayersCitizenserve/MapServer/0';
-const GEOCODE_URL = 'https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates';
+// ---- CONFIG ----
+const EVAC_URL='https://services2.arcgis.com/ilLrLpXfElYxSy9y/ArcGIS/rest/services/LPC_Evac_Zones_View/FeatureServer/0';
+const PARCEL_URL='https://gis.lpcgov.org/arcgis/rest/services/JS_website/MapLayersCitizenserve/MapServer/1';
+const ADDR_URL='https://gis.lpcgov.org/arcgis/rest/services/JS_website/MapLayersCitizenserve/MapServer/0';
+const GEOCODE_URL='https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates';
+const LOG_URL='https://services2.arcgis.com/ilLrLpXfElYxSy9y/arcgis/rest/services/LPC_Checkpoint_Log/FeatureServer/0';
 
-const PARCEL_FIELDS = ['APN','SITE_ADDR','NAME','ACRES','SITE_CITY','SITE_ZIP'];
-const PARCEL_HEADERS = ['Parcel #','Site Address','Owner','Acres','City','ZIP'];
-const ADDR_FIELDS = ['PROPERTY_A','NAME','APN','ADDR_HN','SITE_ST','City','ZIP'];
-const ADDR_HEADERS = ['Address','Name','Parcel #','House #','Street','City','ZIP'];
+const PF=['APN','SITE_ADDR','NAME','ACRES','SITE_CITY','SITE_ZIP'],PH=['Parcel #','Address','Owner','Acres','City','ZIP'];
+const AF=['PROPERTY_A','NAME','APN','ADDR_HN','SITE_ST','City','ZIP'],AH=['Address','Name','Parcel #','House #','Street','City','ZIP'];
 
-let map, evacLayer, selectedLayer, scanMarker;
-let zones = [], selectedZoneGeom = null, selectedZoneId = null;
-let parcelData = [], addrData = [], activeTab = 'parcels';
+let map,evacLayer,selLayer,scanMarker;
+let zones=[],selGeom=null,selZoneId=null,selZone=null;
+let pData=[],aData=[],logData=[],activeTab='parcels';
+let operatorName='';
+let lastCheckResult=null; // {inside, addr, lat, lng, score, parsed}
+
+// ---- OPERATOR ----
+function setOperator(){
+  const v=document.getElementById('opInput').value.trim();
+  if(!v)return;
+  operatorName=v;
+  document.getElementById('op-badge').textContent=v;
+  document.getElementById('opModal').classList.remove('open');
+}
 
 // ---- MAP ----
-map = L.map('map', { zoomControl: true }).setView([37.28, -107.88], 10);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-  attribution: '© OSM © CARTO', maxZoom: 19
+map=L.map('map',{zoomControl:true}).setView([37.28,-107.88],10);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'© OSM © CARTO',maxZoom:19}).addTo(map);
+selLayer=L.geoJSON(null,{style:{color:'#f59e0b',weight:3,fillColor:'#f59e0b',fillOpacity:.25}}).addTo(map);
+evacLayer=L.esri.featureLayer({url:EVAC_URL,
+  style:()=>({color:'rgba(37,99,235,.6)',weight:1.5,fillColor:'rgba(37,99,235,.12)',fillOpacity:1}),
+  onEachFeature(f,l){const p=f.properties;l.bindTooltip(p.zonename||p.incident||'Zone '+p.OBJECTID,{sticky:true});l.on('click',()=>selectZone(p.OBJECTID))}
 }).addTo(map);
-selectedLayer = L.geoJSON(null, {
-  style: { color: '#f59e0b', weight: 3, fillColor: '#f59e0b', fillOpacity: 0.25 }
-}).addTo(map);
-evacLayer = L.esri.featureLayer({
-  url: EVAC_URL,
-  style: () => ({ color: 'rgba(37,99,235,0.6)', weight: 1.5, fillColor: 'rgba(37,99,235,0.12)', fillOpacity: 1 }),
-  onEachFeature(feature, layer) {
-    const p = feature.properties;
-    layer.bindTooltip(p.zonename || p.incident || `Zone ${p.OBJECTID}`, { sticky: true });
-    layer.on('click', () => selectZoneById(p.OBJECTID));
-  }
-}).addTo(map);
-evacLayer.once('load', () => {
-  document.getElementById('legend').style.display = '';
-  evacLayer.eachFeature(layer => {
-    const p = layer.feature.properties;
-    zones.push({ id: p.OBJECTID, name: p.zonename, incident: p.incident, status: p.STATUS, feature: layer.feature });
-  });
-  zones.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  const sel = document.getElementById('zone-select');
-  zones.forEach(z => {
-    const opt = document.createElement('option');
-    opt.value = z.id;
-    opt.textContent = [z.name, z.incident, z.status].filter(Boolean).join(' — ');
-    sel.appendChild(opt);
-  });
-  const bounds = evacLayer.getBounds();
-  if (bounds.isValid()) map.fitBounds(bounds, { padding: [20, 20] });
+evacLayer.once('load',()=>{
+  document.getElementById('leg').style.display='';
+  evacLayer.eachFeature(l=>{const p=l.feature.properties;zones.push({id:p.OBJECTID,name:p.zonename,incident:p.incident,status:p.STATUS,feature:l.feature})});
+  zones.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  const s=document.getElementById('zs');
+  zones.forEach(z=>{const o=document.createElement('option');o.value=z.id;o.textContent=[z.name,z.incident,z.status].filter(Boolean).join(' — ');s.appendChild(o)});
+  const b=evacLayer.getBounds();if(b.isValid())map.fitBounds(b,{padding:[20,20]});
 });
-document.getElementById('zone-select').addEventListener('change', function() {
-  if (this.value) selectZoneById(parseInt(this.value));
-});
+document.getElementById('zs').addEventListener('change',function(){if(this.value)selectZone(parseInt(this.value))});
 
 // ---- ZONE SELECTION ----
-async function selectZoneById(oid) {
-  document.getElementById('zone-select').value = oid;
-  selectedZoneId = oid;
-  const zone = zones.find(z => z.id === oid);
-  if (!zone) return;
-  selectedZoneGeom = zone.feature.geometry;
-  selectedLayer.clearLayers();
-  selectedLayer.addData(zone.feature);
-  map.fitBounds(selectedLayer.getBounds(), { padding: [30, 30] });
-  document.getElementById('scan-btn').disabled = false;
+async function selectZone(oid){
+  document.getElementById('zs').value=oid;
+  selZoneId=oid;selZone=zones.find(z=>z.id===oid);
+  if(!selZone)return;
+  selGeom=selZone.feature.geometry;
+  selLayer.clearLayers();selLayer.addData(selZone.feature);
+  map.fitBounds(selLayer.getBounds(),{padding:[30,30]});
+  document.getElementById('scan-btn').disabled=false;
   setLoading(true);
-  try {
-    const geomRes = await fetch(`${EVAC_URL}/query?where=OBJECTID=${oid}&outFields=OBJECTID&returnGeometry=true&outSR=3857&f=json`);
-    const geomJson = await geomRes.json();
-    if (!geomJson.features?.length) { setLoading(false); return; }
-    const geometry = geomJson.features[0].geometry;
-    const [parcels, addresses] = await Promise.all([
-      spatialQuery(PARCEL_URL, geometry, PARCEL_FIELDS),
-      spatialQuery(ADDR_URL, geometry, ADDR_FIELDS)
-    ]);
-    parcelData = parcels; addrData = addresses;
-    updateCounts(); renderTable();
-  } catch (err) { console.error('Query failed:', err); }
+  try{
+    const gr=await fetch(`${EVAC_URL}/query?where=OBJECTID=${oid}&outFields=OBJECTID&returnGeometry=true&outSR=3857&f=json`);
+    const gj=await gr.json();if(!gj.features?.length){setLoading(false);return}
+    const geom=gj.features[0].geometry;
+    const[p,a]=await Promise.all([spQ(PARCEL_URL,geom,PF),spQ(ADDR_URL,geom,AF)]);
+    pData=p;aData=a;updateCounts();renderTable();
+  }catch(e){console.error(e)}
   setLoading(false);
+  fetchLog();
 }
-async function spatialQuery(serviceUrl, geometry, fields) {
-  const all = []; let offset = 0; const batch = 2000;
-  while (true) {
-    const params = new URLSearchParams({
-      geometry: JSON.stringify(geometry), geometryType: 'esriGeometryPolygon',
-      spatialRel: 'esriSpatialRelIntersects', inSR: '3857',
-      outFields: fields.join(','), returnGeometry: 'false',
-      resultOffset: offset, resultRecordCount: batch, f: 'json'
-    });
-    const res = await fetch(`${serviceUrl}/query`, { method: 'POST', body: params });
-    const json = await res.json();
-    if (json.error) { console.error(json.error); break; }
-    const features = json.features || [];
-    features.forEach(f => all.push(f.attributes));
-    if (!json.exceededTransferLimit && features.length < batch) break;
-    offset += features.length;
-  }
-  return all;
+async function spQ(url,geom,fields){
+  const all=[];let off=0;
+  while(true){
+    const p=new URLSearchParams({geometry:JSON.stringify(geom),geometryType:'esriGeometryPolygon',spatialRel:'esriSpatialRelIntersects',inSR:'3857',outFields:fields.join(','),returnGeometry:'false',resultOffset:off,resultRecordCount:2000,f:'json'});
+    const r=await fetch(`${url}/query`,{method:'POST',body:p});const j=await r.json();
+    if(j.error)break;const ft=j.features||[];ft.forEach(f=>all.push(f.attributes));
+    if(!j.exceededTransferLimit&&ft.length<2000)break;off+=ft.length;
+  }return all;
 }
-function updateCounts() {
-  ['parcel-count','tab-parcel-count'].forEach(id => document.getElementById(id).textContent = parcelData.length.toLocaleString());
-  ['addr-count','tab-addr-count'].forEach(id => document.getElementById(id).textContent = addrData.length.toLocaleString());
-  document.getElementById('stats').style.display = '';
-  document.getElementById('export-btn').disabled = false;
+function updateCounts(){
+  document.getElementById('pc').textContent=pData.length.toLocaleString();
+  document.getElementById('tpc').textContent=pData.length.toLocaleString();
+  document.getElementById('ac').textContent=aData.length.toLocaleString();
+  document.getElementById('tac').textContent=aData.length.toLocaleString();
+  document.getElementById('stats').style.display='';
+  document.getElementById('csv-btn').disabled=false;
 }
 
 // ---- TABLE ----
-function switchTab(tab) {
-  activeTab = tab;
-  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-  document.getElementById('table-search').value = '';
+function switchTab(t){
+  activeTab=t;
+  document.querySelectorAll('.t').forEach(el=>el.classList.toggle('on',el.dataset.t===t));
+  document.getElementById('tsearch').value='';
+  document.getElementById('sbar').style.display=t==='log'?'none':'';
   renderTable();
 }
-function renderTable(filtered) {
-  const data = filtered || (activeTab === 'parcels' ? parcelData : addrData);
-  const fields = activeTab === 'parcels' ? PARCEL_FIELDS : ADDR_FIELDS;
-  const headers = activeTab === 'parcels' ? PARCEL_HEADERS : ADDR_HEADERS;
-  if (!parcelData.length && !addrData.length) {
-    document.getElementById('data-table').style.display = 'none';
-    document.getElementById('empty-state').style.display = '';
-    return;
-  }
-  document.getElementById('empty-state').style.display = 'none';
-  document.getElementById('data-table').style.display = '';
-  document.getElementById('table-head').innerHTML = '<tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr>';
-  document.getElementById('table-body').innerHTML = data.map(row =>
-    '<tr>' + fields.map(f => {
-      let v = row[f]; if (v == null) v = '';
-      if (f === 'ACRES' && v !== '') v = parseFloat(v).toFixed(2);
-      return `<td>${v}</td>`;
-    }).join('') + '</tr>'
-  ).join('');
+function renderTable(filtered){
+  if(activeTab==='log'){renderLog();return}
+  const data=filtered||(activeTab==='parcels'?pData:aData);
+  const fields=activeTab==='parcels'?PF:AF,headers=activeTab==='parcels'?PH:AH;
+  if(!pData.length&&!aData.length){document.getElementById('dt').style.display='none';document.getElementById('emp').style.display='';return}
+  document.getElementById('emp').style.display='none';document.getElementById('dt').style.display='';
+  document.getElementById('dth').innerHTML='<tr>'+headers.map(h=>`<th>${h}</th>`).join('')+'</tr>';
+  document.getElementById('dtb').innerHTML=data.map(r=>'<tr>'+fields.map(f=>{let v=r[f];if(v==null)v='';if(f==='ACRES'&&v!=='')v=parseFloat(v).toFixed(2);return`<td>${v}</td>`}).join('')+'</tr>').join('');
 }
-function filterTable() {
-  const q = document.getElementById('table-search').value.toLowerCase().trim();
-  if (!q) { renderTable(); return; }
-  const fields = activeTab === 'parcels' ? PARCEL_FIELDS : ADDR_FIELDS;
-  const source = activeTab === 'parcels' ? parcelData : addrData;
-  renderTable(source.filter(row => fields.some(f => String(row[f] || '').toLowerCase().includes(q))));
+function filterTable(){
+  const q=document.getElementById('tsearch').value.toLowerCase().trim();
+  if(!q){renderTable();return}
+  const fields=activeTab==='parcels'?PF:AF;
+  const src=activeTab==='parcels'?pData:aData;
+  renderTable(src.filter(r=>fields.some(f=>String(r[f]||'').toLowerCase().includes(q))));
 }
-function exportCSV() {
-  const data = activeTab === 'parcels' ? parcelData : addrData;
-  const fields = activeTab === 'parcels' ? PARCEL_FIELDS : ADDR_FIELDS;
-  const headers = activeTab === 'parcels' ? PARCEL_HEADERS : ADDR_HEADERS;
-  if (!data.length) return;
-  const rows = [headers.join(',')];
-  data.forEach(row => {
-    rows.push(fields.map(f => { let v = String(row[f] ?? ''); if (v.includes(',') || v.includes('"')) v = `"${v.replace(/"/g, '""')}"`; return v; }).join(','));
-  });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([rows.join('\n')], { type: 'text/csv' }));
-  a.download = `evac_${activeTab}_${new Date().toISOString().slice(0,10)}.csv`;
-  a.click();
+function renderLog(){
+  document.getElementById('emp').style.display=logData.length?'none':'';
+  document.getElementById('dt').style.display=logData.length?'':'none';
+  if(!logData.length){document.getElementById('emp').querySelector('.ic').textContent='📋';return}
+  const h=['Time','Dir','Name','Address','Operator','Type'];
+  document.getElementById('dth').innerHTML='<tr>'+h.map(x=>`<th>${x}</th>`).join('')+'</tr>';
+  document.getElementById('dtb').innerHTML=logData.map(r=>{
+    const t=r.check_time?new Date(r.check_time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'—';
+    const dc=r.direction==='IN'?'dir-in':'dir-out';
+    return`<tr><td class="log-time">${t}</td><td class="${dc}">${r.direction||''}</td><td>${r.name||''}</td><td>${r.address||''}</td><td>${r.operator_name||''}</td><td>${r.card_type||''}</td></tr>`;
+  }).join('');
 }
-function setLoading(on) { document.getElementById('loading').classList.toggle('active', on); }
+
+function exportCSV(){
+  const data=activeTab==='parcels'?pData:activeTab==='addrs'?aData:logData;
+  const fields=activeTab==='parcels'?PF:activeTab==='addrs'?AF:['check_time','direction','name','address','phone','license_num','operator_name','card_type','notes'];
+  const headers=activeTab==='parcels'?PH:activeTab==='addrs'?AH:['Time','Dir','Name','Address','Phone','License','Operator','Type','Notes'];
+  if(!data.length)return;
+  const rows=[headers.join(',')];
+  data.forEach(r=>{rows.push(fields.map(f=>{let v=String(r[f]??'');if(f==='check_time'&&v)v=new Date(parseInt(v)).toISOString();if(v.includes(',')||v.includes('"'))v=`"${v.replace(/"/g,'""')}"`;return v}).join(','))});
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));
+  a.download=`checkpoint_${activeTab}_${new Date().toISOString().slice(0,10)}.csv`;a.click();
+}
+function setLoading(on){document.getElementById('lbar').classList.toggle('on',on)}
+
+// ---- ACTIVITY LOG (polls AGOL) ----
+let logTimer=null;
+async function fetchLog(){
+  if(!selZone)return;
+  const zn=selZone.name||'';
+  try{
+    const p=new URLSearchParams({where:`zone_name='${zn.replace(/'/g,"''")}'`,outFields:'*',orderByFields:'check_time DESC',resultRecordCount:100,returnGeometry:false,f:'json'});
+    const r=await fetch(`${LOG_URL}/query?${p}`);const j=await r.json();
+    logData=(j.features||[]).map(f=>f.attributes);
+    document.getElementById('tlc').textContent=logData.length;
+    if(activeTab==='log')renderLog();
+  }catch(e){console.error('Log fetch:',e)}
+  // Poll every 15s
+  clearInterval(logTimer);
+  logTimer=setInterval(fetchLog,15000);
+}
 
 // ---- MODAL ----
-function openScan() {
-  if (!selectedZoneId) return;
-  const zone = zones.find(z => z.id === selectedZoneId);
-  document.getElementById('scan-zone-label').textContent = 'Zone: ' + [zone?.name, zone?.incident].filter(Boolean).join(' — ');
+function openModal(){
+  if(!selZoneId)return;
+  document.getElementById('mzn').textContent='Zone: '+[selZone?.name,selZone?.incident].filter(Boolean).join(' — ');
   resetModal();
-  document.getElementById('scan-modal').classList.add('open');
+  document.getElementById('modal').classList.add('open');
 }
-function closeScan() { document.getElementById('scan-modal').classList.remove('open'); }
-function resetModal() {
-  document.getElementById('addr-input').value = '';
-  document.getElementById('scan-status').textContent = '';
-  document.getElementById('parsed-fields').style.display = 'none';
-  document.getElementById('parsed-fields').innerHTML = '';
-  document.getElementById('result-banner').style.display = 'none';
-  document.getElementById('reset-btn').style.display = 'none';
-  document.getElementById('do-scan-btn').style.display = '';
-  document.getElementById('manual-divider').style.display = '';
-  document.getElementById('check-btn').style.display = '';
-  document.getElementById('do-scan-btn').disabled = false;
-  document.getElementById('do-scan-btn').textContent = '📷 Scan DL Barcode';
+function closeModal(){document.getElementById('modal').classList.remove('open')}
+function resetModal(){
+  lastCheckResult=null;
+  document.getElementById('step1').style.display='';
+  document.getElementById('step2').style.display='none';
+  document.getElementById('rstbtn').style.display='none';
+  document.getElementById('ai').value='';document.getElementById('ss').textContent='';
+  document.getElementById('pf').style.display='none';document.getElementById('pf').innerHTML='';
+  document.getElementById('rb').style.display='none';
+  document.getElementById('sbtn').disabled=false;document.getElementById('sbtn').textContent='📷 Scan DL Barcode';
+  document.getElementById('mdv').style.display='';
+  document.getElementById('chk').style.display='';document.getElementById('chk').disabled=false;
+  document.getElementById('chk').textContent='Check address';
+  document.getElementById('phone').value='';document.getElementById('notes').value='';
+  document.getElementById('s2rb').style.display='none';
+  document.querySelectorAll('.dir-btn').forEach(b=>b.classList.remove('sel'));
+  document.getElementById('savebtn').disabled=true;
+  selectedDir=null;
 }
 
 // ---- ADDRESS CHECK ----
-async function checkAddress() {
-  const addr = document.getElementById('addr-input').value.trim();
-  if (!addr || !selectedZoneGeom) return;
-  const btn = document.getElementById('check-btn');
-  btn.disabled = true; btn.textContent = 'Geocoding…';
-  try {
-    const params = new URLSearchParams({ SingleLine: addr, f: 'json', outFields: 'Match_addr,Score', maxLocations: 1, location: '-107.88,37.28', distance: 80000 });
-    const res = await fetch(`${GEOCODE_URL}?${params}`);
-    const json = await res.json();
-    if (!json.candidates?.length) { showResult('error', 'Could not geocode', 'No match found.', addr); btn.disabled = false; btn.textContent = 'Check address against zone'; return; }
-    const c = json.candidates[0], lng = c.location.x, lat = c.location.y;
-    const matchAddr = c.attributes?.Match_addr || addr, score = c.attributes?.Score || 0;
-    if (scanMarker) map.removeLayer(scanMarker);
-    scanMarker = L.circleMarker([lat, lng], { radius: 8, color: '#ef4444', fillColor: '#ef4444', fillOpacity: 0.9, weight: 2 }).addTo(map).bindPopup(`<strong>${matchAddr}</strong><br>Score: ${score}`);
-    const inside = pointInPolygon([lng, lat], selectedZoneGeom);
-    if (score < 70) showResult('error', 'Low confidence', `Score: ${score}/100.`, matchAddr);
-    else if (inside) showResult('inside', '✓ INSIDE ZONE', 'This address is within the selected evacuation zone.', matchAddr);
-    else showResult('outside', '✗ OUTSIDE ZONE', 'This address is not within the selected evacuation zone.', matchAddr);
-    document.getElementById('reset-btn').style.display = '';
-  } catch (err) { console.error(err); showResult('error', 'Geocode failed', 'Network error.', addr); }
-  btn.disabled = false; btn.textContent = 'Check address against zone';
+async function checkAddress(){
+  const addr=document.getElementById('ai').value.trim();
+  if(!addr||!selGeom)return;
+  const btn=document.getElementById('chk');btn.disabled=true;btn.textContent='Geocoding…';
+  try{
+    const p=new URLSearchParams({SingleLine:addr,f:'json',outFields:'Match_addr,Score',maxLocations:1,location:'-107.88,37.28',distance:80000});
+    const r=await fetch(`${GEOCODE_URL}?${p}`);const j=await r.json();
+    if(!j.candidates?.length){showR('err','Could not geocode','No match.',addr);btn.disabled=false;btn.textContent='Check address';return}
+    const c=j.candidates[0],lng=c.location.x,lat=c.location.y,ma=c.attributes?.Match_addr||addr,sc=c.attributes?.Score||0;
+    if(scanMarker)map.removeLayer(scanMarker);
+    scanMarker=L.circleMarker([lat,lng],{radius:8,color:'#ef4444',fillColor:'#ef4444',fillOpacity:.9,weight:2}).addTo(map);
+    const inside=pip([lng,lat],selGeom);
+    lastCheckResult={inside,addr:ma,lat,lng,score:sc};
+    if(sc<70)showR('err','Low confidence',`Score: ${sc}/100.`,ma);
+    else if(inside)showR('in','✓ INSIDE ZONE','Address is within the evacuation zone.',ma);
+    else showR('out','✗ OUTSIDE ZONE','Address is not within the evacuation zone.',ma);
+    // Show proceed button for inside results
+    if(inside&&sc>=70){
+      btn.textContent='Proceed to check-in →';btn.disabled=false;
+      btn.onclick=()=>goStep2();
+    }else{
+      btn.textContent='Check address';btn.disabled=false;btn.onclick=()=>checkAddress();
+    }
+  }catch(e){console.error(e);showR('err','Geocode failed','Network error.',addr);btn.disabled=false;btn.textContent='Check address'}
 }
-function showResult(type, verdict, detail, addr) {
-  const b = document.getElementById('result-banner');
-  b.style.display = 'block'; b.className = 'result-banner result-' + type;
-  document.getElementById('result-verdict').textContent = verdict;
-  document.getElementById('result-detail').textContent = detail;
-  document.getElementById('result-addr').textContent = addr;
+function showR(type,v,d,a){
+  const b=document.getElementById('rb');b.style.display='block';
+  b.className='rb r-'+(type==='in'?'in':type==='out'?'out':'err');
+  document.getElementById('rv').textContent=v;document.getElementById('rd').textContent=d;document.getElementById('ra').textContent=a;
+}
+
+// Step 2
+let selectedDir=null;
+function goStep2(){
+  document.getElementById('step1').style.display='none';
+  document.getElementById('step2').style.display='';
+  // Show summary
+  const p=lastCheckResult;
+  const pf=document.getElementById('s2info');
+  pf.innerHTML=`<div class="pf-row"><span class="pf-l">Address</span><span class="pf-v">${p.addr}</span></div>`;
+  if(window._parsedDL){
+    const d=window._parsedDL;
+    if(d.firstName||d.lastName)pf.innerHTML+=`<div class="pf-row"><span class="pf-l">Name</span><span class="pf-v">${titleCase(d.firstName||'')} ${titleCase(d.lastName||'')}</span></div>`;
+    if(d.licenseNum)pf.innerHTML+=`<div class="pf-row"><span class="pf-l">License #</span><span class="pf-v">${d.licenseNum}</span></div>`;
+  }
+}
+function pickDir(dir,el){
+  selectedDir=dir;
+  document.querySelectorAll('.dir-btn').forEach(b=>b.classList.remove('sel'));
+  el.classList.add('sel');
+  document.getElementById('savebtn').disabled=false;
+}
+async function saveRecord(){
+  const btn=document.getElementById('savebtn');btn.disabled=true;btn.textContent='Saving…';
+  const p=lastCheckResult;const dl=window._parsedDL||{};
+  const feature={
+    geometry:{x:p.lng,y:p.lat,spatialReference:{wkid:4326}},
+    attributes:{
+      name:[dl.firstName,dl.lastName].filter(Boolean).map(titleCase).join(' ')||'',
+      address:p.addr,
+      phone:document.getElementById('phone').value.trim(),
+      license_num:dl.licenseNum||'',
+      zone_name:selZone?.name||'',
+      incident:selZone?.incident||'',
+      direction:selectedDir,
+      check_time:Date.now(),
+      operator_name:operatorName,
+      card_type:dl.licenseNum?'DL':'Manual',
+      notes:document.getElementById('notes').value.trim()
+    }
+  };
+  try{
+    const params=new URLSearchParams({adds:JSON.stringify([feature]),f:'json'});
+    const r=await fetch(`${LOG_URL}/applyEdits`,{method:'POST',body:params});
+    const j=await r.json();
+    if(j.addResults&&j.addResults[0]&&j.addResults[0].success){
+      const sb=document.getElementById('s2rb');sb.style.display='block';
+      sb.className='rb r-in';
+      document.getElementById('s2rv').textContent='✓ Saved';
+      document.getElementById('s2rd').textContent=`${selectedDir} — ${feature.attributes.name||'Unknown'} — ${new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`;
+      document.getElementById('rstbtn').style.display='';
+      fetchLog(); // refresh activity
+    }else{
+      const err=j.addResults?.[0]?.error?.description||'Unknown error';
+      document.getElementById('s2rv').textContent='Save failed';
+      document.getElementById('s2rd').textContent=err;
+      document.getElementById('s2rb').style.display='block';
+      document.getElementById('s2rb').className='rb r-err';
+      btn.disabled=false;btn.textContent='Save record';
+    }
+  }catch(e){
+    console.error(e);
+    document.getElementById('s2rv').textContent='Network error';
+    document.getElementById('s2rd').textContent=e.message;
+    document.getElementById('s2rb').style.display='block';
+    document.getElementById('s2rb').className='rb r-err';
+    btn.disabled=false;btn.textContent='Save record';
+  }
 }
 
 // ---- POINT IN POLYGON ----
-function pointInPolygon(pt, geom) {
-  if (geom.type === 'Polygon') return raycastCheck(pt, geom.coordinates);
-  if (geom.type === 'MultiPolygon') return geom.coordinates.some(p => raycastCheck(pt, p));
-  return false;
+function pip(pt,g){
+  if(g.type==='Polygon')return rc(pt,g.coordinates);
+  if(g.type==='MultiPolygon')return g.coordinates.some(p=>rc(pt,p));return false;
 }
-function raycastCheck(pt, rings) {
-  let inside = rayCast(pt[0], pt[1], rings[0]);
-  for (let i = 1; i < rings.length; i++) if (rayCast(pt[0], pt[1], rings[i])) inside = false;
-  return inside;
-}
-function rayCast(px, py, ring) {
-  let ins = false;
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
-    if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) ins = !ins;
-  }
-  return ins;
-}
+function rc(pt,rings){let ins=ray(pt[0],pt[1],rings[0]);for(let i=1;i<rings.length;i++)if(ray(pt[0],pt[1],rings[i]))ins=false;return ins}
+function ray(px,py,ring){let ins=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const xi=ring[i][0],yi=ring[i][1],xj=ring[j][0],yj=ring[j][1];if(((yi>py)!==(yj>py))&&(px<(xj-xi)*(py-yi)/(yj-yi)+xi))ins=!ins}return ins}
 
 // ---- AAMVA ----
-function parseAAMVA(raw) {
-  const fields = {};
-  const fm = { 'DCS':'lastName','DCT':'firstName','DAC':'firstName','DAB':'lastName','DBB':'dob','DAG':'street','DAH':'street2','DAI':'city','DAJ':'state','DAK':'zip','DAQ':'licenseNum','DBA':'expiry','DAY':'suffix','DAD':'middleName','DBD':'issued' };
-  const lines = raw.split(/[\n\r\x1e\x1d\x0a\x0d]+/);
-  for (const line of lines) { const t = line.trim(); if (t.length < 4) continue; const c = t.substring(0,3), v = t.substring(3).trim(); if (fm[c] && v && !fields[fm[c]]) fields[fm[c]] = v; }
-  if (fields.zip) { fields.zip = fields.zip.replace(/\s+/g,'').substring(0,10); if (fields.zip.length > 5 && !fields.zip.includes('-')) fields.zip = fields.zip.substring(0,5)+'-'+fields.zip.substring(5); }
-  if (fields.dob && fields.dob.length === 8) fields.dob = fields.dob.substring(0,2)+'/'+fields.dob.substring(2,4)+'/'+fields.dob.substring(4);
-  return fields;
+function parseAAMVA(raw){
+  const f={};const fm={'DCS':'lastName','DCT':'firstName','DAC':'firstName','DAB':'lastName','DBB':'dob','DAG':'street','DAH':'street2','DAI':'city','DAJ':'state','DAK':'zip','DAQ':'licenseNum','DBA':'expiry','DAY':'suffix','DAD':'middleName'};
+  raw.split(/[\n\r\x1e\x1d\x0a\x0d]+/).forEach(l=>{const t=l.trim();if(t.length<4)return;const c=t.substring(0,3),v=t.substring(3).trim();if(fm[c]&&v&&!f[fm[c]])f[fm[c]]=v});
+  if(f.zip){f.zip=f.zip.replace(/\s+/g,'').substring(0,10);if(f.zip.length>5&&!f.zip.includes('-'))f.zip=f.zip.substring(0,5)+'-'+f.zip.substring(5)}
+  if(f.dob&&f.dob.length===8)f.dob=f.dob.substring(0,2)+'/'+f.dob.substring(2,4)+'/'+f.dob.substring(4);
+  return f;
 }
-function titleCase(s) { return s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase()); }
-function showParsedFields(parsed) {
-  const c = document.getElementById('parsed-fields');
-  const d = [
-    { l:'Name', v:[parsed.firstName,parsed.middleName,parsed.lastName,parsed.suffix].filter(Boolean).map(titleCase).join(' ') },
-    { l:'DOB', v:parsed.dob }, { l:'License #', v:parsed.licenseNum },
-    { l:'Address', v:[parsed.street,parsed.street2].filter(Boolean).map(titleCase).join(' ') },
-    { l:'City/State/ZIP', v:[parsed.city?titleCase(parsed.city):'',parsed.state,parsed.zip].filter(Boolean).join(', ') }
-  ].filter(x => x.v);
-  c.innerHTML = d.map(x => `<div class="parsed-field"><span class="label">${x.l}</span><span class="value">${x.v}</span></div>`).join('');
-  c.style.display = 'block';
+function titleCase(s){return s?s.toLowerCase().replace(/\b\w/g,c=>c.toUpperCase()):''}
+function showParsed(p){
+  const c=document.getElementById('pf');
+  const d=[{l:'Name',v:[p.firstName,p.middleName,p.lastName].filter(Boolean).map(titleCase).join(' ')},{l:'DOB',v:p.dob},{l:'License #',v:p.licenseNum},{l:'Address',v:[p.street,p.street2].filter(Boolean).map(titleCase).join(' ')},{l:'City/State/ZIP',v:[p.city?titleCase(p.city):'',p.state,p.zip].filter(Boolean).join(', ')}].filter(x=>x.v);
+  c.innerHTML=d.map(x=>`<div class="pf-row"><span class="pf-l">${x.l}</span><span class="pf-v">${x.v}</span></div>`).join('');
+  c.style.display='block';
 }
+window._parsedDL=null;
 </script>
 
-<!-- BARCODE SCANNER (ES module — ZXing WASM polyfill) -->
+<!-- BARCODE SCANNER (ES module — ZXing WASM polyfill + image preprocessing) -->
 <script type="module">
-let detector = null;
+let detector=null;
 
-async function initScanner() {
-  if ('BarcodeDetector' in window) {
-    try {
-      const fmts = await BarcodeDetector.getSupportedFormats();
-      if (fmts.includes('pdf417')) { detector = new BarcodeDetector({ formats: ['pdf417'] }); console.log('Native BarcodeDetector'); return; }
-    } catch (e) {}
+async function initScanner(){
+  if('BarcodeDetector' in window){
+    try{const f=await BarcodeDetector.getSupportedFormats();
+      if(f.includes('pdf417')){detector=new BarcodeDetector({formats:['pdf417','qr_code']});console.log('Native scanner');return}}catch(e){}
   }
-  try {
-    const mod = await import('https://cdn.jsdelivr.net/npm/barcode-detector@2/dist/es/index.min.js');
-    const Det = mod.BarcodeDetector || mod.BarcodeDetectorPolyfill || mod.default;
-    detector = new Det({ formats: ['pdf417'] });
-    console.log('Polyfill BarcodeDetector');
-  } catch (e) {
-    console.error('Scanner init failed:', e);
-    document.getElementById('scan-status').textContent = 'Barcode scanner unavailable';
-    document.getElementById('do-scan-btn').disabled = true;
-  }
+  try{
+    const m=await import('https://cdn.jsdelivr.net/npm/barcode-detector@2/dist/es/index.min.js');
+    const D=m.BarcodeDetector||m.default;
+    detector=new D({formats:['pdf417','qr_code']});
+    console.log('Polyfill scanner');
+  }catch(e){console.error('Scanner init:',e);document.getElementById('ss').textContent='Scanner unavailable';document.getElementById('sbtn').disabled=true}
 }
 
-document.getElementById('photo-input').addEventListener('change', async function() {
-  const file = this.files[0];
-  if (!file) return;
-  const statusEl = document.getElementById('scan-status');
-  const scanBtn = document.getElementById('do-scan-btn');
-  scanBtn.disabled = true; scanBtn.textContent = 'Reading…';
-  statusEl.textContent = 'Processing barcode…';
+// Image preprocessing for better barcode detection
+function preprocessImage(img){
+  const MAX=1600;
+  const canvas=document.createElement('canvas');
+  const ctx=canvas.getContext('2d');
+  let w=img.width,h=img.height;
+  if(w>MAX){const s=MAX/w;w=MAX;h=Math.round(img.height*s)}
+  canvas.width=w;canvas.height=h;
+  ctx.drawImage(img,0,0,w,h);
 
-  try {
-    if (!detector) throw new Error('Scanner not ready');
-    const bitmap = await createImageBitmap(file);
-    const results = await detector.detect(bitmap);
-    bitmap.close();
-
-    if (results.length > 0 && results[0].rawValue && results[0].rawValue.length > 20) {
-      statusEl.textContent = '✓ Barcode read successfully';
-      const parsed = parseAAMVA(results[0].rawValue);
-      showParsedFields(parsed);
-      const fullAddr = [parsed.street, parsed.city, parsed.state, parsed.zip].filter(Boolean);
-      document.getElementById('addr-input').value = fullAddr.length >= 2
-        ? `${parsed.street||''}, ${parsed.city||''}, ${parsed.state||''} ${parsed.zip||''}`.replace(/^,\s*/,'').replace(/,\s*,/g,',')
-        : '';
-      scanBtn.style.display = 'none';
-      document.getElementById('manual-divider').style.display = 'none';
-    } else {
-      statusEl.textContent = 'No barcode found — try again or type address below.';
-      scanBtn.disabled = false; scanBtn.textContent = '📷 Scan DL Barcode';
-    }
-  } catch (e) {
-    console.error('Scan error:', e);
-    statusEl.textContent = 'Scan failed — try again or type address below.';
-    scanBtn.disabled = false; scanBtn.textContent = '📷 Scan DL Barcode';
+  // Grayscale + contrast boost
+  const id=ctx.getImageData(0,0,w,h);
+  const d=id.data;
+  for(let i=0;i<d.length;i+=4){
+    let gray=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
+    // Contrast stretch
+    gray=((gray-128)*1.5)+128;
+    gray=Math.max(0,Math.min(255,gray));
+    d[i]=d[i+1]=d[i+2]=gray;
   }
-  this.value = '';
+  ctx.putImageData(id,0,0);
+  return canvas;
+}
+
+document.getElementById('pi').addEventListener('change',async function(){
+  const file=this.files[0];if(!file)return;
+  const sb=document.getElementById('sbtn'),ss=document.getElementById('ss');
+  sb.disabled=true;sb.textContent='Reading…';ss.textContent='Processing barcode…';
+
+  try{
+    if(!detector)throw new Error('Scanner not ready');
+
+    const img=await createImageBitmap(file);
+    let results=[];
+
+    // Try preprocessed image first
+    const canvas=preprocessImage(img);
+    try{results=await detector.detect(canvas)}catch(e){}
+
+    // If no result, try original full-res image
+    if(!results.length||!results[0]?.rawValue){
+      try{results=await detector.detect(img)}catch(e){}
+    }
+
+    // If still no result, try at different contrast levels
+    if(!results.length||!results[0]?.rawValue){
+      for(const contrast of [2.0,1.0,2.5]){
+        const c2=preprocessWithContrast(img,contrast);
+        try{results=await detector.detect(c2)}catch(e){}
+        if(results.length&&results[0]?.rawValue)break;
+      }
+    }
+
+    img.close();
+
+    if(results.length>0&&results[0].rawValue&&results[0].rawValue.length>10){
+      ss.textContent='✓ Barcode read';
+      const raw=results[0].rawValue;
+
+      // Check if QR (custom card) or PDF417 (DL)
+      if(results[0].format==='qr_code'){
+        try{
+          const qd=JSON.parse(raw);
+          window._parsedDL={firstName:qd.fn||'',lastName:qd.ln||'',street:qd.st||'',city:qd.ci||'',state:qd.s||'',zip:qd.z||'',licenseNum:qd.id||''};
+          showParsed(window._parsedDL);
+          const addr=[qd.st,qd.ci,qd.s,qd.z].filter(Boolean).join(', ');
+          document.getElementById('ai').value=addr;
+        }catch(e){document.getElementById('ai').value=raw}
+      }else{
+        const parsed=parseAAMVA(raw);
+        window._parsedDL=parsed;
+        showParsed(parsed);
+        const addr=[parsed.street,parsed.city,parsed.state,parsed.zip].filter(Boolean);
+        document.getElementById('ai').value=addr.length>=2
+          ?`${parsed.street||''}, ${parsed.city||''}, ${parsed.state||''} ${parsed.zip||''}`.replace(/^,\s*/,'').replace(/,\s*,/g,',')
+          :'';
+      }
+      sb.style.display='none';
+      document.getElementById('mdv').style.display='none';
+    }else{
+      ss.textContent='No barcode found — try again or type address below.';
+      sb.disabled=false;sb.textContent='📷 Scan DL Barcode';
+    }
+  }catch(e){
+    console.error('Scan:',e);
+    ss.textContent='Scan failed — try again or type address below.';
+    sb.disabled=false;sb.textContent='📷 Scan DL Barcode';
+  }
+  this.value='';
 });
+
+function preprocessWithContrast(img,contrast){
+  const MAX=1600;const canvas=document.createElement('canvas');const ctx=canvas.getContext('2d');
+  let w=img.width,h=img.height;if(w>MAX){const s=MAX/w;w=MAX;h=Math.round(img.height*s)}
+  canvas.width=w;canvas.height=h;ctx.drawImage(img,0,0,w,h);
+  const id=ctx.getImageData(0,0,w,h);const d=id.data;
+  for(let i=0;i<d.length;i+=4){
+    let g=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
+    g=((g-128)*contrast)+128;g=Math.max(0,Math.min(255,g));
+    d[i]=d[i+1]=d[i+2]=g;
+  }
+  ctx.putImageData(id,0,0);return canvas;
+}
 
 initScanner();
 </script>
