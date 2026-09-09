@@ -482,33 +482,41 @@ function printCard(){
     <style>
       @media print{
         @page{size:3.375in 2.125in;margin:0}
-        body{margin:0;padding:0}
+        html,body{margin:0!important;padding:0!important;width:100%!important;height:100%!important}
         body>*:not(#cardPrint){display:none!important}
-        #cardPrint{display:block!important;position:fixed;inset:0;background:#fff;z-index:9999}
+        #cardPrint{display:block!important;position:fixed;top:0;left:0;width:100%;height:100%;background:#fff;z-index:9999;margin:0;padding:0}
+        .print-card{width:100%!important;height:100%!important}
       }
     </style>
-    <div style="width:3.375in;height:2.125in;padding:0.12in 0.15in;font-family:-apple-system,system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:space-between;box-sizing:border-box;overflow:hidden">
+    <div class="print-card" style="width:100%;height:100%;padding:3% 4%;font-family:-apple-system,system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:space-between;box-sizing:border-box;overflow:hidden;background:#fff">
       <div style="text-align:center;width:100%">
-        <img src="https://www.lpcgov.org/_assets_/images/logo.png" style="height:28px;margin-bottom:2px" crossorigin="anonymous"/>
-        <div style="font-size:7px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#333">Office of Emergency Management</div>
-        <div style="font-size:6px;color:#888;margin-top:1px">Evacuation Zone Re-entry Card</div>
+        <img src="https://www.lpcgov.org/_assets_/images/logo.png" style="height:14%;max-height:32px;margin-bottom:2px" crossorigin="anonymous"/>
+        <div style="font-size:8px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#333">Office of Emergency Management</div>
+        <div style="font-size:7px;color:#888;margin-top:1px">Evacuation Zone Re-entry Card</div>
       </div>
       <div style="text-align:center">
-        <div style="font-size:14px;font-weight:700;margin-bottom:2px">${c.fn} ${c.ln}</div>
-        <div style="font-size:8px;color:#444">${c.addr}</div>
-        ${c.phone?`<div style="font-size:7px;color:#666;margin-top:1px">${c.phone}</div>`:''}
+        <div style="font-size:16px;font-weight:700;margin-bottom:2px">${c.fn} ${c.ln}</div>
+        <div style="font-size:9px;color:#444">${c.addr}</div>
+        ${c.phone?`<div style="font-size:8px;color:#666;margin-top:1px">${c.phone}</div>`:''}
       </div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <img src="${c.qrDataURL}" style="width:60px;height:60px"/>
+      <div style="display:flex;align-items:center;gap:10px">
+        <img src="${c.qrDataURL}" style="width:70px;height:70px"/>
         <div style="text-align:left">
-          <div style="font-family:monospace;font-size:7px;color:#888">${c.cardId}</div>
-          ${c.reason?`<div style="font-size:6.5px;color:#666;margin-top:1px">${c.reason}</div>`:''}
-          <div style="font-size:5.5px;color:#aaa;margin-top:2px">Present at any checkpoint<br>for re-entry verification</div>
+          <div style="font-family:monospace;font-size:8px;color:#888">${c.cardId}</div>
+          ${c.reason?`<div style="font-size:7px;color:#666;margin-top:2px">${c.reason}</div>`:''}
+          <div style="font-size:6px;color:#aaa;margin-top:3px">Present at any checkpoint<br>for re-entry verification</div>
         </div>
       </div>
     </div>`;
   el.style.display='block';
-  setTimeout(()=>{window.print();el.style.display='none'},300);
+  // Open in new window for cleaner print dialog
+  const pw=window.open('','_blank','width=400,height=260');
+  pw.document.write('<!DOCTYPE html><html><head><title>Re-entry Card</title><style>@page{size:3.375in 2.125in;margin:0}html,body{margin:0;padding:0;width:100%;height:100%}</style></head><body>');
+  pw.document.write(el.querySelector('.print-card').outerHTML);
+  pw.document.write('</body></html>');
+  pw.document.close();
+  pw.onload=()=>{setTimeout(()=>{pw.print();pw.close()},400)};
+  el.style.display='none';
 }
 
 // ---- POINT IN POLYGON ----
