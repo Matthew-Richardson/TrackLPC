@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/esri-leaflet/3.0.12/esri-leaflet.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <style>
 :root{--bg:#f4f5f7;--sf:#fff;--bd:#d4d4d8;--tx:#1a1a2e;--mu:#6b7280;--ac:#2563eb;--ac2:#1d4ed8;--al:#dbeafe;--gn:#10b981;--gb:#d1fae5;--gd:#065f46;--rd:#ef4444;--rb2:#fee2e2;--rdd:#991b1b;--am:#f59e0b;--ab:#fef3c7}
 *{margin:0;padding:0;box-sizing:border-box}
@@ -210,7 +210,9 @@ tr:hover td{background:#fafafa}
   <button class="cb" onclick="generateCard()">Generate card</button>
   <div id="cardResult" style="display:none">
     <div class="card-preview" id="cardPreview">
-      <h3>LA PLATA COUNTY — RE-ENTRY CARD</h3>
+      <img src="https://www.lpcgov.org/_assets_/images/logo.png" style="height:36px;margin-bottom:4px" crossorigin="anonymous"/>
+      <h3 style="font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin:0">Office of Emergency Management</h3>
+      <div style="font-size:10px;color:var(--mu)">Evacuation Zone Re-entry Card</div>
       <div class="card-name" id="cardName"></div>
       <div class="card-addr" id="cardAddr"></div>
       <canvas id="qrCanvas"></canvas>
@@ -446,42 +448,67 @@ function generateCard(){
   const addr=document.getElementById('caddr').value.trim();
   const phone=document.getElementById('cphone').value.trim();
   const reason=document.getElementById('creason').value.trim();
-  if(!fn||!ln||!addr)return;
+  if(!fn||!ln||!addr){alert('Name and address are required');return}
   const cardId='LPC-'+Date.now().toString(36).toUpperCase();
   const qrData=JSON.stringify({fn,ln,st:addr.split(',')[0]?.trim()||addr,ci:addr.split(',')[1]?.trim()||'',s:'CO',z:addr.match(/\d{5}/)?.[0]||'',ph:phone,id:cardId,rs:reason,t:'card'});
+
   document.getElementById('cardName').textContent=`${fn} ${ln}`;
   document.getElementById('cardAddr').textContent=addr;
   document.getElementById('cardId').textContent=cardId;
   document.getElementById('cardReason').textContent=reason;
 
-  const canvas=document.getElementById('qrCanvas');
-  QRCode.toCanvas(canvas,qrData,{width:180,margin:2},function(err){if(err)console.error(err)});
-
-  document.getElementById('cardResult').style.display='';
-
-  // Store for printing
-  window._lastCard={fn,ln,addr,phone,reason,cardId,qrData};
+  // Generate QR using qrcode-generator
+  try{
+    const qr=qrcode(0,'M');
+    qr.addData(qrData);
+    qr.make();
+    const canvas=document.getElementById('qrCanvas');
+    const cellSize=4,margin=8;
+    const count=qr.getModuleCount();
+    const size=count*cellSize+margin*2;
+    canvas.width=size;canvas.height=size;
+    const ctx=canvas.getContext('2d');
+    ctx.fillStyle='#fff';ctx.fillRect(0,0,size,size);
+    ctx.fillStyle='#000';
+    for(let r=0;r<count;r++){for(let c=0;c<count;c++){if(qr.isDark(r,c)){ctx.fillRect(margin+c*cellSize,margin+r*cellSize,cellSize,cellSize)}}}
+    document.getElementById('cardResult').style.display='';
+    window._lastCard={fn,ln,addr,phone,reason,cardId,qrDataURL:canvas.toDataURL()};
+  }catch(e){console.error('QR generation error:',e);alert('Error generating QR code: '+e.message)}
 }
 function printCard(){
   const c=window._lastCard;if(!c)return;
   const el=document.getElementById('cardPrint');
-  // Generate QR as data URL for print
-  QRCode.toDataURL(c.qrData,{width:200,margin:2},function(err,url){
-    el.innerHTML=`
-      <div style="max-width:400px;margin:0 auto;text-align:center;font-family:-apple-system,system-ui,sans-serif;padding:30px;border:3px solid #000;border-radius:12px">
-        <h2 style="margin:0 0 4px;font-size:16px">LA PLATA COUNTY EMERGENCY MANAGEMENT</h2>
-        <h3 style="margin:0 0 16px;font-size:13px;font-weight:400;color:#666">Evacuation Zone Re-entry Card</h3>
-        <div style="font-size:24px;font-weight:700;margin-bottom:6px">${c.fn} ${c.ln}</div>
-        <div style="font-size:13px;color:#444;margin-bottom:16px">${c.addr}</div>
-        <img src="${url}" style="width:180px;height:180px;margin:0 auto 12px;display:block"/>
-        <div style="font-family:monospace;font-size:11px;color:#888;margin-bottom:6px">${c.cardId}</div>
-        ${c.reason?`<div style="font-size:11px;color:#666">Reason: ${c.reason}</div>`:''}
-        ${c.phone?`<div style="font-size:11px;color:#666;margin-top:4px">Phone: ${c.phone}</div>`:''}
-        <div style="margin-top:16px;font-size:9px;color:#aaa">Present this card at any evacuation checkpoint for re-entry verification.</div>
-      </div>`;
-    el.style.display='block';
-    setTimeout(()=>{window.print();el.style.display='none'},200);
-  });
+  el.innerHTML=`
+    <style>
+      @media print{
+        @page{size:3.375in 2.125in;margin:0}
+        body{margin:0;padding:0}
+        body>*:not(#cardPrint){display:none!important}
+        #cardPrint{display:block!important;position:fixed;inset:0;background:#fff;z-index:9999}
+      }
+    </style>
+    <div style="width:3.375in;height:2.125in;padding:0.12in 0.15in;font-family:-apple-system,system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:space-between;box-sizing:border-box;overflow:hidden">
+      <div style="text-align:center;width:100%">
+        <img src="https://www.lpcgov.org/_assets_/images/logo.png" style="height:28px;margin-bottom:2px" crossorigin="anonymous"/>
+        <div style="font-size:7px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:#333">Office of Emergency Management</div>
+        <div style="font-size:6px;color:#888;margin-top:1px">Evacuation Zone Re-entry Card</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:14px;font-weight:700;margin-bottom:2px">${c.fn} ${c.ln}</div>
+        <div style="font-size:8px;color:#444">${c.addr}</div>
+        ${c.phone?`<div style="font-size:7px;color:#666;margin-top:1px">${c.phone}</div>`:''}
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <img src="${c.qrDataURL}" style="width:60px;height:60px"/>
+        <div style="text-align:left">
+          <div style="font-family:monospace;font-size:7px;color:#888">${c.cardId}</div>
+          ${c.reason?`<div style="font-size:6.5px;color:#666;margin-top:1px">${c.reason}</div>`:''}
+          <div style="font-size:5.5px;color:#aaa;margin-top:2px">Present at any checkpoint<br>for re-entry verification</div>
+        </div>
+      </div>
+    </div>`;
+  el.style.display='block';
+  setTimeout(()=>{window.print();el.style.display='none'},300);
 }
 
 // ---- POINT IN POLYGON ----
