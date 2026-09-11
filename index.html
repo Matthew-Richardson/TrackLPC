@@ -825,13 +825,13 @@ const wedge=(function(){
       const ws=document.getElementById('wedgeStatusCP');
       ws.className='wedge-status captured';ws.textContent='✓ DL captured — '+titleCase(parsed.firstName||'')+' '+titleCase(parsed.lastName||'');
     }else if(target==='card'){
-      // Populate card form from DL
+      // A caretaker/second-home card may use a different property address.
+      // Populate identity only; the manager enters the card-specific details.
       document.getElementById('cfn').value=titleCase(parsed.firstName||'');
       document.getElementById('cln').value=titleCase(parsed.lastName||'');
-      document.getElementById('caddr').value=buildAddrString(parsed);
-      showCardParsed(parsed);
+      showCardParsed({firstName:parsed.firstName||'',lastName:parsed.lastName||''});
       const ws=document.getElementById('wedgeStatusCard');
-      ws.className='wedge-status captured';ws.textContent='✓ DL captured — edit fields below as needed';
+      ws.className='wedge-status captured';ws.textContent='✓ DL name captured — enter card address and details below';
     }
   }
 
@@ -1352,10 +1352,12 @@ document.getElementById('cardCamInput').addEventListener('change',async function
     if(result&&result.rawValue?.length>10){
       const raw=normalizeScanData(result.rawValue);
       let parsed;
+      let scannedType='DL';
       if(result.format==='qr_code'){
         try{
           const qd=JSON.parse(raw);
           if(qd.t!=='card')throw new Error('Not an LPC re-entry card');
+          scannedType='Card';
           parsed={firstName:qd.fn||'',lastName:qd.ln||'',fullAddress:addressFromQR(qd)};
           if(qd.ph)document.getElementById('cphone').value=qd.ph;
           if(qd.rs)document.getElementById('creason').value=qd.rs;
@@ -1366,9 +1368,14 @@ document.getElementById('cardCamInput').addEventListener('change',async function
       }
       document.getElementById('cfn').value=titleCase(parsed.firstName||'');
       document.getElementById('cln').value=titleCase(parsed.lastName||'');
-      document.getElementById('caddr').value=buildAddrString(parsed);
-      showCardParsed(parsed);
-      ws.className='wedge-status captured';ws.textContent='✓ DL captured — edit fields below as needed';
+      if(scannedType==='Card'){
+        document.getElementById('caddr').value=buildAddrString(parsed);
+        showCardParsed(parsed);
+        ws.className='wedge-status captured';ws.textContent='✓ Re-entry card data loaded';
+      }else{
+        showCardParsed({firstName:parsed.firstName||'',lastName:parsed.lastName||''});
+        ws.className='wedge-status captured';ws.textContent='✓ DL name captured — enter card address and details below';
+      }
     }else{
       ws.className='wedge-status listening';ws.textContent='No barcode found — try again or enter manually';
     }
