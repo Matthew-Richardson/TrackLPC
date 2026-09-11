@@ -117,8 +117,7 @@ tr:hover td{background:#fafafa}
 .card-scan-section p{font-size:11px;color:var(--mu);margin-bottom:8px}
 .scan-actions{display:flex;gap:8px}
 .scan-actions button{flex:1}
-.card-parsed{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:8px 10px;margin-top:10px;font-size:12px}
-.card-parsed .pr{border-color:#d1fae5}
+.card-parsed{display:none;background:var(--bg);border-radius:8px;padding:9px 10px;margin-top:10px;font-size:12px}
 
 /* Print actions */
 .print-actions{display:flex;gap:8px;margin-bottom:10px}
@@ -452,6 +451,9 @@ function goStep2(){
     if(parsedDL.cardId)html+=`<div class="pr"><span class="pl">Card ID</span><span class="pv">${parsedDL.cardId}</span></div>`;
   }
   info.innerHTML=html;
+  // Re-entry cards carry the phone number entered when the card was created.
+  // DL and manual check-ins intentionally leave this field blank.
+  document.getElementById('s2phone').value=parsedDL?.scanType==='Card'?(parsedDL.phone||''):'';
 }
 function pickDir(dir,el){selectedDir=dir;document.querySelectorAll('.dbtn').forEach(b=>b.classList.remove('sel'));el.classList.add('sel');document.getElementById('s2save').disabled=false}
 async function saveRecord(){
@@ -740,10 +742,10 @@ function showCardParsed(p){
   const c=document.getElementById('cardParsedInfo');
   const d=[
     {l:'Name',v:[p.firstName,p.middleName,p.lastName].filter(Boolean).map(titleCase).join(' ')},
-    {l:'Address',v:buildAddrString(p)},
+    {l:'Address',v:p.fullAddress||[p.street,p.street2].filter(Boolean).map(titleCase).join(' ')},
+    {l:'City/State/ZIP',v:p.fullAddress?'':[p.city?titleCase(p.city):'',[p.state,p.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')}
   ].filter(x=>x.v);
-  c.innerHTML='<div style="font-size:11px;font-weight:600;color:var(--gd);margin-bottom:4px">✓ DL scanned</div>'+
-    d.map(x=>`<div class="pr"><span class="pl">${x.l}</span><span class="pv">${x.v}</span></div>`).join('');
+  c.innerHTML=d.map(x=>`<div class="pr"><span class="pl">${x.l}</span><span class="pv">${x.v}</span></div>`).join('');
   c.style.display='block';
 }
 
@@ -838,7 +840,7 @@ const wedge=(function(){
       // Re-entry card scanned at checkpoint — treat like a DL scan
       const fullAddress=addressFromQR(qd);
       parsedDL={firstName:qd.fn||'',lastName:qd.ln||'',fullAddress,
-        cardId:qd.id||'',scanType:'Card'};
+        phone:qd.ph||'',cardId:qd.id||'',scanType:'Card'};
       showParsed(parsedDL);
       document.getElementById('ai').value=fullAddress;
       document.getElementById('ss').textContent='✓ Re-entry card scanned';
@@ -1324,7 +1326,7 @@ document.getElementById('pi').addEventListener('change',async function(){
         if(qd.t!=='card')throw new Error('QR code is not an LPC re-entry card');
         const fullAddress=addressFromQR(qd);
         parsedDL={firstName:qd.fn||'',lastName:qd.ln||'',fullAddress,
-          cardId:qd.id||'',scanType:'Card'};
+          phone:qd.ph||'',cardId:qd.id||'',scanType:'Card'};
         showParsed(parsedDL);document.getElementById('ai').value=fullAddress;
       }else{
         const parsed=parseAAMVA(raw);
