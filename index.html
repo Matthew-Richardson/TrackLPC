@@ -375,7 +375,7 @@ function renderLog(){
 function doExport(){
   const data=activeTab==='parcels'?pData:activeTab==='addrs'?aData:logData;
   const f=activeTab==='parcels'?PF:activeTab==='addrs'?AFlds:['check_time','direction','name','address','phone','license_num','operator_name','card_type','notes'];
-  const h=activeTab==='parcels'?PH:activeTab==='addrs'?AHdr:['Time','Dir','Name','Address','Phone','License','Operator','Type','Notes'];
+  const h=activeTab==='parcels'?PH:activeTab==='addrs'?AHdr:['Time','Dir','Name','Address','Phone','Card ID','Operator','Type','Notes'];
   if(!data.length)return;const rows=[h.join(',')];
   data.forEach(r=>{rows.push(f.map(k=>{let v=String(r[k]??'');if(k==='check_time'&&v)v=new Date(parseInt(v)).toISOString();if(v.includes(',')||v.includes('"'))v=`"${v.replace(/"/g,'""')}"`;return v}).join(','))});
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));
@@ -449,7 +449,7 @@ function goStep2(){
   if(parsedDL){
     const n=[parsedDL.firstName,parsedDL.lastName].filter(Boolean).map(titleCase).join(' ');
     if(n)html+=`<div class="pr"><span class="pl">Name</span><span class="pv">${n}</span></div>`;
-    if(parsedDL.licenseNum)html+=`<div class="pr"><span class="pl">License #</span><span class="pv">${parsedDL.licenseNum}</span></div>`;
+    if(parsedDL.cardId)html+=`<div class="pr"><span class="pl">Card ID</span><span class="pv">${parsedDL.cardId}</span></div>`;
   }
   info.innerHTML=html;
 }
@@ -460,9 +460,11 @@ async function saveRecord(){
   const feat={geometry:{x:lastCheck.lng,y:lastCheck.lat,spatialReference:{wkid:4326}},
     attributes:{name:[dl.firstName,dl.lastName].filter(Boolean).map(titleCase).join(' ')||'Manual',
       address:lastCheck.addr,phone:document.getElementById('s2phone').value.trim(),
-      license_num:dl.licenseNum||'',zone_name:selZone?.name||'',incident:selZone?.incident||'',
+      // The existing service field stores custom re-entry card IDs only.
+      // Driver-license numbers are intentionally discarded after parsing.
+      license_num:dl.scanType==='Card'?(dl.cardId||''):'',zone_name:selZone?.name||'',incident:selZone?.incident||'',
       direction:selectedDir,check_time:Date.now(),operator_name:operatorName,
-      card_type:dl.licenseNum?'DL':'Manual',notes:document.getElementById('s2notes').value.trim()}};
+      card_type:dl.scanType||'Manual',notes:document.getElementById('s2notes').value.trim()}};
   try{
     const p=new URLSearchParams({adds:JSON.stringify([feat]),f:'json'});
     if(agolToken)p.append('token',agolToken);
@@ -489,6 +491,9 @@ function parseAAMVA(raw){
   const fm={
     // Name fields — current spec (v3+)
     'DCS':'lastName','DCT':'firstAndMiddle','DCU':'suffix',
+    // Name truncation indicators (N = not truncated, T = truncated,
+    // U = unknown). These are metadata and must not become part of a name.
+    'DDE':'lastNameTruncated','DDF':'firstNameTruncated','DDG':'middleNameTruncated',
     // Name fields — older spec (v1-2) and alternates
     'DAB':'lastName','DAC':'firstName','DAD':'middleName',
     'DAE':'suffix','DAF':'prefix',
@@ -613,6 +618,12 @@ function parseAAMVA(raw){
 
   // --- Post-processing ---
 
+  // Some HID configurations concatenate the following truncation indicator
+  // directly onto its name value: MATTHEWDDFN or RICHARDSONDDEN.
+  if(f.firstName)f.firstName=f.firstName.replace(/DDF[A-Z]?$/i,'').trim();
+  if(f.lastName)f.lastName=f.lastName.replace(/DDE[A-Z]?$/i,'').trim();
+  if(f.middleName)f.middleName=f.middleName.replace(/DDG[A-Z]?$/i,'').trim();
+
   // Normalize ZIP: remove spaces, format with hyphen for ZIP+4
   if(f.zip){
     f.zip=f.zip.replace(/\s+/g,'');
@@ -718,8 +729,6 @@ function showParsed(p){
   const c=document.getElementById('pf');
   const d=[
     {l:'Name',v:[p.firstName,p.middleName,p.lastName].filter(Boolean).map(titleCase).join(' ')},
-    {l:'DOB',v:p.dob},
-    {l:'License #',v:p.licenseNum},
     {l:'Address',v:p.fullAddress||[p.street,p.street2].filter(Boolean).map(titleCase).join(' ')},
     {l:'City/State/ZIP',v:p.fullAddress?'':[p.city?titleCase(p.city):'',[p.state,p.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')}
   ].filter(x=>x.v);
@@ -802,9 +811,12 @@ const wedge=(function(){
 
   function handleDLScan(parsed){
     if(target==='checkpoint'){
-      parsedDL=parsed;
-      showParsed(parsed);
-      document.getElementById('ai').value=buildAddrString(parsed);
+      // Retain only the fields required for check-in. Never carry the DL
+      // number or DOB forward into the record-saving workflow.
+      parsedDL={firstName:parsed.firstName||'',lastName:parsed.lastName||'',
+        fullAddress:buildAddrString(parsed),scanType:'DL'};
+      showParsed(parsedDL);
+      document.getElementById('ai').value=parsedDL.fullAddress;
       document.getElementById('ss').textContent='✓ DL scanned via scanner';
       document.getElementById('sBtn').style.display='none';
       document.getElementById('s1dv').style.display='none';
@@ -825,7 +837,8 @@ const wedge=(function(){
     if(target==='checkpoint'){
       // Re-entry card scanned at checkpoint — treat like a DL scan
       const fullAddress=addressFromQR(qd);
-      parsedDL={firstName:qd.fn||'',lastName:qd.ln||'',fullAddress,licenseNum:qd.id||''};
+      parsedDL={firstName:qd.fn||'',lastName:qd.ln||'',fullAddress,
+        cardId:qd.id||'',scanType:'Card'};
       showParsed(parsedDL);
       document.getElementById('ai').value=fullAddress;
       document.getElementById('ss').textContent='✓ Re-entry card scanned';
@@ -1310,12 +1323,16 @@ document.getElementById('pi').addEventListener('change',async function(){
         const qd=JSON.parse(raw);
         if(qd.t!=='card')throw new Error('QR code is not an LPC re-entry card');
         const fullAddress=addressFromQR(qd);
-        parsedDL={firstName:qd.fn||'',lastName:qd.ln||'',fullAddress,licenseNum:qd.id||''};
+        parsedDL={firstName:qd.fn||'',lastName:qd.ln||'',fullAddress,
+          cardId:qd.id||'',scanType:'Card'};
         showParsed(parsedDL);document.getElementById('ai').value=fullAddress;
       }else{
-        parsedDL=parseAAMVA(raw);showParsed(parsedDL);
-        if(!parsedDL.licenseNum&&!parsedDL.lastName)throw new Error('Driver license data could not be parsed');
-        document.getElementById('ai').value=buildAddrString(parsedDL);
+        const parsed=parseAAMVA(raw);
+        if(!parsed.licenseNum&&!parsed.lastName)throw new Error('Driver license data could not be parsed');
+        parsedDL={firstName:parsed.firstName||'',lastName:parsed.lastName||'',
+          fullAddress:buildAddrString(parsed),scanType:'DL'};
+        showParsed(parsedDL);
+        document.getElementById('ai').value=parsedDL.fullAddress;
       }
       sb.style.display='none';document.getElementById('s1dv').style.display='none';
     }else{ss.textContent='No barcode found — try again or type address.';sb.disabled=false;sb.textContent='📷 Scan Barcode'}
