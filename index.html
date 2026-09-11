@@ -506,9 +506,13 @@ function parseAAMVA(raw){
     'DCG':'country','DCD':'vehicleClass','DCF':'documentId',
   };
 
-  // Split on any combination of record/field separators
-  // AAMVA uses \x1e (record sep), \x1d (segment sep), \x0a (LF), \x0d (CR)
-  const lines=raw.split(/[\x1e\x1d\x0a\x0d]+/);
+  // Zebra HID output may turn AAMVA control separators into ordinary spaces.
+  // Restore a boundary before a known field code when it follows whitespace or
+  // the DL subfile designator, then split the records normally.
+  const fieldCodes=Object.keys(fm).join('|');
+  const fieldBoundary=new RegExp('(?:[\\x00-\\x20]+|DL)(?=(?:'+fieldCodes+'))','g');
+  const normalizedRaw=String(raw||'').replace(fieldBoundary,'\n');
+  const lines=normalizedRaw.split(/[\x1e\x1d\x0a\x0d]+/);
 
   for(const line of lines){
     const t=line.trim();
@@ -630,6 +634,29 @@ function parseAAMVA(raw){
 
 function titleCase(s){return s?s.toLowerCase().replace(/\b\w/g,c=>c.toUpperCase()):''}
 
+// Remove Zebra Code ID/custom prefixes while retaining the actual payload.
+// Examples observed from the DS8101: P01{...QR JSON...} and X@ ANSI...DL.
+function normalizeScanData(raw){
+  const text=String(raw??'').replace(/\x00/g,'').trim();
+
+  // LPC re-entry cards always contain a JSON object. Extract only that object
+  // so scanner prefixes/suffixes do not prevent JSON.parse().
+  const jsonStart=text.indexOf('{');
+  const jsonEnd=text.lastIndexOf('}');
+  if(jsonStart!==-1&&jsonEnd>jsonStart){
+    return text.substring(jsonStart,jsonEnd+1);
+  }
+
+  // AAMVA driver-license payload begins at @. Discard a leading Zebra label
+  // identifier such as X while preserving the complete ANSI data.
+  const aamvaStart=text.indexOf('@');
+  if(aamvaStart!==-1){
+    return text.substring(aamvaStart);
+  }
+
+  return text;
+}
+
 function buildAddrString(p){
   // Build "Street, City, State ZIP" from parsed fields
   const parts=[];
@@ -690,7 +717,7 @@ const wedge=(function(){
   }
 
   function process(){
-    const raw=buffer;
+    const raw=normalizeScanData(buffer);
     buffer='';
     if(raw.length<MIN_LENGTH) return;
 
@@ -1228,7 +1255,7 @@ document.getElementById('pi').addEventListener('change',async function(){
     const result=await processBarcodeImage(file,'checkpoint');
     if(result&&result.rawValue?.length>10){
       ss.textContent='✓ Barcode read';
-      const raw=result.rawValue;
+      const raw=normalizeScanData(result.rawValue);
       if(result.format==='qr_code'){
         const qd=JSON.parse(raw);
         if(qd.t!=='card')throw new Error('QR code is not an LPC re-entry card');
@@ -1253,7 +1280,7 @@ document.getElementById('cardCamInput').addEventListener('change',async function
   try{
     const result=await processBarcodeImage(file,'card');
     if(result&&result.rawValue?.length>10){
-      const raw=result.rawValue;
+      const raw=normalizeScanData(result.rawValue);
       let parsed;
       if(result.format==='qr_code'){
         try{
