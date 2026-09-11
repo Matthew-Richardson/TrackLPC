@@ -97,18 +97,36 @@ tr:hover td{background:#fafafa}
 
 .rst{width:100%;padding:9px;border:1px solid var(--bd);border-radius:8px;background:var(--sf);font-size:13px;cursor:pointer;color:var(--tx);margin-top:6px}
 
-/* CARD PRINT */
+/* CARD STYLES */
 .card-preview{border:2px solid var(--bd);border-radius:10px;padding:16px;margin-bottom:12px;text-align:center}
 .card-preview h3{font-size:14px;margin-bottom:4px}
 .card-preview .card-name{font-size:18px;font-weight:700;margin:8px 0 4px}
 .card-preview .card-addr{font-size:12px;color:var(--mu)}
 .card-preview canvas{margin:10px auto;display:block}
 .card-preview .card-id{font-size:10px;color:var(--mu);font-family:monospace;margin-top:6px}
-@media print{
-  body>*:not(#cardPrint){display:none!important}
-  #cardPrint{display:block!important;position:fixed;inset:0;background:#fff;z-index:9999;padding:20px}
-  .no-print{display:none!important}
-}
+
+/* Wedge scanner indicator */
+.wedge-status{font-size:10px;padding:4px 8px;border-radius:4px;text-align:center;margin-bottom:8px;display:none}
+.wedge-status.listening{display:block;background:#eff6ff;color:var(--ac);border:1px solid #bfdbfe}
+.wedge-status.captured{display:block;background:var(--gb);color:var(--gd);border:1px solid var(--gn)}
+
+/* Card scan section in card modal */
+.card-scan-section{background:var(--bg);border-radius:8px;padding:12px;margin-bottom:14px}
+.card-scan-section h3{font-size:12px;font-weight:600;margin-bottom:6px}
+.card-scan-section p{font-size:11px;color:var(--mu);margin-bottom:8px}
+.scan-actions{display:flex;gap:8px}
+.scan-actions button{flex:1}
+.card-parsed{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:8px 10px;margin-top:10px;font-size:12px}
+.card-parsed .pr{border-color:#d1fae5}
+
+/* Print actions */
+.print-actions{display:flex;gap:8px;margin-bottom:10px}
+.print-actions button{flex:1}
+.btn-outline{padding:13px;border:2px solid var(--bd);border-radius:10px;font-size:14px;font-weight:600;background:var(--sf);color:var(--tx);cursor:pointer}
+.btn-outline:hover{border-color:var(--ac);color:var(--ac)}
+
+/* Hidden print iframe */
+#printFrame{position:fixed;left:-9999px;top:-9999px;width:0;height:0;border:none}
 </style>
 </head>
 <body>
@@ -164,6 +182,7 @@ tr:hover td{background:#fafafa}
  <div class="md">
   <div class="mh"><h2>Checkpoint</h2><button class="mx" onclick="closeModal()">✕</button></div>
   <div class="zn" id="mzn">Zone: —</div>
+  <div class="wedge-status" id="wedgeStatusCP">Scanner ready — scan a DL or re-entry card</div>
 
   <!-- STEP 1: scan + check -->
   <div id="s1">
@@ -201,13 +220,28 @@ tr:hover td{background:#fafafa}
 <div class="mo" id="cardModal">
  <div class="md">
   <div class="mh"><h2>Create Re-entry Card</h2><button class="mx" onclick="closeCardModal()">✕</button></div>
-  <p style="font-size:12px;color:var(--mu);margin-bottom:12px">For residents whose DL doesn't match the zone — 2nd homeowners, renters, students, etc.</p>
+
+  <!-- Scan to populate section -->
+  <div class="card-scan-section" id="cardScanSection">
+    <h3>Populate from DL scan</h3>
+    <p>Scan a driver's license with the DS8101 or phone camera to auto-fill, then edit as needed.</p>
+    <div class="wedge-status" id="wedgeStatusCard">Scanner ready — scan a DL barcode</div>
+    <div class="scan-actions">
+      <button class="b" onclick="document.getElementById('cardCamInput').click()">📷 Phone camera</button>
+    </div>
+    <input type="file" accept="image/*" capture="environment" id="cardCamInput" style="display:none"/>
+    <div class="card-parsed" id="cardParsedInfo" style="display:none"></div>
+  </div>
+
+  <div class="dv"><span>Card details</span></div>
+
   <div class="af"><label>First name</label><input type="text" id="cfn" placeholder="Jane"/></div>
   <div class="af"><label>Last name</label><input type="text" id="cln" placeholder="Doe"/></div>
   <div class="af"><label>Address in zone</label><input type="text" id="caddr" placeholder="123 Main St, Durango, CO 81301"/></div>
   <div class="af"><label>Phone</label><input type="tel" id="cphone" placeholder="(970) 555-1234"/></div>
   <div class="af"><label>Reason</label><input type="text" id="creason" placeholder="2nd homeowner, renter, student, etc."/></div>
   <button class="cb" onclick="generateCard()">Generate card</button>
+
   <div id="cardResult" style="display:none">
     <div class="card-preview" id="cardPreview">
       <img id="cardLogoPreview" style="height:36px;margin-bottom:4px"/>
@@ -219,13 +253,16 @@ tr:hover td{background:#fafafa}
       <div class="card-id" id="cardId"></div>
       <div style="font-size:10px;color:var(--mu);margin-top:4px" id="cardReason"></div>
     </div>
-    <button class="cb" onclick="printCard()">🖨 Print card</button>
+    <div class="print-actions">
+      <button class="cb" onclick="printCard()">🖨 Print to ZC300</button>
+      <button class="btn-outline" onclick="savePNG()">💾 Save PNG</button>
+    </div>
   </div>
  </div>
 </div>
 
-<!-- HIDDEN PRINT TEMPLATE -->
-<div id="cardPrint" style="display:none"></div>
+<!-- Hidden iframe for ZC300 printing -->
+<iframe id="printFrame"></iframe>
 
 <script>
 const EVAC_URL='https://services2.arcgis.com/ilLrLpXfElYxSy9y/ArcGIS/rest/services/LPC_Evac_Zones_View/FeatureServer/0';
@@ -359,8 +396,10 @@ async function fetchLog(){if(!selZone)return;
 // ---- CHECKPOINT MODAL ----
 function openModal(){if(!selZoneId)return;
   document.getElementById('mzn').textContent='Zone: '+[selZone?.name,selZone?.incident].filter(Boolean).join(' — ');
-  resetModal();document.getElementById('modal').classList.add('open')}
-function closeModal(){document.getElementById('modal').classList.remove('open')}
+  resetModal();document.getElementById('modal').classList.add('open');
+  wedge.setTarget('checkpoint');
+}
+function closeModal(){document.getElementById('modal').classList.remove('open');wedge.setTarget(null)}
 function resetModal(){
   lastCheck=null;parsedDL=null;selectedDir=null;
   document.getElementById('s1').style.display='';document.getElementById('s2').style.display='none';
@@ -375,6 +414,8 @@ function resetModal(){
   document.getElementById('s2phone').value='';document.getElementById('s2notes').value='';
   document.getElementById('s2res').style.display='none';document.getElementById('s2save').disabled=true;
   document.querySelectorAll('.dbtn').forEach(b=>b.classList.remove('sel'));
+  const ws=document.getElementById('wedgeStatusCP');
+  ws.className='wedge-status listening';ws.textContent='Scanner ready — scan a DL or re-entry card';
 }
 
 // ---- STEP 1: ADDRESS CHECK ----
@@ -437,13 +478,340 @@ async function saveRecord(){
 function showS2(cls,v,d){const r=document.getElementById('s2res');r.style.display='block';r.className='res '+cls;
   document.getElementById('s2rv').textContent=v;document.getElementById('s2rd').textContent=d}
 
-// ---- CUSTOM CARD ----
-function openCardModal(){resetCardModal();document.getElementById('cardModal').classList.add('open')}
-function closeCardModal(){document.getElementById('cardModal').classList.remove('open')}
-function resetCardModal(){document.getElementById('cardResult').style.display='none';
-  ['cfn','cln','caddr','cphone','creason'].forEach(id=>document.getElementById(id).value='')}
+// ============================================================
+//  AAMVA PDF417 PARSER — all 50 states, AAMVA versions 1–10
+// ============================================================
+function parseAAMVA(raw){
+  const f={};
+
+  // Full field mapping: standard AAMVA + older/alternate codes
+  const fm={
+    // Name fields — current spec (v3+)
+    'DCS':'lastName','DCT':'firstAndMiddle','DCU':'suffix',
+    // Name fields — older spec (v1-2) and alternates
+    'DAB':'lastName','DAC':'firstName','DAD':'middleName',
+    'DAE':'suffix','DAF':'prefix',
+    // Full name in one field (some states: LAST,FIRST,MIDDLE)
+    'DAA':'fullName',
+    // Address — primary set
+    'DAG':'street','DAH':'street2','DAI':'city','DAJ':'state','DAK':'zip',
+    // Address — alternate set (some states use these instead)
+    'DAL':'street','DAM':'city','DAN':'state','DAO':'zip',
+    // License info
+    'DAQ':'licenseNum','DBA':'expiry','DBB':'dob','DBC':'sex',
+    'DBD':'issueDate',
+    // Physical
+    'DAU':'height','DAW':'weight','DAY':'hairColor','DAZ':'hairColor',
+    // Jurisdiction
+    'DCG':'country','DCD':'vehicleClass','DCF':'documentId',
+  };
+
+  // Split on any combination of record/field separators
+  // AAMVA uses \x1e (record sep), \x1d (segment sep), \x0a (LF), \x0d (CR)
+  const lines=raw.split(/[\x1e\x1d\x0a\x0d]+/);
+
+  for(const line of lines){
+    const t=line.trim();
+    if(t.length<4) continue;
+
+    // Field code is first 3 characters after any leading control chars
+    let code='',val='';
+    // Some scanners prepend control chars or spaces before the code
+    const cleaned=t.replace(/^[\x00-\x1f\s]+/,'');
+    if(cleaned.length<4) continue;
+
+    code=cleaned.substring(0,3);
+    val=cleaned.substring(3).trim();
+
+    // Strip trailing control characters
+    val=val.replace(/[\x00-\x1f]+$/,'');
+
+    if(!val) continue;
+
+    const target=fm[code];
+    if(!target) continue;
+
+    // Don't overwrite — first value wins (some states duplicate fields)
+    if(target==='fullName'){
+      // DAA: "LAST,FIRST,MIDDLE" or "LAST,FIRST" — some use spaces
+      if(!f.lastName||!f.firstName){
+        const sep=val.includes(',')?',':val.includes(', ')?', ':null;
+        if(sep){
+          const parts=val.split(sep).map(s=>s.trim());
+          if(!f.lastName)f.lastName=parts[0]||'';
+          if(!f.firstName)f.firstName=parts[1]||'';
+          if(!f.middleName&&parts[2])f.middleName=parts[2];
+        }else{
+          // Space-separated fallback: assume LAST FIRST MIDDLE
+          const parts=val.split(/\s+/);
+          if(!f.lastName)f.lastName=parts[0]||'';
+          if(!f.firstName)f.firstName=parts[1]||'';
+          if(!f.middleName&&parts[2])f.middleName=parts.slice(2).join(' ');
+        }
+      }
+    }else if(target==='firstAndMiddle'){
+      // DCT: "FIRST,MIDDLE" or "FIRST MIDDLE" or just "FIRST"
+      if(!f.firstName){
+        const sep=val.includes(',')?',':null;
+        if(sep){
+          const parts=val.split(sep).map(s=>s.trim());
+          f.firstName=parts[0]||'';
+          if(!f.middleName&&parts[1])f.middleName=parts[1];
+        }else{
+          const parts=val.split(/\s+/);
+          f.firstName=parts[0]||'';
+          if(!f.middleName&&parts.length>1)f.middleName=parts.slice(1).join(' ');
+        }
+      }
+    }else{
+      if(!f[target])f[target]=val;
+    }
+  }
+
+  // --- Post-processing ---
+
+  // Normalize ZIP: remove spaces, format with hyphen for ZIP+4
+  if(f.zip){
+    f.zip=f.zip.replace(/\s+/g,'');
+    // Some states zero-pad to 9+ chars
+    if(f.zip.length>5&&!f.zip.includes('-')){
+      f.zip=f.zip.substring(0,5)+'-'+f.zip.substring(5,9);
+    }
+    // Trim trailing zeros beyond 9 digits
+    if(f.zip.length>10)f.zip=f.zip.substring(0,10);
+  }
+
+  // Normalize DOB: states use MMDDYYYY, YYYYMMDD, or sometimes MM/DD/YYYY
+  if(f.dob){
+    const d=f.dob.replace(/[\/\-]/g,'');
+    if(d.length===8){
+      // Detect YYYYMMDD vs MMDDYYYY
+      const firstFour=parseInt(d.substring(0,4));
+      if(firstFour>1900&&firstFour<2100){
+        // YYYYMMDD
+        f.dob=d.substring(4,6)+'/'+d.substring(6,8)+'/'+d.substring(0,4);
+      }else{
+        // MMDDYYYY (most common)
+        f.dob=d.substring(0,2)+'/'+d.substring(2,4)+'/'+d.substring(4);
+      }
+    }
+  }
+
+  // Normalize expiry same way
+  if(f.expiry){
+    const d=f.expiry.replace(/[\/\-]/g,'');
+    if(d.length===8){
+      const firstFour=parseInt(d.substring(0,4));
+      if(firstFour>1900&&firstFour<2100){
+        f.expiry=d.substring(4,6)+'/'+d.substring(6,8)+'/'+d.substring(0,4);
+      }else{
+        f.expiry=d.substring(0,2)+'/'+d.substring(2,4)+'/'+d.substring(4);
+      }
+    }
+  }
+
+  // Sex code to label
+  if(f.sex){
+    const s={'1':'M','2':'F','9':'X'};
+    f.sex=s[f.sex]||f.sex;
+  }
+
+  return f;
+}
+
+function titleCase(s){return s?s.toLowerCase().replace(/\b\w/g,c=>c.toUpperCase()):''}
+
+function buildAddrString(p){
+  // Build "Street, City, State ZIP" from parsed fields
+  const parts=[];
+  const st=[p.street,p.street2].filter(Boolean).map(titleCase).join(' ');
+  if(st) parts.push(st);
+  const csz=[p.city?titleCase(p.city):'',p.state,p.zip].filter(Boolean).join(', ');
+  if(csz) parts.push(csz);
+  return parts.join(', ');
+}
+
+function showParsed(p){
+  const c=document.getElementById('pf');
+  const d=[
+    {l:'Name',v:[p.firstName,p.middleName,p.lastName].filter(Boolean).map(titleCase).join(' ')},
+    {l:'DOB',v:p.dob},
+    {l:'License #',v:p.licenseNum},
+    {l:'Address',v:[p.street,p.street2].filter(Boolean).map(titleCase).join(' ')},
+    {l:'City/State/ZIP',v:[p.city?titleCase(p.city):'',p.state,p.zip].filter(Boolean).join(', ')}
+  ].filter(x=>x.v);
+  c.innerHTML=d.map(x=>`<div class="pr"><span class="pl">${x.l}</span><span class="pv">${x.v}</span></div>`).join('');
+  c.style.display='block';
+}
+
+function showCardParsed(p){
+  const c=document.getElementById('cardParsedInfo');
+  const d=[
+    {l:'Name',v:[p.firstName,p.middleName,p.lastName].filter(Boolean).map(titleCase).join(' ')},
+    {l:'License #',v:p.licenseNum},
+    {l:'Address',v:buildAddrString(p)},
+  ].filter(x=>x.v);
+  c.innerHTML='<div style="font-size:11px;font-weight:600;color:var(--gd);margin-bottom:4px">✓ DL scanned</div>'+
+    d.map(x=>`<div class="pr"><span class="pl">${x.l}</span><span class="pv">${x.v}</span></div>`).join('');
+  c.style.display='block';
+}
+
+
+// ============================================================
+//  DS8101 WEDGE SCANNER — keyboard input buffer
+// ============================================================
+const wedge=(function(){
+  let buffer='';
+  let timer=null;
+  let target=null; // 'checkpoint' | 'card' | null
+  const CHAR_GAP=80;   // max ms between keystrokes to count as wedge burst
+  const MIN_LENGTH=20;  // minimum chars for a valid barcode
+
+  function setTarget(t){
+    target=t;
+    buffer='';
+    clearTimeout(timer);
+    // Update status indicators
+    const cpEl=document.getElementById('wedgeStatusCP');
+    const cardEl=document.getElementById('wedgeStatusCard');
+    if(cpEl) cpEl.className='wedge-status'+(t==='checkpoint'?' listening':'');
+    if(cardEl) cardEl.className='wedge-status'+(t==='card'?' listening':'');
+  }
+
+  function process(){
+    const raw=buffer;
+    buffer='';
+    if(raw.length<MIN_LENGTH) return;
+
+    // Detect if it's a re-entry card QR (JSON with t:'card')
+    try{
+      const qd=JSON.parse(raw);
+      if(qd.t==='card'){
+        handleCardQR(qd);return;
+      }
+    }catch(e){}
+
+    // Check if it looks like AAMVA (contains known field codes)
+    const isAAMVA=raw.includes('DAQ')||raw.includes('DCS')||raw.includes('DAC')||raw.includes('DAA')||raw.includes('ANSI ')||raw.includes('AAMVA');
+    if(isAAMVA){
+      const parsed=parseAAMVA(raw);
+      if(parsed.licenseNum||parsed.lastName){
+        handleDLScan(parsed);return;
+      }
+    }
+
+    // Fallback: try QR JSON parse for any JSON payload
+    try{
+      const qd=JSON.parse(raw);
+      handleCardQR(qd);
+    }catch(e){
+      // Unknown barcode format — show raw in appropriate status
+      console.warn('Wedge scan: unrecognized format, length='+raw.length);
+    }
+  }
+
+  function handleDLScan(parsed){
+    if(target==='checkpoint'){
+      parsedDL=parsed;
+      showParsed(parsed);
+      document.getElementById('ai').value=buildAddrString(parsed);
+      document.getElementById('ss').textContent='✓ DL scanned via scanner';
+      document.getElementById('sBtn').style.display='none';
+      document.getElementById('s1dv').style.display='none';
+      const ws=document.getElementById('wedgeStatusCP');
+      ws.className='wedge-status captured';ws.textContent='✓ DL captured — '+titleCase(parsed.firstName||'')+' '+titleCase(parsed.lastName||'');
+    }else if(target==='card'){
+      // Populate card form from DL
+      document.getElementById('cfn').value=titleCase(parsed.firstName||'');
+      document.getElementById('cln').value=titleCase(parsed.lastName||'');
+      document.getElementById('caddr').value=buildAddrString(parsed);
+      showCardParsed(parsed);
+      const ws=document.getElementById('wedgeStatusCard');
+      ws.className='wedge-status captured';ws.textContent='✓ DL captured — edit fields below as needed';
+    }
+  }
+
+  function handleCardQR(qd){
+    if(target==='checkpoint'){
+      // Re-entry card scanned at checkpoint — treat like a DL scan
+      parsedDL={firstName:qd.fn||'',lastName:qd.ln||'',street:qd.st||'',city:qd.ci||'',state:qd.s||'CO',zip:qd.z||'',licenseNum:qd.id||''};
+      showParsed(parsedDL);
+      document.getElementById('ai').value=[qd.st,qd.ci,qd.s,qd.z].filter(Boolean).join(', ');
+      document.getElementById('ss').textContent='✓ Re-entry card scanned';
+      document.getElementById('sBtn').style.display='none';
+      document.getElementById('s1dv').style.display='none';
+      const ws=document.getElementById('wedgeStatusCP');
+      ws.className='wedge-status captured';ws.textContent='✓ Re-entry card — '+(qd.fn||'')+' '+(qd.ln||'');
+    }else if(target==='card'){
+      // Re-entry card scanned in card modal — populate form
+      document.getElementById('cfn').value=qd.fn||'';
+      document.getElementById('cln').value=qd.ln||'';
+      document.getElementById('caddr').value=[qd.st,qd.ci,qd.s,qd.z].filter(Boolean).join(', ');
+      if(qd.ph)document.getElementById('cphone').value=qd.ph;
+      if(qd.rs)document.getElementById('creason').value=qd.rs;
+      const ws=document.getElementById('wedgeStatusCard');
+      ws.className='wedge-status captured';ws.textContent='✓ Re-entry card data loaded';
+    }
+  }
+
+  // Global keydown listener — intercepts wedge scanner input
+  document.addEventListener('keydown',function(e){
+    if(!target) return;
+
+    // Don't intercept if user is focused on a real input field
+    const ae=document.activeElement;
+    if(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.tagName==='SELECT')){
+      // Exception: if characters are arriving faster than human typing,
+      // it's the wedge scanner even though an input is focused.
+      // We check by timing: wedge sends chars < 30ms apart typically.
+      // But we can't easily distinguish on keydown alone, so we let
+      // focused inputs work normally. The wedge should be used when
+      // no input is focused (click away from input fields first).
+      return;
+    }
+
+    // Ignore modifier keys and special keys (except Enter and Tab which terminate)
+    if(e.key==='Enter'||e.key==='Tab'){
+      if(buffer.length>=MIN_LENGTH){
+        e.preventDefault();
+        clearTimeout(timer);
+        process();
+      }else{
+        buffer='';
+      }
+      return;
+    }
+
+    // Only capture printable characters
+    if(e.key.length===1&&!e.ctrlKey&&!e.altKey&&!e.metaKey){
+      e.preventDefault();
+      buffer+=e.key;
+      clearTimeout(timer);
+      // If no more chars arrive within CHAR_GAP ms, process what we have
+      timer=setTimeout(()=>{
+        if(buffer.length>=MIN_LENGTH)process();
+        else buffer='';
+      },CHAR_GAP);
+    }
+  });
+
+  return{setTarget};
+})();
+
+
+// ---- CUSTOM CARD MODAL ----
+function openCardModal(){resetCardModal();document.getElementById('cardModal').classList.add('open');wedge.setTarget('card')}
+function closeCardModal(){document.getElementById('cardModal').classList.remove('open');wedge.setTarget(null)}
+function resetCardModal(){
+  document.getElementById('cardResult').style.display='none';
+  document.getElementById('cardParsedInfo').style.display='none';
+  ['cfn','cln','caddr','cphone','creason'].forEach(id=>document.getElementById(id).value='');
+  const ws=document.getElementById('wedgeStatusCard');
+  ws.className='wedge-status listening';ws.textContent='Scanner ready — scan a DL barcode';
+}
+
 // LPC OEM Logo embedded as base64
-const LPC_LOGO='data:image/png;base64,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';
+const LPC_LOGO='data:image/png;base64,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';
 
 function generateCard(){
   const fn=document.getElementById('cfn').value.trim();
@@ -460,7 +828,6 @@ function generateCard(){
   document.getElementById('cardId').textContent=cardId;
   document.getElementById('cardReason').textContent=reason;
 
-  // Generate QR using qrcode-generator
   try{
     const qr=qrcode(0,'M');
     qr.addData(qrData);
@@ -480,133 +847,194 @@ function generateCard(){
   }catch(e){console.error('QR generation error:',e);alert('Error generating QR code: '+e.message)}
 }
 
-// Render card to canvas at 300 DPI for ZC300 CR-80 printing
-function printCard(){
-  const c=window._lastCard;if(!c)return;
+// ============================================================
+//  ZC300 CARD PRINTING — CR-80 at 300 DPI via hidden iframe
+// ============================================================
+function renderCardCanvas(c){
+  return new Promise((resolve,reject)=>{
+    // CR-80 at 300 DPI: 3.375" x 2.125" = 1013 x 638 pixels
+    const W=1013,H=638;
+    const canvas=document.createElement('canvas');
+    canvas.width=W;canvas.height=H;
+    const ctx=canvas.getContext('2d');
 
-  // CR-80 at 300 DPI: 3.375" x 2.125" = 1013 x 638 pixels
-  const W=1013,H=638;
-  const canvas=document.createElement('canvas');
-  canvas.width=W;canvas.height=H;
-  const ctx=canvas.getContext('2d');
+    ctx.fillStyle='#fff';
+    ctx.fillRect(0,0,W,H);
 
-  // White background
-  ctx.fillStyle='#fff';
-  ctx.fillRect(0,0,W,H);
+    const logo=new Image();
+    logo.onload=function(){
+      // Logo centered at top
+      const logoH=60,logoW=logo.width*(logoH/logo.height);
+      ctx.drawImage(logo,(W-logoW)/2,25,logoW,logoH);
 
-  // Load logo then render
-  const logo=new Image();
-  logo.onload=function(){
-    // --- HEADER ---
-    // Logo centered at top
-    const logoH=60,logoW=logo.width*(logoH/logo.height);
-    ctx.drawImage(logo,(W-logoW)/2,25,logoW,logoH);
+      // Title
+      ctx.fillStyle='#333';
+      ctx.font='bold 22px -apple-system, sans-serif';
+      ctx.textAlign='center';
+      ctx.fillText('OFFICE OF EMERGENCY MANAGEMENT',W/2,110);
 
-    // Title text
-    ctx.fillStyle='#333';
-    ctx.font='bold 22px -apple-system, sans-serif';
-    ctx.textAlign='center';
-    ctx.fillText('OFFICE OF EMERGENCY MANAGEMENT',W/2,110);
-
-    ctx.fillStyle='#888';
-    ctx.font='18px -apple-system, sans-serif';
-    ctx.fillText('Evacuation Zone Re-entry Card',W/2,135);
-
-    // --- DIVIDER ---
-    ctx.strokeStyle='#ddd';
-    ctx.lineWidth=1;
-    ctx.beginPath();ctx.moveTo(60,152);ctx.lineTo(W-60,152);ctx.stroke();
-
-    // --- NAME ---
-    ctx.fillStyle='#111';
-    ctx.font='bold 42px -apple-system, sans-serif';
-    ctx.fillText(`${c.fn} ${c.ln}`,W/2,205);
-
-    // --- ADDRESS ---
-    ctx.fillStyle='#444';
-    ctx.font='24px -apple-system, sans-serif';
-    ctx.fillText(c.addr,W/2,240);
-
-    // --- PHONE ---
-    if(c.phone){
-      ctx.fillStyle='#666';
-      ctx.font='20px -apple-system, sans-serif';
-      ctx.fillText(c.phone,W/2,268);
-    }
-
-    // --- QR CODE ---
-    const qrImg=new Image();
-    qrImg.onload=function(){
-      const qrSize=200;
-      const qrX=80;
-      const qrY=H-qrSize-50;
-      ctx.drawImage(qrImg,qrX,qrY,qrSize,qrSize);
-
-      // --- CARD INFO next to QR ---
-      ctx.textAlign='left';
       ctx.fillStyle='#888';
-      ctx.font='16px monospace';
-      ctx.fillText(c.cardId,qrX+qrSize+30,qrY+30);
+      ctx.font='18px -apple-system, sans-serif';
+      ctx.fillText('Evacuation Zone Re-entry Card',W/2,135);
 
-      if(c.reason){
+      // Divider
+      ctx.strokeStyle='#ddd';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(60,152);ctx.lineTo(W-60,152);ctx.stroke();
+
+      // Name
+      ctx.fillStyle='#111';
+      ctx.font='bold 42px -apple-system, sans-serif';
+      ctx.fillText(`${c.fn} ${c.ln}`,W/2,205);
+
+      // Address
+      ctx.fillStyle='#444';
+      ctx.font='24px -apple-system, sans-serif';
+      ctx.fillText(c.addr,W/2,240);
+
+      // Phone
+      if(c.phone){
         ctx.fillStyle='#666';
-        ctx.font='18px -apple-system, sans-serif';
-        ctx.fillText(c.reason,qrX+qrSize+30,qrY+60);
+        ctx.font='20px -apple-system, sans-serif';
+        ctx.fillText(c.phone,W/2,268);
       }
 
-      ctx.fillStyle='#aaa';
-      ctx.font='14px -apple-system, sans-serif';
-      ctx.fillText('Present this card at any evacuation',qrX+qrSize+30,qrY+qrSize-40);
-      ctx.fillText('checkpoint for re-entry verification.',qrX+qrSize+30,qrY+qrSize-20);
+      // QR Code
+      const qrImg=new Image();
+      qrImg.onload=function(){
+        const qrSize=200,qrX=80,qrY=H-qrSize-50;
+        ctx.drawImage(qrImg,qrX,qrY,qrSize,qrSize);
 
-      // --- BOTTOM BORDER ---
-      ctx.strokeStyle='#2563eb';
-      ctx.lineWidth=6;
-      ctx.beginPath();ctx.moveTo(0,H-3);ctx.lineTo(W,H-3);ctx.stroke();
-      ctx.beginPath();ctx.moveTo(0,3);ctx.lineTo(W,3);ctx.stroke();
+        // Card info next to QR
+        ctx.textAlign='left';
+        ctx.fillStyle='#888';
+        ctx.font='16px monospace';
+        ctx.fillText(c.cardId,qrX+qrSize+30,qrY+30);
 
-      // Convert to image and open print window
-      const dataUrl=canvas.toDataURL('image/png');
-      const pw=window.open('','_blank');
-      if(!pw){alert('Popup blocked — allow popups for this site');return}
-      pw.document.write(`<!DOCTYPE html><html><head><title>Print Card</title>
-        <style>
-          @page{size:3.375in 2.125in;margin:0}
-          *{margin:0;padding:0}
-          body{width:3.375in;height:2.125in;overflow:hidden;background:#fff}
-          img{width:100%;height:100%;display:block;object-fit:fill}
-        </style></head><body>
-        <img src="${dataUrl}"/>
-        </body></html>`);
-      pw.document.close();
-      setTimeout(()=>{pw.focus();pw.print()},500);
+        if(c.reason){
+          ctx.fillStyle='#666';
+          ctx.font='18px -apple-system, sans-serif';
+          ctx.fillText(c.reason,qrX+qrSize+30,qrY+60);
+        }
+
+        ctx.fillStyle='#aaa';
+        ctx.font='14px -apple-system, sans-serif';
+        ctx.fillText('Present this card at any evacuation',qrX+qrSize+30,qrY+qrSize-40);
+        ctx.fillText('checkpoint for re-entry verification.',qrX+qrSize+30,qrY+qrSize-20);
+
+        // Top and bottom accent borders
+        ctx.strokeStyle='#2563eb';ctx.lineWidth=6;
+        ctx.beginPath();ctx.moveTo(0,3);ctx.lineTo(W,3);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(0,H-3);ctx.lineTo(W,H-3);ctx.stroke();
+
+        resolve(canvas);
+      };
+      qrImg.onerror=()=>reject(new Error('QR image load failed'));
+      qrImg.src=c.qrDataURL;
     };
-    qrImg.src=c.qrDataURL;
-  };
-  logo.src=LPC_LOGO;
+    logo.onerror=()=>reject(new Error('Logo load failed'));
+    logo.src=LPC_LOGO;
+  });
+}
+
+async function printCard(){
+  const c=window._lastCard;if(!c)return;
+
+  try{
+    const canvas=await renderCardCanvas(c);
+    const dataUrl=canvas.toDataURL('image/png');
+
+    // Print via hidden iframe — avoids popup blockers entirely
+    const frame=document.getElementById('printFrame');
+    const doc=frame.contentDocument||frame.contentWindow.document;
+
+    doc.open();
+    doc.write(`<!DOCTYPE html>
+<html><head><title>LPC Re-entry Card</title>
+<style>
+  @page{
+    size:3.375in 2.125in;
+    margin:0;
+  }
+  *{margin:0;padding:0}
+  html,body{
+    width:3.375in;
+    height:2.125in;
+    overflow:hidden;
+    background:#fff;
+  }
+  img{
+    width:3.375in;
+    height:2.125in;
+    display:block;
+    object-fit:fill;
+    -webkit-print-color-adjust:exact;
+    print-color-adjust:exact;
+  }
+  @media print{
+    html,body{width:3.375in;height:2.125in}
+    img{width:100%;height:100%}
+  }
+</style>
+</head><body>
+<img src="${dataUrl}"/>
+</body></html>`);
+    doc.close();
+
+    // Wait for the image to render in the iframe, then print
+    const img=doc.querySelector('img');
+    const doPrint=()=>{
+      try{
+        frame.contentWindow.focus();
+        frame.contentWindow.print();
+      }catch(e){
+        // Fallback: open in new tab if iframe print fails
+        console.warn('Iframe print failed, opening in new tab:',e);
+        const w=window.open('','_blank');
+        if(w){
+          w.document.write(doc.documentElement.outerHTML);
+          w.document.close();
+          setTimeout(()=>{w.focus();w.print()},400);
+        }else{
+          alert('Popup blocked — use "Save PNG" and print from your image viewer');
+        }
+      }
+    };
+
+    if(img.complete){
+      setTimeout(doPrint,200);
+    }else{
+      img.onload=()=>setTimeout(doPrint,200);
+      img.onerror=()=>alert('Card image failed to render — use "Save PNG" instead');
+    }
+  }catch(e){
+    console.error('Print error:',e);
+    alert('Print failed: '+e.message+'\n\nUse "Save PNG" as a fallback.');
+  }
+}
+
+// Save card as PNG for manual print fallback
+async function savePNG(){
+  const c=window._lastCard;if(!c)return;
+  try{
+    const canvas=await renderCardCanvas(c);
+    const a=document.createElement('a');
+    a.href=canvas.toDataURL('image/png');
+    a.download=`reentry_card_${c.ln}_${c.fn}_${c.cardId}.png`;
+    a.click();
+  }catch(e){
+    console.error('Save error:',e);
+    alert('Save failed: '+e.message);
+  }
 }
 
 // ---- POINT IN POLYGON ----
 function pip(pt,g){if(g.type==='Polygon')return rc(pt,g.coordinates);if(g.type==='MultiPolygon')return g.coordinates.some(p=>rc(pt,p));return false}
 function rc(pt,rings){let ins=ray(pt[0],pt[1],rings[0]);for(let i=1;i<rings.length;i++)if(ray(pt[0],pt[1],rings[i]))ins=false;return ins}
 function ray(px,py,ring){let ins=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const xi=ring[i][0],yi=ring[i][1],xj=ring[j][0],yj=ring[j][1];if(((yi>py)!==(yj>py))&&(px<(xj-xi)*(py-yi)/(yj-yi)+xi))ins=!ins}return ins}
-
-// ---- AAMVA ----
-function parseAAMVA(raw){
-  const f={};const fm={'DCS':'lastName','DCT':'firstName','DAC':'firstName','DAB':'lastName','DBB':'dob','DAG':'street','DAH':'street2','DAI':'city','DAJ':'state','DAK':'zip','DAQ':'licenseNum','DBA':'expiry','DAY':'suffix','DAD':'middleName'};
-  raw.split(/[\n\r\x1e\x1d\x0a\x0d]+/).forEach(l=>{const t=l.trim();if(t.length<4)return;const c=t.substring(0,3),v=t.substring(3).trim();if(fm[c]&&v&&!f[fm[c]])f[fm[c]]=v});
-  if(f.zip){f.zip=f.zip.replace(/\s+/g,'').substring(0,10);if(f.zip.length>5&&!f.zip.includes('-'))f.zip=f.zip.substring(0,5)+'-'+f.zip.substring(5)}
-  if(f.dob&&f.dob.length===8)f.dob=f.dob.substring(0,2)+'/'+f.dob.substring(2,4)+'/'+f.dob.substring(4);return f;
-}
-function titleCase(s){return s?s.toLowerCase().replace(/\b\w/g,c=>c.toUpperCase()):''}
-function showParsed(p){
-  const c=document.getElementById('pf');
-  const d=[{l:'Name',v:[p.firstName,p.middleName,p.lastName].filter(Boolean).map(titleCase).join(' ')},{l:'DOB',v:p.dob},{l:'License #',v:p.licenseNum},{l:'Address',v:[p.street,p.street2].filter(Boolean).map(titleCase).join(' ')},{l:'City/State/ZIP',v:[p.city?titleCase(p.city):'',p.state,p.zip].filter(Boolean).join(', ')}].filter(x=>x.v);
-  c.innerHTML=d.map(x=>`<div class="pr"><span class="pl">${x.l}</span><span class="pv">${x.v}</span></div>`).join('');c.style.display='block';
-}
 </script>
 
 <script type="module">
+// ---- BARCODE DETECTOR (phone camera) ----
 let detector=null;
 async function initScanner(){
   if('BarcodeDetector' in window){
@@ -627,38 +1055,77 @@ function preprocess(img,contrast=1.5){
   ctx.putImageData(id,0,0);return canvas;
 }
 
+async function processBarcodeImage(file,targetContext){
+  if(!detector)throw new Error('Scanner not ready');
+  const img=await createImageBitmap(file);let results=[];
+
+  for(const c of [1.5,1.0,2.0,2.5]){
+    const canvas=preprocess(img,c);
+    try{results=await detector.detect(canvas)}catch(e){}
+    if(results.length&&results[0]?.rawValue?.length>10)break;
+  }
+  if(!results.length||!results[0]?.rawValue){try{results=await detector.detect(img)}catch(e){}}
+  img.close();
+
+  if(!results.length||!results[0]?.rawValue?.length>10) return null;
+  return results[0];
+}
+
+// ---- CHECKPOINT CAMERA SCAN ----
 document.getElementById('pi').addEventListener('change',async function(){
   const file=this.files[0];if(!file)return;
   const sb=document.getElementById('sBtn'),ss=document.getElementById('ss');
   sb.disabled=true;sb.textContent='Reading…';ss.textContent='Processing…';
   try{
-    if(!detector)throw new Error('Scanner not ready');
-    const img=await createImageBitmap(file);let results=[];
-
-    // Try multiple preprocessing passes
-    for(const c of [1.5,1.0,2.0,2.5]){
-      const canvas=preprocess(img,c);
-      try{results=await detector.detect(canvas)}catch(e){}
-      if(results.length&&results[0]?.rawValue?.length>10)break;
-    }
-    // Try original if preprocessing failed
-    if(!results.length||!results[0]?.rawValue){try{results=await detector.detect(img)}catch(e){}}
-    img.close();
-
-    if(results.length>0&&results[0].rawValue?.length>10){
+    const result=await processBarcodeImage(file,'checkpoint');
+    if(result&&result.rawValue?.length>10){
       ss.textContent='✓ Barcode read';
-      const raw=results[0].rawValue;
-      if(results[0].format==='qr_code'){
+      const raw=result.rawValue;
+      if(result.format==='qr_code'){
         try{const qd=JSON.parse(raw);parsedDL={firstName:qd.fn||'',lastName:qd.ln||'',street:qd.st||'',city:qd.ci||'',state:qd.s||'CO',zip:qd.z||'',licenseNum:qd.id||''};
           showParsed(parsedDL);document.getElementById('ai').value=[qd.st,qd.ci,qd.s,qd.z].filter(Boolean).join(', ');}catch(e){document.getElementById('ai').value=raw}
       }else{
         parsedDL=parseAAMVA(raw);showParsed(parsedDL);
-        const a=[parsedDL.street,parsedDL.city,parsedDL.state,parsedDL.zip].filter(Boolean);
-        document.getElementById('ai').value=a.length>=2?`${parsedDL.street||''}, ${parsedDL.city||''}, ${parsedDL.state||''} ${parsedDL.zip||''}`.replace(/^,\s*/,'').replace(/,\s*,/g,','):'';
+        document.getElementById('ai').value=buildAddrString(parsedDL);
       }
       sb.style.display='none';document.getElementById('s1dv').style.display='none';
     }else{ss.textContent='No barcode found — try again or type address.';sb.disabled=false;sb.textContent='📷 Scan Barcode'}
   }catch(e){console.error(e);ss.textContent='Scan failed — try again.';sb.disabled=false;sb.textContent='📷 Scan Barcode'}
+  this.value='';
+});
+
+// ---- CARD MODAL CAMERA SCAN ----
+document.getElementById('cardCamInput').addEventListener('change',async function(){
+  const file=this.files[0];if(!file)return;
+  const ws=document.getElementById('wedgeStatusCard');
+  ws.className='wedge-status listening';ws.textContent='Processing image…';
+  try{
+    const result=await processBarcodeImage(file,'card');
+    if(result&&result.rawValue?.length>10){
+      const raw=result.rawValue;
+      let parsed;
+      if(result.format==='qr_code'){
+        try{
+          const qd=JSON.parse(raw);
+          parsed={firstName:qd.fn||'',lastName:qd.ln||'',street:qd.st||'',city:qd.ci||'',state:qd.s||'CO',zip:qd.z||''};
+          if(qd.ph)document.getElementById('cphone').value=qd.ph;
+          if(qd.rs)document.getElementById('creason').value=qd.rs;
+        }catch(e){ws.textContent='Could not parse QR';return}
+      }else{
+        parsed=parseAAMVA(raw);
+      }
+      document.getElementById('cfn').value=titleCase(parsed.firstName||'');
+      document.getElementById('cln').value=titleCase(parsed.lastName||'');
+      document.getElementById('caddr').value=buildAddrString(parsed);
+      showCardParsed(parsed);
+      ws.className='wedge-status captured';ws.textContent='✓ DL captured — edit fields below as needed';
+    }else{
+      ws.className='wedge-status listening';ws.textContent='No barcode found — try again or enter manually';
+    }
+  }catch(e){
+    console.error(e);
+    ws.className='wedge-status listening';ws.textContent='Scan failed — try again';
+  }
   this.value='';
 });
 
