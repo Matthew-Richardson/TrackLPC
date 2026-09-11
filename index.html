@@ -10,7 +10,1370 @@
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <style>
 :root{--bg:#f4f5f7;--sf:#fff;--bd:#d4d4d8;--tx:#1a1a2e;--mu:#6b7280;--ac:#2563eb;--ac2:#1d4ed8;--al:#dbeafe;--gn:#10b981;--gb:#d1fae5;--gd:#065f46;--rd:#ef4444;--rb2:#fee2e2;--rdd:#991b1b;--am:#f59e0b;--ab:#fef3c7}
+*{margin:0;padding:0;box-sizing:border-box}<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>LPC Evac Checkpoint</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/esri-leaflet/3.0.12/esri-leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<style>
+:root{--bg:#f4f5f7;--sf:#fff;--bd:#d4d4d8;--tx:#1a1a2e;--mu:#6b7280;--ac:#2563eb;--ac2:#1d4ed8;--al:#dbeafe;--gn:#10b981;--gb:#d1fae5;--gd:#065f46;--rd:#ef4444;--rb2:#fee2e2;--rdd:#991b1b;--am:#f59e0b;--ab:#fef3c7}
 *{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--tx);height:100dvh;display:flex;flex-direction:column;overflow:hidden;-webkit-text-size-adjust:100%}
+header{background:var(--sf);border-bottom:1px solid var(--bd);padding:10px 14px;display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}
+header h1{font-size:14px;font-weight:700;white-space:nowrap}
+.sw{position:relative;flex:1;min-width:130px}
+.sw select{width:100%;padding:7px 24px 7px 10px;border:1px solid var(--bd);border-radius:6px;font-size:13px;background:var(--sf);color:var(--tx);appearance:none}
+.sw::after{content:'▾';position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:10px;color:var(--mu);pointer-events:none}
+.hr{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.hs{display:flex;gap:8px;font-size:11px;color:var(--mu)}
+.hs strong{color:var(--tx);font-weight:600}
+.b{padding:6px 10px;border:1px solid var(--bd);border-radius:6px;font-size:12px;font-weight:500;background:var(--sf);color:var(--tx);cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+.b:hover{background:var(--bg)}.b:disabled{opacity:.4;cursor:not-allowed}
+.ba{background:var(--ac);color:#fff;border-color:var(--ac);font-weight:600}
+.ba:hover{background:var(--ac2)}
+.ob{font-size:10px;background:var(--al);color:var(--ac);padding:2px 7px;border-radius:9px;font-weight:600;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#mc{height:28%;min-height:150px;flex-shrink:0;position:relative}
+#map{height:100%;width:100%}
+.leg{position:absolute;bottom:6px;right:6px;background:rgba(255,255,255,.92);border-radius:6px;padding:4px 6px;font-size:9px;z-index:1000;border:1px solid var(--bd);line-height:1.6}
+.li{display:flex;align-items:center;gap:4px}
+.ls{width:10px;height:6px;border-radius:2px;border:1px solid rgba(0,0,0,.12)}
+.lb{height:3px;background:var(--al);position:absolute;top:0;left:0;right:0;z-index:1001;overflow:hidden;display:none}
+.lb.on{display:block}
+.lb::after{content:'';display:block;height:100%;width:30%;background:var(--ac);animation:sl 1.2s ease-in-out infinite}
+@keyframes sl{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}
+.ts{flex:1;display:flex;flex-direction:column;overflow:hidden;border-top:1px solid var(--bd)}
+.tb{display:flex;background:var(--sf);border-bottom:1px solid var(--bd);padding:0 12px;flex-shrink:0}
+.tt{padding:8px 10px;font-size:12px;font-weight:500;color:var(--mu);border-bottom:2px solid transparent;cursor:pointer;user-select:none}
+.tt:hover{color:var(--tx)}.tt.on{color:var(--ac);border-bottom-color:var(--ac)}
+.tt .c{font-size:10px;font-weight:600;background:var(--bg);padding:1px 5px;border-radius:9px;margin-left:3px}
+.sb2{padding:0 12px;background:var(--sf);flex-shrink:0}
+.sb2 input{width:100%;padding:5px 9px;border:1px solid var(--bd);border-radius:5px;font-size:12px;margin:4px 0;outline:none}
+.sb2 input:focus{border-color:var(--ac)}
+.tw{flex:1;overflow:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;font-size:11px}
+thead{position:sticky;top:0;z-index:2}
+th{background:var(--bg);text-align:left;padding:6px 8px;font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.03em;color:var(--mu);border-bottom:1px solid var(--bd);white-space:nowrap}
+td{padding:5px 8px;border-bottom:1px solid #f0f0f0;white-space:nowrap}
+tr:hover td{background:#fafafa}
+.em{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--mu);font-size:13px;gap:6px;padding:30px;text-align:center}
+.em .ic{font-size:24px;opacity:.4}
+.di{color:var(--gn);font-weight:600}.do{color:var(--rd);font-weight:600}
+.lt{font-variant-numeric:tabular-nums;color:var(--mu)}
+
+/* MODALS */
+.mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;align-items:flex-end;justify-content:center}
+.mo.open{display:flex}
+.md{background:var(--sf);width:100%;max-width:480px;max-height:94dvh;border-radius:16px 16px 0 0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:18px;animation:su .25s ease-out}
+@keyframes su{from{transform:translateY(100%)}to{transform:translateY(0)}}
+@media(min-width:600px){.mo{align-items:center}.md{border-radius:12px;max-height:85vh}}
+.mh{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.mh h2{font-size:16px;font-weight:600}
+.mx{width:28px;height:28px;border:none;background:var(--bg);border-radius:50%;font-size:14px;cursor:pointer;color:var(--mu);display:flex;align-items:center;justify-content:center}
+.zn{font-size:12px;margin-bottom:12px;padding:7px 10px;background:var(--al);border-radius:6px;color:var(--ac);font-weight:500}
+.sb1{width:100%;padding:13px;font-size:15px;font-weight:600;border:none;border-radius:10px;background:var(--ac);color:#fff;cursor:pointer;margin-bottom:6px}
+.sb1:hover{background:var(--ac2)}.sb1:disabled{opacity:.4;cursor:not-allowed}
+#pi{display:none}
+.ss{font-size:11px;color:var(--mu);text-align:center;margin-bottom:10px;min-height:14px}
+.pf{display:none;background:var(--bg);border-radius:8px;padding:9px 10px;margin-bottom:12px;font-size:12px}
+.pr{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(0,0,0,.05)}
+.pr:last-child{border-bottom:none}
+.pl{color:var(--mu);font-size:10px;font-weight:600;text-transform:uppercase}
+.pv{font-weight:500;text-align:right}
+.dv{display:flex;align-items:center;gap:8px;margin:10px 0}
+.dv::before,.dv::after{content:'';flex:1;height:1px;background:var(--bd)}
+.dv span{font-size:11px;color:var(--mu)}
+.af label{display:block;font-size:11px;font-weight:600;margin-bottom:3px;color:var(--mu)}
+.af input{width:100%;padding:9px 10px;border:1px solid var(--bd);border-radius:7px;font-size:15px;outline:none;margin-bottom:12px}
+.af input:focus{border-color:var(--ac)}
+.cb{width:100%;padding:13px;border:none;border-radius:10px;font-size:15px;font-weight:600;background:var(--ac);color:#fff;cursor:pointer;margin-bottom:10px}
+.cb:hover{background:var(--ac2)}.cb:disabled{opacity:.5;cursor:not-allowed}
+.gn-btn{background:var(--gn)}.gn-btn:hover{background:#059669}
+
+.res{display:none;border-radius:10px;padding:18px 16px;text-align:center;margin-bottom:10px}
+.res .vd{font-size:26px;font-weight:700;margin-bottom:3px}
+.res .dt{font-size:12px}.res .ae{font-size:11px;margin-top:5px;opacity:.8;font-style:italic}
+.ri{background:var(--gb);border:2px solid var(--gn)}.ri .vd,.ri .dt{color:var(--gd)}
+.ro{background:var(--rb2);border:2px solid var(--rd)}.ro .vd,.ro .dt{color:var(--rdd)}
+.re{background:var(--ab);border:2px solid var(--am)}.re .vd,.re .dt{color:#92400e}
+
+.db{display:flex;gap:8px;margin-bottom:12px}
+.dbtn{flex:1;padding:14px;border:2px solid var(--bd);border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;text-align:center;background:var(--sf);transition:all .15s}
+.dbtn:hover{border-color:var(--ac)}
+.dbtn.ib:hover,.dbtn.ib.sel{background:var(--gb);border-color:var(--gn);color:var(--gd)}
+.dbtn.ob2:hover,.dbtn.ob2.sel{background:var(--rb2);border-color:var(--rd);color:var(--rdd)}
+
+.rst{width:100%;padding:9px;border:1px solid var(--bd);border-radius:8px;background:var(--sf);font-size:13px;cursor:pointer;color:var(--tx);margin-top:6px}
+
+/* CARD STYLES */
+.card-preview{border:2px solid var(--bd);border-radius:10px;padding:16px;margin-bottom:12px;text-align:center;max-width:280px;margin-left:auto;margin-right:auto}
+.card-preview h3{font-size:14px;margin-bottom:4px}
+.card-preview .card-name{font-size:18px;font-weight:700;margin:8px 0 4px}
+.card-preview .card-addr{font-size:12px;color:var(--mu)}
+.card-preview canvas{margin:10px auto;display:block}
+.card-preview .card-id{font-size:10px;color:var(--mu);font-family:monospace;margin-top:6px}
+
+/* Wedge scanner indicator */
+.wedge-status{font-size:10px;padding:4px 8px;border-radius:4px;text-align:center;margin-bottom:8px;display:none}
+.wedge-status.listening{display:block;background:#eff6ff;color:var(--ac);border:1px solid #bfdbfe}
+.wedge-status.captured{display:block;background:var(--gb);color:var(--gd);border:1px solid var(--gn)}
+
+/* Card scan section in card modal */
+.card-scan-section{background:var(--bg);border-radius:8px;padding:12px;margin-bottom:14px}
+.card-scan-section h3{font-size:12px;font-weight:600;margin-bottom:6px}
+.card-scan-section p{font-size:11px;color:var(--mu);margin-bottom:8px}
+.scan-actions{display:flex;gap:8px}
+.scan-actions button{flex:1}
+.card-parsed{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:8px 10px;margin-top:10px;font-size:12px}
+.card-parsed .pr{border-color:#d1fae5}
+
+/* Print actions */
+.print-actions{display:flex;gap:8px;margin-bottom:10px}
+.print-actions button{flex:1}
+.btn-outline{padding:13px;border:2px solid var(--bd);border-radius:10px;font-size:14px;font-weight:600;background:var(--sf);color:var(--tx);cursor:pointer}
+.btn-outline:hover{border-color:var(--ac);color:var(--ac)}
+
+/* Hidden print iframe */
+#printFrame{position:fixed;left:-9999px;top:-9999px;width:0;height:0;border:none}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>LPC Checkpoint</h1>
+  <div class="sw"><select id="zs"><option value="">Select zone…</option></select></div>
+  <div class="hr">
+    <div class="hs" id="stats" style="display:none"><span>P:<strong id="pc">0</strong></span><span>A:<strong id="ac">0</strong></span></div>
+    <span class="ob" id="opb"></span>
+    <button class="b" id="csv" disabled onclick="doExport()">CSV</button>
+    <button class="b" onclick="openCardModal()">🪪 Card</button>
+    <button class="b ba" id="scb" disabled onclick="openModal()">📷 Scan</button>
+  </div>
+</header>
+
+<div id="mc">
+  <div class="lb" id="lb"></div>
+  <div id="map"></div>
+  <div class="leg" id="leg" style="display:none">
+    <div class="li"><div class="ls" style="background:rgba(37,99,235,.15);border-color:rgba(37,99,235,.6)"></div>Zones</div>
+    <div class="li"><div class="ls" style="background:rgba(245,158,11,.25);border-color:#f59e0b"></div>Selected</div>
+  </div>
+</div>
+
+<div class="ts">
+  <div class="tb">
+    <div class="tt on" data-t="parcels" onclick="switchTab('parcels')">Parcels<span class="c" id="tpc">0</span></div>
+    <div class="tt" data-t="addrs" onclick="switchTab('addrs')">Addresses<span class="c" id="tac">0</span></div>
+    <div class="tt" data-t="log" onclick="switchTab('log')">Activity<span class="c" id="tlc">0</span></div>
+  </div>
+  <div class="sb2" id="sbar"><input type="text" id="tsr" placeholder="Filter…" oninput="filterTable()"/></div>
+  <div class="tw">
+    <div class="em" id="emp"><div class="ic">📍</div><div>Select a zone to begin</div></div>
+    <table id="dt" style="display:none"><thead id="dth"></thead><tbody id="dtb"></tbody></table>
+  </div>
+</div>
+
+<!-- LOGIN MODAL -->
+<div class="mo open" id="loginModal">
+ <div class="md" style="max-width:380px">
+  <div class="mh"><h2>Checkpoint Login</h2></div>
+  <div class="af"><label>Operator name</label><input type="text" id="opIn" placeholder="Your name"/></div>
+  <div class="af"><label>ArcGIS Online username</label><input type="text" id="agUser" placeholder="username"/></div>
+  <div class="af"><label>ArcGIS Online password</label><input type="password" id="agPass" placeholder="password"/></div>
+  <div class="ss" id="loginStatus"></div>
+  <button class="cb" id="loginBtn" onclick="doLogin()">Sign in & start</button>
+ </div>
+</div>
+
+<!-- CHECKPOINT MODAL -->
+<div class="mo" id="modal">
+ <div class="md">
+  <div class="mh"><h2>Checkpoint</h2><button class="mx" onclick="closeModal()">✕</button></div>
+  <div class="zn" id="mzn">Zone: —</div>
+  <div class="wedge-status" id="wedgeStatusCP">Scanner ready — scan a DL or re-entry card</div>
+
+  <!-- STEP 1: scan + check -->
+  <div id="s1">
+    <button class="sb1" id="sBtn" onclick="document.getElementById('pi').click()">📷 Scan Barcode</button>
+    <input type="file" accept="image/*" capture="environment" id="pi"/>
+    <div class="ss" id="ss"></div>
+    <div class="pf" id="pf"></div>
+    <div class="dv" id="s1dv"><span>or type address</span></div>
+    <div class="af"><input type="text" id="ai" placeholder="123 Main St, Durango, CO 81301"/></div>
+    <button class="cb" id="s1chk" onclick="doCheck()">Check address</button>
+    <div class="res" id="s1res"><div class="vd" id="s1rv"></div><div class="dt" id="s1rd"></div><div class="ae" id="s1ra"></div></div>
+    <button class="cb gn-btn" id="s1go" style="display:none" onclick="goStep2()">Proceed to check-in →</button>
+  </div>
+
+  <!-- STEP 2: phone + direction + save -->
+  <div id="s2" style="display:none">
+    <div class="pf" id="s2info" style="display:block"></div>
+    <div class="af"><label>Phone number</label><input type="tel" id="s2phone" placeholder="(970) 555-1234"/></div>
+    <div class="af"><label>Direction</label>
+      <div class="db">
+        <div class="dbtn ib" onclick="pickDir('IN',this)">⬇ IN</div>
+        <div class="dbtn ob2" onclick="pickDir('OUT',this)">⬆ OUT</div>
+      </div>
+    </div>
+    <div class="af"><label>Notes (optional)</label><input type="text" id="s2notes" placeholder="Vehicle, occupants, etc."/></div>
+    <button class="cb gn-btn" id="s2save" disabled onclick="saveRecord()">Save record</button>
+    <div class="res" id="s2res"><div class="vd" id="s2rv"></div><div class="dt" id="s2rd"></div></div>
+  </div>
+
+  <button class="rst" id="rstBtn" style="display:none" onclick="resetModal()">Next check</button>
+ </div>
+</div>
+
+<!-- CUSTOM CARD MODAL -->
+<div class="mo" id="cardModal">
+ <div class="md">
+  <div class="mh"><h2>Create Re-entry Card</h2><button class="mx" onclick="closeCardModal()">✕</button></div>
+
+  <!-- Scan to populate section -->
+  <div class="card-scan-section" id="cardScanSection">
+    <h3>Populate from DL scan</h3>
+    <p>Scan a driver's license with the DS8101 or phone camera to auto-fill, then edit as needed.</p>
+    <div class="wedge-status" id="wedgeStatusCard">Scanner ready — scan a DL barcode</div>
+    <div class="scan-actions">
+      <button class="b" id="cardCamBtn" onclick="document.getElementById('cardCamInput').click()">📷 Phone camera</button>
+    </div>
+    <input type="file" accept="image/*" capture="environment" id="cardCamInput" style="display:none"/>
+    <div class="card-parsed" id="cardParsedInfo" style="display:none"></div>
+  </div>
+
+  <div class="dv"><span>Card details</span></div>
+
+  <div class="af"><label>First name</label><input type="text" id="cfn" placeholder="Jane"/></div>
+  <div class="af"><label>Last name</label><input type="text" id="cln" placeholder="Doe"/></div>
+  <div class="af"><label>Address in zone</label><input type="text" id="caddr" placeholder="123 Main St, Durango, CO 81301"/></div>
+  <div class="af"><label>Phone</label><input type="tel" id="cphone" placeholder="(970) 555-1234"/></div>
+  <div class="af"><label>Reason</label><input type="text" id="creason" placeholder="2nd homeowner, renter, student, etc."/></div>
+  <button class="cb" onclick="generateCard()">Generate card</button>
+
+  <div id="cardResult" style="display:none">
+    <div class="card-preview" id="cardPreview">
+      <img id="cardLogoPreview" style="height:36px;margin-bottom:4px"/>
+      <h3 style="font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin:0">Office of Emergency Management</h3>
+      <div style="font-size:10px;color:var(--mu)">Evacuation Zone Re-entry Card</div>
+      <div class="card-name" id="cardName"></div>
+      <div class="card-addr" id="cardAddr"></div>
+      <canvas id="qrCanvas"></canvas>
+      <div class="card-id" id="cardId"></div>
+      <div style="font-size:10px;color:var(--mu);margin-top:4px" id="cardReason"></div>
+    </div>
+    <div class="print-actions">
+      <button class="cb" onclick="printCard()">🖨 Print to ZC300</button>
+      <button class="btn-outline" onclick="savePNG()">💾 Save PNG</button>
+    </div>
+  </div>
+ </div>
+</div>
+
+<!-- Hidden iframe for ZC300 printing -->
+<iframe id="printFrame"></iframe>
+
+<script>
+const EVAC_URL='https://services2.arcgis.com/ilLrLpXfElYxSy9y/ArcGIS/rest/services/LPC_Evac_Zones_View/FeatureServer/0';
+const PARCEL_URL='https://gis.lpcgov.org/arcgis/rest/services/JS_website/MapLayersCitizenserve/MapServer/1';
+const ADDR_URL='https://gis.lpcgov.org/arcgis/rest/services/JS_website/MapLayersCitizenserve/MapServer/0';
+const GEOCODE_URL='https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates';
+const LOG_URL='https://services2.arcgis.com/ilLrLpXfElYxSy9y/arcgis/rest/services/LPC_Checkpoint_Log/FeatureServer/0';
+
+const PF=['APN','SITE_ADDR','NAME','ACRES','SITE_CITY','SITE_ZIP'],PH=['Parcel #','Address','Owner','Acres','City','ZIP'];
+const AFlds=['PROPERTY_A','NAME','APN','ADDR_HN','SITE_ST','City','ZIP'],AHdr=['Address','Name','Parcel #','House #','Street','City','ZIP'];
+
+let map,evacLayer,selLayer,scanMarker;
+let zones=[],selGeom=null,selZoneId=null,selZone=null;
+let pData=[],aData=[],logData=[],activeTab='parcels';
+let operatorName='',agolToken='';
+let lastCheck=null,parsedDL=null,selectedDir=null;
+
+// ---- AGOL LOGIN ----
+async function doLogin(){
+  const op=document.getElementById('opIn').value.trim();
+  const user=document.getElementById('agUser').value.trim();
+  const pass=document.getElementById('agPass').value;
+  const st=document.getElementById('loginStatus');
+  if(!op){st.textContent='Enter your name';return}
+  if(!user||!pass){st.textContent='Enter AGOL credentials';return}
+  document.getElementById('loginBtn').disabled=true;
+  st.textContent='Signing in…';
+  try{
+    const p=new URLSearchParams({username:user,password:pass,client:'referer',referer:location.href,expiration:1440,f:'json'});
+    const r=await fetch('https://www.arcgis.com/sharing/rest/generateToken',{method:'POST',body:p});
+    const j=await r.json();
+    if(j.error){st.textContent=j.error.message||'Login failed';document.getElementById('loginBtn').disabled=false;return}
+    agolToken=j.token;
+    operatorName=op;
+    document.getElementById('opb').textContent=op;
+    document.getElementById('loginModal').classList.remove('open');
+  }catch(e){st.textContent='Network error';document.getElementById('loginBtn').disabled=false}
+}
+
+// ---- MAP ----
+map=L.map('map',{zoomControl:true}).setView([37.28,-107.88],10);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'©OSM©CARTO',maxZoom:19}).addTo(map);
+selLayer=L.geoJSON(null,{style:{color:'#f59e0b',weight:3,fillColor:'#f59e0b',fillOpacity:.25}}).addTo(map);
+evacLayer=L.esri.featureLayer({url:EVAC_URL,
+  style:()=>({color:'rgba(37,99,235,.6)',weight:1.5,fillColor:'rgba(37,99,235,.12)',fillOpacity:1}),
+  onEachFeature(f,l){const p=f.properties;l.bindTooltip(p.zonename||p.incident||'Zone '+p.OBJECTID,{sticky:true});l.on('click',()=>selectZone(p.OBJECTID))}
+}).addTo(map);
+evacLayer.once('load',()=>{
+  document.getElementById('leg').style.display='';
+  evacLayer.eachFeature(l=>{const p=l.feature.properties;zones.push({id:p.OBJECTID,name:p.zonename,incident:p.incident,status:p.STATUS,feature:l.feature})});
+  zones.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  const s=document.getElementById('zs');
+  zones.forEach(z=>{const o=document.createElement('option');o.value=z.id;o.textContent=[z.name,z.incident,z.status].filter(Boolean).join(' — ');s.appendChild(o)});
+  const b=evacLayer.getBounds();if(b.isValid())map.fitBounds(b,{padding:[20,20]});
+});
+document.getElementById('zs').addEventListener('change',function(){if(this.value)selectZone(parseInt(this.value))});
+
+async function selectZone(oid){
+  document.getElementById('zs').value=oid;selZoneId=oid;selZone=zones.find(z=>z.id===oid);if(!selZone)return;
+  selGeom=selZone.feature.geometry;selLayer.clearLayers();selLayer.addData(selZone.feature);
+  map.fitBounds(selLayer.getBounds(),{padding:[30,30]});
+  document.getElementById('scb').disabled=false;
+  setLoading(true);
+  try{
+    const gr=await fetch(`${EVAC_URL}/query?where=OBJECTID=${oid}&outFields=OBJECTID&returnGeometry=true&outSR=3857&f=json`);
+    const gj=await gr.json();if(!gj.features?.length){setLoading(false);return}
+    const geom=gj.features[0].geometry;
+    const[p,a]=await Promise.all([spQ(PARCEL_URL,geom,PF),spQ(ADDR_URL,geom,AFlds)]);
+    pData=p;aData=a;updateCounts();renderTable();
+  }catch(e){console.error(e)}
+  setLoading(false);fetchLog();
+}
+async function spQ(url,geom,flds){
+  const all=[];let off=0;
+  while(true){const p=new URLSearchParams({geometry:JSON.stringify(geom),geometryType:'esriGeometryPolygon',spatialRel:'esriSpatialRelIntersects',inSR:'3857',outFields:flds.join(','),returnGeometry:'false',resultOffset:off,resultRecordCount:2000,f:'json'});
+    const r=await fetch(`${url}/query`,{method:'POST',body:p});const j=await r.json();if(j.error)break;const ft=j.features||[];ft.forEach(f=>all.push(f.attributes));if(!j.exceededTransferLimit&&ft.length<2000)break;off+=ft.length}return all;
+}
+function updateCounts(){
+  document.getElementById('pc').textContent=pData.length.toLocaleString();
+  document.getElementById('tpc').textContent=pData.length.toLocaleString();
+  document.getElementById('ac').textContent=aData.length.toLocaleString();
+  document.getElementById('tac').textContent=aData.length.toLocaleString();
+  document.getElementById('stats').style.display='';document.getElementById('csv').disabled=false;
+}
+
+// ---- TABLE ----
+function switchTab(t){activeTab=t;document.querySelectorAll('.tt').forEach(el=>el.classList.toggle('on',el.dataset.t===t));
+  document.getElementById('tsr').value='';document.getElementById('sbar').style.display=t==='log'?'none':'';renderTable()}
+function renderTable(filt){
+  if(activeTab==='log'){renderLog();return}
+  const data=filt||(activeTab==='parcels'?pData:aData);
+  const f=activeTab==='parcels'?PF:AFlds,h=activeTab==='parcels'?PH:AHdr;
+  if(!pData.length&&!aData.length){document.getElementById('dt').style.display='none';document.getElementById('emp').style.display='';return}
+  document.getElementById('emp').style.display='none';document.getElementById('dt').style.display='';
+  document.getElementById('dth').innerHTML='<tr>'+h.map(x=>`<th>${x}</th>`).join('')+'</tr>';
+  document.getElementById('dtb').innerHTML=data.map(r=>'<tr>'+f.map(k=>{let v=r[k];if(v==null)v='';if(k==='ACRES'&&v!=='')v=parseFloat(v).toFixed(2);return`<td>${v}</td>`}).join('')+'</tr>').join('');
+}
+function filterTable(){const q=document.getElementById('tsr').value.toLowerCase().trim();if(!q){renderTable();return}
+  const f=activeTab==='parcels'?PF:AFlds,src=activeTab==='parcels'?pData:aData;
+  renderTable(src.filter(r=>f.some(k=>String(r[k]||'').toLowerCase().includes(q))))}
+function renderLog(){
+  document.getElementById('emp').style.display=logData.length?'none':'';document.getElementById('dt').style.display=logData.length?'':'none';
+  if(!logData.length)return;
+  document.getElementById('dth').innerHTML='<tr><th>Time</th><th>Dir</th><th>Name</th><th>Address</th><th>Op</th><th>Type</th></tr>';
+  document.getElementById('dtb').innerHTML=logData.map(r=>{
+    const t=r.check_time?new Date(r.check_time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'—';
+    return`<tr><td class="lt">${t}</td><td class="${r.direction==='IN'?'di':'do'}">${r.direction||''}</td><td>${r.name||''}</td><td>${r.address||''}</td><td>${r.operator_name||''}</td><td>${r.card_type||''}</td></tr>`}).join('');
+}
+function doExport(){
+  const data=activeTab==='parcels'?pData:activeTab==='addrs'?aData:logData;
+  const f=activeTab==='parcels'?PF:activeTab==='addrs'?AFlds:['check_time','direction','name','address','phone','license_num','operator_name','card_type','notes'];
+  const h=activeTab==='parcels'?PH:activeTab==='addrs'?AHdr:['Time','Dir','Name','Address','Phone','License','Operator','Type','Notes'];
+  if(!data.length)return;const rows=[h.join(',')];
+  data.forEach(r=>{rows.push(f.map(k=>{let v=String(r[k]??'');if(k==='check_time'&&v)v=new Date(parseInt(v)).toISOString();if(v.includes(',')||v.includes('"'))v=`"${v.replace(/"/g,'""')}"`;return v}).join(','))});
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));
+  a.download=`checkpoint_${activeTab}_${new Date().toISOString().slice(0,10)}.csv`;a.click();
+}
+function setLoading(on){document.getElementById('lb').classList.toggle('on',on)}
+
+// ---- LOG POLLING ----
+let logTimer=null;
+async function fetchLog(){if(!selZone)return;
+  try{const p=new URLSearchParams({where:`zone_name='${(selZone.name||'').replace(/'/g,"''")}'`,outFields:'*',orderByFields:'check_time DESC',resultRecordCount:100,returnGeometry:false,f:'json'});
+    if(agolToken)p.append('token',agolToken);
+    const r=await fetch(`${LOG_URL}/query?${p}`);const j=await r.json();
+    logData=(j.features||[]).map(f=>f.attributes);document.getElementById('tlc').textContent=logData.length;
+    if(activeTab==='log')renderLog();}catch(e){console.error(e)}
+  clearInterval(logTimer);logTimer=setInterval(fetchLog,15000);
+}
+
+// ---- CHECKPOINT MODAL ----
+function openModal(){if(!selZoneId)return;
+  document.getElementById('mzn').textContent='Zone: '+[selZone?.name,selZone?.incident].filter(Boolean).join(' — ');
+  resetModal();document.getElementById('modal').classList.add('open');
+  wedge.setTarget('checkpoint');
+}
+function closeModal(){document.getElementById('modal').classList.remove('open');wedge.setTarget(null)}
+function resetModal(){
+  lastCheck=null;parsedDL=null;selectedDir=null;
+  document.getElementById('s1').style.display='';document.getElementById('s2').style.display='none';
+  document.getElementById('rstBtn').style.display='none';
+  document.getElementById('ai').value='';document.getElementById('ss').textContent='';
+  document.getElementById('pf').style.display='none';document.getElementById('pf').innerHTML='';
+  document.getElementById('s1res').style.display='none';document.getElementById('s1go').style.display='none';
+  document.getElementById('sBtn').disabled=false;document.getElementById('sBtn').textContent='📷 Scan Barcode';
+  document.getElementById('sBtn').style.display='';
+  document.getElementById('s1dv').style.display='';
+  document.getElementById('s1chk').style.display='';document.getElementById('s1chk').disabled=false;
+  document.getElementById('s2phone').value='';document.getElementById('s2notes').value='';
+  document.getElementById('s2res').style.display='none';document.getElementById('s2save').disabled=true;
+  document.querySelectorAll('.dbtn').forEach(b=>b.classList.remove('sel'));
+  const ws=document.getElementById('wedgeStatusCP');
+  ws.className='wedge-status listening';ws.textContent='Scanner ready — scan a DL or re-entry card';
+}
+
+// ---- STEP 1: ADDRESS CHECK ----
+async function doCheck(){
+  const addr=document.getElementById('ai').value.trim();if(!addr||!selGeom)return;
+  const btn=document.getElementById('s1chk');btn.disabled=true;btn.textContent='Geocoding…';
+  try{
+    const p=new URLSearchParams({SingleLine:addr,f:'json',outFields:'Match_addr,Score',maxLocations:1,location:'-107.88,37.28',distance:80000});
+    const r=await fetch(`${GEOCODE_URL}?${p}`);const j=await r.json();
+    if(!j.candidates?.length){showS1('re','Could not geocode','No match.',addr);btn.disabled=false;btn.textContent='Check address';return}
+    const c=j.candidates[0],lng=c.location.x,lat=c.location.y,ma=c.attributes?.Match_addr||addr,sc=c.attributes?.Score||0;
+    if(scanMarker)map.removeLayer(scanMarker);
+    scanMarker=L.circleMarker([lat,lng],{radius:8,color:'#ef4444',fillColor:'#ef4444',fillOpacity:.9,weight:2}).addTo(map);
+    const inside=pip([lng,lat],selGeom);
+    lastCheck={inside,addr:ma,lat,lng,score:sc};
+    if(sc<70){showS1('re','Low confidence',`Score: ${sc}/100.`,ma)}
+    else if(inside){showS1('ri','✓ INSIDE ZONE','Address is within the evacuation zone.',ma);document.getElementById('s1go').style.display=''}
+    else{showS1('ro','✗ OUTSIDE ZONE','Address is not within the evacuation zone.',ma)}
+  }catch(e){console.error(e);showS1('re','Geocode failed','Network error.',addr)}
+  btn.disabled=false;btn.textContent='Check address';
+}
+function showS1(cls,v,d,a){const r=document.getElementById('s1res');r.style.display='block';r.className='res '+cls;
+  document.getElementById('s1rv').textContent=v;document.getElementById('s1rd').textContent=d;document.getElementById('s1ra').textContent=a}
+
+// ---- STEP 2 ----
+function goStep2(){
+  document.getElementById('s1').style.display='none';document.getElementById('s2').style.display='';
+  const info=document.getElementById('s2info');
+  let html=`<div class="pr"><span class="pl">Address</span><span class="pv">${lastCheck.addr}</span></div>`;
+  if(parsedDL){
+    const n=[parsedDL.firstName,parsedDL.lastName].filter(Boolean).map(titleCase).join(' ');
+    if(n)html+=`<div class="pr"><span class="pl">Name</span><span class="pv">${n}</span></div>`;
+    if(parsedDL.licenseNum)html+=`<div class="pr"><span class="pl">License #</span><span class="pv">${parsedDL.licenseNum}</span></div>`;
+  }
+  info.innerHTML=html;
+}
+function pickDir(dir,el){selectedDir=dir;document.querySelectorAll('.dbtn').forEach(b=>b.classList.remove('sel'));el.classList.add('sel');document.getElementById('s2save').disabled=false}
+async function saveRecord(){
+  const btn=document.getElementById('s2save');btn.disabled=true;btn.textContent='Saving…';
+  const dl=parsedDL||{};
+  const feat={geometry:{x:lastCheck.lng,y:lastCheck.lat,spatialReference:{wkid:4326}},
+    attributes:{name:[dl.firstName,dl.lastName].filter(Boolean).map(titleCase).join(' ')||'Manual',
+      address:lastCheck.addr,phone:document.getElementById('s2phone').value.trim(),
+      license_num:dl.licenseNum||'',zone_name:selZone?.name||'',incident:selZone?.incident||'',
+      direction:selectedDir,check_time:Date.now(),operator_name:operatorName,
+      card_type:dl.licenseNum?'DL':'Manual',notes:document.getElementById('s2notes').value.trim()}};
+  try{
+    const p=new URLSearchParams({adds:JSON.stringify([feat]),f:'json'});
+    if(agolToken)p.append('token',agolToken);
+    const r=await fetch(`${LOG_URL}/applyEdits`,{method:'POST',body:p});const j=await r.json();
+    if(j.addResults?.[0]?.success){
+      showS2('ri','✓ Saved',`${selectedDir} — ${feat.attributes.name} — ${new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`);
+      document.getElementById('rstBtn').style.display='';fetchLog();
+    }else{
+      showS2('re','Save failed',j.addResults?.[0]?.error?.description||'Unknown error');
+      btn.disabled=false;btn.textContent='Save record';
+    }
+  }catch(e){showS2('re','Network error',e.message);btn.disabled=false;btn.textContent='Save record'}
+}
+function showS2(cls,v,d){const r=document.getElementById('s2res');r.style.display='block';r.className='res '+cls;
+  document.getElementById('s2rv').textContent=v;document.getElementById('s2rd').textContent=d}
+
+// ============================================================
+//  AAMVA PDF417 PARSER — all 50 states, AAMVA versions 1–10
+// ============================================================
+function parseAAMVA(raw){
+  const f={};
+
+  // Full field mapping: standard AAMVA + older/alternate codes
+  const fm={
+    // Name fields — current spec (v3+)
+    'DCS':'lastName','DCT':'firstAndMiddle','DCU':'suffix',
+    // Name fields — older spec (v1-2) and alternates
+    'DAB':'lastName','DAC':'firstName','DAD':'middleName',
+    'DAE':'suffix','DAF':'prefix',
+    // Full name in one field (some states: LAST,FIRST,MIDDLE)
+    'DAA':'fullName',
+    // Address — primary set
+    'DAG':'street','DAH':'street2','DAI':'city','DAJ':'state','DAK':'zip',
+    // Address — alternate set (some states use these instead)
+    'DAL':'street','DAM':'city','DAN':'state','DAO':'zip',
+    // License info
+    'DAQ':'licenseNum','DBA':'expiry','DBB':'dob','DBC':'sex',
+    'DBD':'issueDate',
+    // Physical
+    'DAU':'height','DAW':'weight','DAY':'hairColor','DAZ':'hairColor',
+    // Jurisdiction
+    'DCG':'country','DCD':'vehicleClass','DCF':'documentId',
+  };
+
+  // Zebra HID output may turn AAMVA control separators into ordinary spaces.
+  // Restore a boundary before a known field code when it follows whitespace or
+  // the DL subfile designator, then split the records normally.
+  const fieldCodes=Object.keys(fm).join('|');
+  const fieldBoundary=new RegExp('(?:[\\x00-\\x20]+|DL)(?=(?:'+fieldCodes+'))','g');
+  const normalizedRaw=String(raw||'').replace(fieldBoundary,'\n');
+  const lines=normalizedRaw.split(/[\x1e\x1d\x0a\x0d]+/);
+
+  for(const line of lines){
+    const t=line.trim();
+    if(t.length<4) continue;
+
+    // Find the first known field code. The first DL field is commonly
+    // attached directly to the ANSI header (for example: ...DLDAQ12345),
+    // so checking only the first three characters loses that field.
+    let code='',val='';
+    const cleaned=t.replace(/^[\x00-\x1f\s]+/,'');
+    if(cleaned.length<4) continue;
+
+    let fieldIndex=-1;
+    for(const candidate of Object.keys(fm)){
+      const i=cleaned.indexOf(candidate);
+      if(i!==-1&&(fieldIndex===-1||i<fieldIndex)){
+        fieldIndex=i;
+        code=candidate;
+      }
+    }
+    if(fieldIndex===-1)continue;
+    val=cleaned.substring(fieldIndex+3).trim();
+
+    // Strip trailing control characters
+    val=val.replace(/[\x00-\x1f]+$/,'');
+
+    if(!val) continue;
+
+    const target=fm[code];
+    if(!target) continue;
+
+    // Don't overwrite — first value wins (some states duplicate fields)
+    if(target==='fullName'){
+      // DAA: "LAST,FIRST,MIDDLE" or "LAST,FIRST" — some use spaces
+      if(!f.lastName||!f.firstName){
+        const sep=val.includes(',')?',':null;
+        if(sep){
+          const parts=val.split(sep).map(s=>s.trim());
+          if(!f.lastName)f.lastName=parts[0]||'';
+          if(!f.firstName)f.firstName=parts[1]||'';
+          if(!f.middleName&&parts[2])f.middleName=parts[2];
+        }else{
+          // Space-separated fallback: assume LAST FIRST MIDDLE
+          const parts=val.split(/\s+/);
+          if(!f.lastName)f.lastName=parts[0]||'';
+          if(!f.firstName)f.firstName=parts[1]||'';
+          if(!f.middleName&&parts[2])f.middleName=parts.slice(2).join(' ');
+        }
+      }
+    }else if(target==='firstAndMiddle'){
+      // DCT: "FIRST,MIDDLE" or "FIRST MIDDLE" or just "FIRST"
+      if(!f.firstName){
+        const sep=val.includes(',')?',':null;
+        if(sep){
+          const parts=val.split(sep).map(s=>s.trim());
+          f.firstName=parts[0]||'';
+          if(!f.middleName&&parts[1])f.middleName=parts[1];
+        }else{
+          const parts=val.split(/\s+/);
+          f.firstName=parts[0]||'';
+          if(!f.middleName&&parts.length>1)f.middleName=parts.slice(1).join(' ');
+        }
+      }
+    }else{
+      if(!f[target])f[target]=val;
+    }
+  }
+
+  // Fallback for scanners that remove every AAMVA separator and transmit the
+  // license as one continuous string. Limit this pass to the standard fields
+  // needed by the application so names and addresses are not misidentified.
+  if(!f.firstName||!f.lastName||!f.street||!f.city||!f.state||!f.zip){
+    const fallbackMap={
+      DCS:'lastName',DAC:'firstName',DCT:'firstAndMiddle',DAD:'middleName',
+      DAG:'street',DAH:'street2',DAI:'city',DAJ:'state',DAK:'zip',DAQ:'licenseNum'
+    };
+    const fallbackCodes=Object.keys(fallbackMap);
+    const markerPattern=new RegExp('('+fallbackCodes.join('|')+')','g');
+    const source=String(raw||'');
+    const markers=[...source.matchAll(markerPattern)];
+    for(let i=0;i<markers.length;i++){
+      const code=markers[i][1];
+      const start=markers[i].index+3;
+      const end=i+1<markers.length?markers[i+1].index:source.length;
+      const val=source.substring(start,end).replace(/[\x00-\x20]+$/g,'').trim();
+      if(!val)continue;
+      const target=fallbackMap[code];
+      if(target==='firstAndMiddle'&&!f.firstName){
+        const parts=val.split(/[,\s]+/).filter(Boolean);
+        f.firstName=parts.shift()||'';
+        if(!f.middleName&&parts.length)f.middleName=parts.join(' ');
+      }else if(target!=='firstAndMiddle'&&!f[target]){
+        f[target]=val;
+      }
+    }
+  }
+
+  // --- Post-processing ---
+
+  // Normalize ZIP: remove spaces, format with hyphen for ZIP+4
+  if(f.zip){
+    f.zip=f.zip.replace(/\s+/g,'');
+    // AAMVA commonly pads a five-digit ZIP with four zeroes.
+    if(/^\d{5}0{4}$/.test(f.zip)){
+      f.zip=f.zip.substring(0,5);
+    }else if(f.zip.length>5&&!f.zip.includes('-')){
+      f.zip=f.zip.substring(0,5)+'-'+f.zip.substring(5,9);
+    }
+    // Trim trailing zeros beyond 9 digits
+    if(f.zip.length>10)f.zip=f.zip.substring(0,10);
+  }
+
+  // Normalize DOB: states use MMDDYYYY, YYYYMMDD, or sometimes MM/DD/YYYY
+  if(f.dob){
+    const d=f.dob.replace(/[\/\-]/g,'');
+    if(d.length===8){
+      // Detect YYYYMMDD vs MMDDYYYY
+      const firstFour=parseInt(d.substring(0,4));
+      if(firstFour>1900&&firstFour<2100){
+        // YYYYMMDD
+        f.dob=d.substring(4,6)+'/'+d.substring(6,8)+'/'+d.substring(0,4);
+      }else{
+        // MMDDYYYY (most common)
+        f.dob=d.substring(0,2)+'/'+d.substring(2,4)+'/'+d.substring(4);
+      }
+    }
+  }
+
+  // Normalize expiry same way
+  if(f.expiry){
+    const d=f.expiry.replace(/[\/\-]/g,'');
+    if(d.length===8){
+      const firstFour=parseInt(d.substring(0,4));
+      if(firstFour>1900&&firstFour<2100){
+        f.expiry=d.substring(4,6)+'/'+d.substring(6,8)+'/'+d.substring(0,4);
+      }else{
+        f.expiry=d.substring(0,2)+'/'+d.substring(2,4)+'/'+d.substring(4);
+      }
+    }
+  }
+
+  // Sex code to label
+  if(f.sex){
+    const s={'1':'M','2':'F','9':'X'};
+    f.sex=s[f.sex]||f.sex;
+  }
+
+  return f;
+}
+
+function titleCase(s){return s?s.toLowerCase().replace(/\b\w/g,c=>c.toUpperCase()):''}
+
+// Remove Zebra Code ID/custom prefixes while retaining the actual payload.
+// Examples observed from the DS8101: P01{...QR JSON...} and X@ ANSI...DL.
+function normalizeScanData(raw){
+  const text=String(raw??'').replace(/\x00/g,'').trim();
+
+  // LPC re-entry cards always contain a JSON object. Extract only that object
+  // so scanner prefixes/suffixes do not prevent JSON.parse().
+  const jsonStart=text.indexOf('{');
+  const jsonEnd=text.lastIndexOf('}');
+  if(jsonStart!==-1&&jsonEnd>jsonStart){
+    return text.substring(jsonStart,jsonEnd+1);
+  }
+
+  // AAMVA driver-license payload begins at @. Discard a leading Zebra label
+  // identifier such as X while preserving the complete ANSI data.
+  const aamvaStart=text.indexOf('@');
+  if(aamvaStart!==-1){
+    return text.substring(aamvaStart);
+  }
+
+  return text;
+}
+
+function buildAddrString(p){
+  if(p.fullAddress)return p.fullAddress.trim();
+  // Build "Street, City, State ZIP" from parsed fields
+  const parts=[];
+  const st=[p.street,p.street2].filter(Boolean).map(titleCase).join(' ');
+  if(st) parts.push(st);
+  const city=p.city?titleCase(p.city):'';
+  const stateZip=[p.state,p.zip].filter(Boolean).join(' ');
+  const csz=[city,stateZip].filter(Boolean).join(', ');
+  if(csz) parts.push(csz);
+  return parts.join(', ');
+}
+
+function addressFromQR(qd){
+  if(qd.a)return String(qd.a).trim();
+  const street=String(qd.st||'').trim();
+  let city=String(qd.ci||'').trim();
+  const state=String(qd.s||'').trim();
+  const zip=String(qd.z||'').trim();
+  if(city.replace(/[,\s]+/g,' ').trim().toUpperCase()===
+     [state,zip].filter(Boolean).join(' ').toUpperCase())city='';
+  const locality=[city,[state,zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+  return [street,locality].filter(Boolean).join(', ');
+}
+
+function showParsed(p){
+  const c=document.getElementById('pf');
+  const d=[
+    {l:'Name',v:[p.firstName,p.middleName,p.lastName].filter(Boolean).map(titleCase).join(' ')},
+    {l:'DOB',v:p.dob},
+    {l:'License #',v:p.licenseNum},
+    {l:'Address',v:p.fullAddress||[p.street,p.street2].filter(Boolean).map(titleCase).join(' ')},
+    {l:'City/State/ZIP',v:p.fullAddress?'':[p.city?titleCase(p.city):'',[p.state,p.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')}
+  ].filter(x=>x.v);
+  c.innerHTML=d.map(x=>`<div class="pr"><span class="pl">${x.l}</span><span class="pv">${x.v}</span></div>`).join('');
+  c.style.display='block';
+}
+
+function showCardParsed(p){
+  const c=document.getElementById('cardParsedInfo');
+  const d=[
+    {l:'Name',v:[p.firstName,p.middleName,p.lastName].filter(Boolean).map(titleCase).join(' ')},
+    {l:'Address',v:buildAddrString(p)},
+  ].filter(x=>x.v);
+  c.innerHTML='<div style="font-size:11px;font-weight:600;color:var(--gd);margin-bottom:4px">✓ DL scanned</div>'+
+    d.map(x=>`<div class="pr"><span class="pl">${x.l}</span><span class="pv">${x.v}</span></div>`).join('');
+  c.style.display='block';
+}
+
+
+// ============================================================
+//  DS8101 WEDGE SCANNER — keyboard input buffer
+// ============================================================
+const wedge=(function(){
+  let buffer='';
+  let timer=null;
+  let target=null; // 'checkpoint' | 'card' | null
+  // PDF417 keyboard output is long and can pause between AAMVA records.
+  // Wait for an idle period instead of treating an embedded Enter as EOF.
+  const CHAR_GAP=250;
+  const SCAN_END_DELAY=800;
+  const MIN_LENGTH=20;  // minimum chars for a valid barcode
+
+  function setTarget(t){
+    target=t;
+    buffer='';
+    clearTimeout(timer);
+    // Update status indicators
+    const cpEl=document.getElementById('wedgeStatusCP');
+    const cardEl=document.getElementById('wedgeStatusCard');
+    if(cpEl) cpEl.className='wedge-status'+(t==='checkpoint'?' listening':'');
+    if(cardEl) cardEl.className='wedge-status'+(t==='card'?' listening':'');
+  }
+
+  function process(){
+    const raw=normalizeScanData(buffer);
+    buffer='';
+    if(raw.length<MIN_LENGTH) return;
+
+    // Detect if it's a re-entry card QR (JSON with t:'card')
+    try{
+      const qd=JSON.parse(raw);
+      if(qd.t==='card'){
+        handleCardQR(qd);return;
+      }
+    }catch(e){}
+
+    // Check if it looks like AAMVA (contains known field codes)
+    const isAAMVA=raw.includes('DAQ')||raw.includes('DCS')||raw.includes('DAC')||raw.includes('DAA')||raw.includes('ANSI ')||raw.includes('AAMVA');
+    if(isAAMVA){
+      const parsed=parseAAMVA(raw);
+      if(parsed.licenseNum||parsed.lastName){
+        handleDLScan(parsed);return;
+      }
+    }
+
+    // Fallback: try QR JSON parse for any JSON payload
+    try{
+      const qd=JSON.parse(raw);
+      handleCardQR(qd);
+    }catch(e){
+      // Unknown barcode format — show raw in appropriate status
+      console.warn('Wedge scan: unrecognized format, length='+raw.length);
+      const ws=document.getElementById(target==='checkpoint'?'wedgeStatusCP':'wedgeStatusCard');
+      if(ws){
+        ws.className='wedge-status listening';
+        ws.textContent='Barcode read, but it is not a supported DL or re-entry QR code';
+      }
+    }
+  }
+
+  function handleDLScan(parsed){
+    if(target==='checkpoint'){
+      parsedDL=parsed;
+      showParsed(parsed);
+      document.getElementById('ai').value=buildAddrString(parsed);
+      document.getElementById('ss').textContent='✓ DL scanned via scanner';
+      document.getElementById('sBtn').style.display='none';
+      document.getElementById('s1dv').style.display='none';
+      const ws=document.getElementById('wedgeStatusCP');
+      ws.className='wedge-status captured';ws.textContent='✓ DL captured — '+titleCase(parsed.firstName||'')+' '+titleCase(parsed.lastName||'');
+    }else if(target==='card'){
+      // Populate card form from DL
+      document.getElementById('cfn').value=titleCase(parsed.firstName||'');
+      document.getElementById('cln').value=titleCase(parsed.lastName||'');
+      document.getElementById('caddr').value=buildAddrString(parsed);
+      showCardParsed(parsed);
+      const ws=document.getElementById('wedgeStatusCard');
+      ws.className='wedge-status captured';ws.textContent='✓ DL captured — edit fields below as needed';
+    }
+  }
+
+  function handleCardQR(qd){
+    if(target==='checkpoint'){
+      // Re-entry card scanned at checkpoint — treat like a DL scan
+      const fullAddress=addressFromQR(qd);
+      parsedDL={firstName:qd.fn||'',lastName:qd.ln||'',fullAddress,licenseNum:qd.id||''};
+      showParsed(parsedDL);
+      document.getElementById('ai').value=fullAddress;
+      document.getElementById('ss').textContent='✓ Re-entry card scanned';
+      document.getElementById('sBtn').style.display='none';
+      document.getElementById('s1dv').style.display='none';
+      const ws=document.getElementById('wedgeStatusCP');
+      ws.className='wedge-status captured';ws.textContent='✓ Re-entry card — '+(qd.fn||'')+' '+(qd.ln||'');
+    }else if(target==='card'){
+      // Re-entry card scanned in card modal — populate form
+      document.getElementById('cfn').value=qd.fn||'';
+      document.getElementById('cln').value=qd.ln||'';
+      document.getElementById('caddr').value=addressFromQR(qd);
+      if(qd.ph)document.getElementById('cphone').value=qd.ph;
+      if(qd.rs)document.getElementById('creason').value=qd.rs;
+      const ws=document.getElementById('wedgeStatusCard');
+      ws.className='wedge-status captured';ws.textContent='✓ Re-entry card data loaded';
+    }
+  }
+
+  // Global keydown listener — timing-based detection works even when
+  // an input field is focused. Scanner sends chars < 30ms apart;
+  // human typing is > 100ms apart. We detect the burst, buffer it,
+  // prevent chars from leaking into inputs, and clean up any that
+  // leaked before detection kicked in.
+  let lastKeyTime=0;
+  let scanning=false;    // true once we've confirmed it's a scanner burst
+  let leakedChars=0;     // chars that hit the focused input before detection
+
+  document.addEventListener('keydown',function(e){
+    if(!target) return;
+
+    const now=Date.now();
+    const gap=now-lastKeyTime;
+    lastKeyTime=now;
+
+    // AAMVA data contains embedded line breaks. Treat Enter/Tab as field
+    // separators and process only after the scanner has gone idle.
+    if(e.key==='Enter'||e.key==='Tab'){
+      if(buffer.length){
+        e.preventDefault();
+        e.stopPropagation();
+        buffer+='\n';
+        clearTimeout(timer);
+        timer=setTimeout(()=>{
+          if(buffer.length>=MIN_LENGTH){
+            cleanLeaked();
+            process();
+          }else{
+            buffer='';
+          }
+          scanning=false;
+          leakedChars=0;
+        },SCAN_END_DELAY);
+      }
+      return;
+    }
+
+    // Only printable characters
+    if(e.key.length!==1||e.ctrlKey||e.altKey||e.metaKey) return;
+
+    if(buffer.length===0){
+      // First character — could be human or scanner. Buffer it but
+      // let it through (we don't know yet). Track that it leaked.
+      buffer=e.key;
+      scanning=false;
+      leakedChars=1;
+      clearTimeout(timer);
+      timer=setTimeout(()=>{
+        // Timed out waiting for more fast chars — it was human typing
+        buffer='';scanning=false;leakedChars=0;
+      },CHAR_GAP);
+    }else if(gap<CHAR_GAP||scanning){
+      // Fast follow-up character — this is the scanner
+      if(!scanning){
+        scanning=true;
+        // Now we know it's a scanner burst. The first char(s) already
+        // leaked into the focused input. We'll clean them up later.
+      }
+      e.preventDefault();
+      e.stopPropagation();
+      buffer+=e.key;
+      clearTimeout(timer);
+      timer=setTimeout(()=>{
+        if(buffer.length>=MIN_LENGTH){
+          cleanLeaked();
+          process();
+        }
+        else buffer='';
+        scanning=false;leakedChars=0;
+      },SCAN_END_DELAY);
+    }else{
+      // Slow follow-up — previous buffer was human typing, start fresh
+      buffer=e.key;
+      scanning=false;
+      leakedChars=1;
+      clearTimeout(timer);
+      timer=setTimeout(()=>{
+        buffer='';scanning=false;leakedChars=0;
+      },CHAR_GAP);
+    }
+  });
+
+  // Remove characters that leaked into the active input before
+  // we detected the scanner burst
+  function cleanLeaked(){
+    if(leakedChars<=0)return;
+    const ae=document.activeElement;
+    if(ae&&ae.tagName==='INPUT'&&ae.type!=='file'){
+      // Remove the leaked chars from the end of the input value
+      ae.value=ae.value.substring(0,Math.max(0,ae.value.length-leakedChars));
+    }
+    leakedChars=0;
+  }
+
+  return{setTarget};
+})();
+
+
+// ---- CUSTOM CARD MODAL ----
+function openCardModal(){resetCardModal();document.getElementById('cardModal').classList.add('open');wedge.setTarget('card')}
+function closeCardModal(){document.getElementById('cardModal').classList.remove('open');wedge.setTarget(null)}
+function resetCardModal(){
+  document.getElementById('cardResult').style.display='none';
+  document.getElementById('cardParsedInfo').style.display='none';
+  ['cfn','cln','caddr','cphone','creason'].forEach(id=>document.getElementById(id).value='');
+  const ws=document.getElementById('wedgeStatusCard');
+  ws.className='wedge-status listening';ws.textContent='Scanner ready — scan a DL barcode';
+}
+
+// LPC OEM Logo embedded as base64
+const LPC_LOGO='data:image/png;base64,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';
+
+function generateCard(){
+  const fn=document.getElementById('cfn').value.trim();
+  const ln=document.getElementById('cln').value.trim();
+  const addr=document.getElementById('caddr').value.trim();
+  const phone=document.getElementById('cphone').value.trim();
+  const reason=document.getElementById('creason').value.trim();
+  if(!fn||!ln||!addr){alert('Name and address are required');return}
+  const cardId='LPC-'+Date.now().toString(36).toUpperCase();
+  // Keep the address intact. Splitting on commas is unreliable because
+  // operators may enter addresses using several valid formats.
+  const qrData=JSON.stringify({fn,ln,a:addr,ph:phone,id:cardId,rs:reason,t:'card'});
+
+  document.getElementById('cardName').textContent=`${fn} ${ln}`;
+  document.getElementById('cardAddr').textContent=addr;
+  document.getElementById('cardId').textContent=cardId;
+  document.getElementById('cardReason').textContent=reason;
+
+  try{
+    const qr=qrcode(0,'M');
+    qr.addData(qrData);
+    qr.make();
+    const canvas=document.getElementById('qrCanvas');
+    const cellSize=4,margin=8;
+    const count=qr.getModuleCount();
+    const size=count*cellSize+margin*2;
+    canvas.width=size;canvas.height=size;
+    const ctx=canvas.getContext('2d');
+    ctx.fillStyle='#fff';ctx.fillRect(0,0,size,size);
+    ctx.fillStyle='#000';
+    for(let r=0;r<count;r++){for(let c=0;c<count;c++){if(qr.isDark(r,c)){ctx.fillRect(margin+c*cellSize,margin+r*cellSize,cellSize,cellSize)}}}
+    document.getElementById('cardResult').style.display='';
+    window._lastCard={fn,ln,addr,phone,reason,cardId,qrDataURL:canvas.toDataURL(),qrData};
+    document.getElementById('cardLogoPreview').src=LPC_LOGO;
+  }catch(e){console.error('QR generation error:',e);alert('Error generating QR code: '+e.message)}
+}
+
+// ============================================================
+//  ZC300 CARD PRINTING — CR-80 at 300 DPI via hidden iframe
+// ============================================================
+function renderCardCanvas(c){
+  return new Promise((resolve,reject)=>{
+    // ZC300 portrait CR-80: 640 x 1006 pixels
+    const W=640,H=1006;
+    const canvas=document.createElement('canvas');
+    canvas.width=W;canvas.height=H;
+    const ctx=canvas.getContext('2d');
+
+    ctx.fillStyle='#fff';
+    ctx.fillRect(0,0,W,H);
+
+    // Preload both images before drawing anything
+    const logo=new Image();
+    const qrImg=new Image();
+    let logoLoaded=false,qrLoaded=false;
+
+    function draw(){
+      if(!logoLoaded||!qrLoaded)return;
+
+      // --- TOP ACCENT BORDER ---
+      ctx.strokeStyle='#2563eb';ctx.lineWidth=8;
+      ctx.beginPath();ctx.moveTo(0,4);ctx.lineTo(W,4);ctx.stroke();
+
+      // --- LOGO ---
+      const logoH=80,logoW=logo.width*(logoH/logo.height);
+      ctx.drawImage(logo,(W-logoW)/2,30,logoW,logoH);
+
+      // --- TITLE ---
+      ctx.fillStyle='#1a1a2e';
+      ctx.font='bold 24px -apple-system, sans-serif';
+      ctx.textAlign='center';
+      ctx.fillText('LA PLATA COUNTY',W/2,140);
+
+      ctx.fillStyle='#333';
+      ctx.font='bold 18px -apple-system, sans-serif';
+      ctx.fillText('OFFICE OF EMERGENCY MANAGEMENT',W/2,166);
+
+      // --- DIVIDER ---
+      ctx.strokeStyle='#d4d4d8';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(50,185);ctx.lineTo(W-50,185);ctx.stroke();
+
+      // --- CARD TYPE ---
+      ctx.fillStyle='#2563eb';
+      ctx.font='bold 20px -apple-system, sans-serif';
+      ctx.fillText('EVACUATION ZONE RE-ENTRY CARD',W/2,218);
+
+      // --- DIVIDER ---
+      ctx.strokeStyle='#d4d4d8';
+      ctx.beginPath();ctx.moveTo(50,235);ctx.lineTo(W-50,235);ctx.stroke();
+
+      // --- NAME ---
+      ctx.fillStyle='#111';
+      ctx.font='bold 44px -apple-system, sans-serif';
+      ctx.fillText(`${c.fn} ${c.ln}`,W/2,295);
+
+      // --- ADDRESS (word wrap for long addresses) ---
+      ctx.fillStyle='#444';
+      ctx.font='22px -apple-system, sans-serif';
+      const addrLines=wrapText(ctx,c.addr,W-80);
+      let addrY=335;
+      addrLines.forEach(line=>{
+        ctx.fillText(line,W/2,addrY);
+        addrY+=28;
+      });
+
+      // --- PHONE ---
+      if(c.phone){
+        ctx.fillStyle='#666';
+        ctx.font='20px -apple-system, sans-serif';
+        ctx.fillText(c.phone,W/2,addrY+10);
+      }
+
+      // --- REASON ---
+      if(c.reason){
+        const reasonY=c.phone?addrY+50:addrY+20;
+        ctx.fillStyle='#555';
+        ctx.font='italic 18px -apple-system, sans-serif';
+        ctx.fillText(c.reason,W/2,reasonY);
+      }
+
+      // --- QR CODE (centered, lower portion) ---
+      const qrSize=240;
+      const qrX=(W-qrSize)/2;
+      const qrY=H-qrSize-130;
+      ctx.drawImage(qrImg,qrX,qrY,qrSize,qrSize);
+
+      // --- CARD ID ---
+      ctx.fillStyle='#888';
+      ctx.font='14px monospace';
+      ctx.fillText(c.cardId,W/2,qrY+qrSize+24);
+
+      // --- INSTRUCTIONS ---
+      ctx.fillStyle='#aaa';
+      ctx.font='13px -apple-system, sans-serif';
+      ctx.fillText('Present at any evacuation checkpoint',W/2,H-50);
+      ctx.fillText('for re-entry verification.',W/2,H-32);
+
+      // --- BOTTOM ACCENT BORDER ---
+      ctx.strokeStyle='#2563eb';ctx.lineWidth=8;
+      ctx.beginPath();ctx.moveTo(0,H-4);ctx.lineTo(W,H-4);ctx.stroke();
+
+      resolve(canvas);
+    }
+
+    logo.onload=function(){logoLoaded=true;draw()};
+    logo.onerror=function(){
+      // Draw without logo if it fails
+      console.warn('Logo failed to load, rendering without it');
+      logoLoaded=true;draw();
+    };
+    qrImg.onload=function(){qrLoaded=true;draw()};
+    qrImg.onerror=()=>reject(new Error('QR image load failed'));
+
+    // Kick off loads
+    logo.src=LPC_LOGO;
+    qrImg.src=c.qrDataURL;
+  });
+}
+
+// Word wrap helper for canvas text
+function wrapText(ctx,text,maxWidth){
+  const words=text.split(' ');
+  const lines=[];
+  let line='';
+  for(const word of words){
+    const test=line?line+' '+word:word;
+    if(ctx.measureText(test).width>maxWidth&&line){
+      lines.push(line);
+      line=word;
+    }else{
+      line=test;
+    }
+  }
+  if(line)lines.push(line);
+  return lines;
+}
+
+async function printCard(){
+  const c=window._lastCard;if(!c)return;
+
+  try{
+    const canvas=await renderCardCanvas(c);
+    const dataUrl=canvas.toDataURL('image/png');
+
+    // Print via hidden iframe — avoids popup blockers entirely
+    const frame=document.getElementById('printFrame');
+    const doc=frame.contentDocument||frame.contentWindow.document;
+
+    doc.open();
+    doc.write(`<!DOCTYPE html>
+<html><head><title>LPC Re-entry Card</title>
+<style>
+  @page{
+    size:54mm 86mm portrait;
+    margin:0;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{
+    width:640px;
+    height:1006px;
+    overflow:hidden;
+    background:#fff;
+  }
+  img{
+    width:640px;
+    height:1006px;
+    display:block;
+    object-fit:fill;
+    -webkit-print-color-adjust:exact;
+    print-color-adjust:exact;
+  }
+  @media print{
+    html,body{width:100%;height:100%;overflow:hidden}
+    img{width:100%;height:100%;object-fit:fill}
+  }
+</style>
+</head><body>
+<img src="${dataUrl}"/>
+</body></html>`);
+    doc.close();
+
+    // Wait for the image to render in the iframe, then print
+    const img=doc.querySelector('img');
+    const doPrint=()=>{
+      try{
+        frame.contentWindow.focus();
+        frame.contentWindow.print();
+      }catch(e){
+        // Fallback: open in new tab if iframe print fails
+        console.warn('Iframe print failed, opening in new tab:',e);
+        const w=window.open('','_blank');
+        if(w){
+          w.document.write(doc.documentElement.outerHTML);
+          w.document.close();
+          setTimeout(()=>{w.focus();w.print()},400);
+        }else{
+          alert('Popup blocked — use "Save PNG" and print from your image viewer');
+        }
+      }
+    };
+
+    if(img.complete){
+      setTimeout(doPrint,200);
+    }else{
+      img.onload=()=>setTimeout(doPrint,200);
+      img.onerror=()=>alert('Card image failed to render — use "Save PNG" instead');
+    }
+  }catch(e){
+    console.error('Print error:',e);
+    alert('Print failed: '+e.message+'\n\nUse "Save PNG" as a fallback.');
+  }
+}
+
+// Save card as PNG for manual print fallback
+async function savePNG(){
+  const c=window._lastCard;if(!c)return;
+  try{
+    const canvas=await renderCardCanvas(c);
+    const a=document.createElement('a');
+    a.href=canvas.toDataURL('image/png');
+    a.download=`reentry_card_${c.ln}_${c.fn}_${c.cardId}.png`;
+    a.click();
+  }catch(e){
+    console.error('Save error:',e);
+    alert('Save failed: '+e.message);
+  }
+}
+
+// ---- POINT IN POLYGON ----
+function pip(pt,g){if(g.type==='Polygon')return rc(pt,g.coordinates);if(g.type==='MultiPolygon')return g.coordinates.some(p=>rc(pt,p));return false}
+function rc(pt,rings){let ins=ray(pt[0],pt[1],rings[0]);for(let i=1;i<rings.length;i++)if(ray(pt[0],pt[1],rings[i]))ins=false;return ins}
+function ray(px,py,ring){let ins=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const xi=ring[i][0],yi=ring[i][1],xj=ring[j][0],yj=ring[j][1];if(((yi>py)!==(yj>py))&&(px<(xj-xi)*(py-yi)/(yj-yi)+xi))ins=!ins}return ins}
+</script>
+
+<script type="module">
+// ---- BARCODE DETECTOR (phone camera) ----
+let detector=null;
+let scannerInitError='';
+async function initScanner(){
+  if('BarcodeDetector' in window){
+    try{const f=await BarcodeDetector.getSupportedFormats();
+      // Use the native detector only when it supports both formats needed here.
+      if(f.includes('pdf417')&&f.includes('qr_code')){
+        detector=new BarcodeDetector({formats:['pdf417','qr_code']});
+        return;
+      }
+    }catch(e){console.warn('Native BarcodeDetector unavailable:',e)}
+  }
+  try{
+    const m=await import('https://cdn.jsdelivr.net/npm/barcode-detector@2.3.1/dist/es/index.min.js');
+    const D=m.BarcodeDetector||m.default;
+    if(!D)throw new Error('Barcode detector module did not load');
+    detector=new D({formats:['pdf417','qr_code']});
+  }catch(e){
+    console.error(e);
+    scannerInitError=e?.message||'Barcode decoder could not be loaded';
+    document.getElementById('ss').textContent='Phone scanner unavailable: '+scannerInitError;
+    document.getElementById('sBtn').disabled=true;
+    const cardBtn=document.getElementById('cardCamBtn');
+    if(cardBtn)cardBtn.disabled=true;
+  }
+}
+
+const scannerReady=initScanner();
+
+function preprocess(img,contrast=1.5){
+  // Keep enough detail for the narrow bars in PDF417 while limiting memory use.
+  const MAX=2400,canvas=document.createElement('canvas'),ctx=canvas.getContext('2d',{willReadFrequently:true});
+  let w=img.width,h=img.height;
+  const largest=Math.max(w,h);
+  if(largest>MAX){const s=MAX/largest;w=Math.round(w*s);h=Math.round(h*s)}
+  canvas.width=w;canvas.height=h;ctx.drawImage(img,0,0,w,h);
+  const id=ctx.getImageData(0,0,w,h),d=id.data;
+  for(let i=0;i<d.length;i+=4){let g=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];g=((g-128)*contrast)+128;g=Math.max(0,Math.min(255,g));d[i]=d[i+1]=d[i+2]=g}
+  ctx.putImageData(id,0,0);return canvas;
+}
+
+async function processBarcodeImage(file,targetContext){
+  await scannerReady;
+  if(!detector)throw new Error(scannerInitError||'Phone scanner is unavailable');
+  let img;
+  try{img=await createImageBitmap(file,{imageOrientation:'from-image'})}
+  catch(e){img=await createImageBitmap(file)}
+  let results=[];
+
+  // Preserve the original color/detail first, then try grayscale and
+  // progressively stronger contrast for difficult PDF417 photographs.
+  try{results=await detector.detect(img)}catch(e){}
+  for(const c of [1.0,1.4,1.8,2.2]){
+    if(results.length&&results[0]?.rawValue?.length>10)break;
+    const canvas=preprocess(img,c);
+    try{results=await detector.detect(canvas)}catch(e){}
+  }
+  img.close();
+
+  if(!results.length||!(results[0]?.rawValue?.length>10))return null;
+  return results[0];
+}
+
+// ---- CHECKPOINT CAMERA SCAN ----
+document.getElementById('pi').addEventListener('change',async function(){
+  const file=this.files[0];if(!file)return;
+  const sb=document.getElementById('sBtn'),ss=document.getElementById('ss');
+  sb.disabled=true;sb.textContent='Reading…';ss.textContent='Processing…';
+  try{
+    const result=await processBarcodeImage(file,'checkpoint');
+    if(result&&result.rawValue?.length>10){
+      ss.textContent='✓ Barcode read';
+      const raw=normalizeScanData(result.rawValue);
+      if(result.format==='qr_code'){
+        const qd=JSON.parse(raw);
+        if(qd.t!=='card')throw new Error('QR code is not an LPC re-entry card');
+        const fullAddress=addressFromQR(qd);
+        parsedDL={firstName:qd.fn||'',lastName:qd.ln||'',fullAddress,licenseNum:qd.id||''};
+        showParsed(parsedDL);document.getElementById('ai').value=fullAddress;
+      }else{
+        parsedDL=parseAAMVA(raw);showParsed(parsedDL);
+        if(!parsedDL.licenseNum&&!parsedDL.lastName)throw new Error('Driver license data could not be parsed');
+        document.getElementById('ai').value=buildAddrString(parsedDL);
+      }
+      sb.style.display='none';document.getElementById('s1dv').style.display='none';
+    }else{ss.textContent='No barcode found — try again or type address.';sb.disabled=false;sb.textContent='📷 Scan Barcode'}
+  }catch(e){console.error(e);ss.textContent='Scan failed: '+(e?.message||'try again');sb.disabled=false;sb.textContent='📷 Scan Barcode'}
+  this.value='';
+});
+
+// ---- CARD MODAL CAMERA SCAN ----
+document.getElementById('cardCamInput').addEventListener('change',async function(){
+  const file=this.files[0];if(!file)return;
+  const ws=document.getElementById('wedgeStatusCard');
+  ws.className='wedge-status listening';ws.textContent='Processing image…';
+  try{
+    const result=await processBarcodeImage(file,'card');
+    if(result&&result.rawValue?.length>10){
+      const raw=normalizeScanData(result.rawValue);
+      let parsed;
+      if(result.format==='qr_code'){
+        try{
+          const qd=JSON.parse(raw);
+          if(qd.t!=='card')throw new Error('Not an LPC re-entry card');
+          parsed={firstName:qd.fn||'',lastName:qd.ln||'',fullAddress:addressFromQR(qd)};
+          if(qd.ph)document.getElementById('cphone').value=qd.ph;
+          if(qd.rs)document.getElementById('creason').value=qd.rs;
+        }catch(e){ws.textContent='QR code is not a supported re-entry card';return}
+      }else{
+        parsed=parseAAMVA(raw);
+        if(!parsed.licenseNum&&!parsed.lastName)throw new Error('Driver license data could not be parsed');
+      }
+      document.getElementById('cfn').value=titleCase(parsed.firstName||'');
+      document.getElementById('cln').value=titleCase(parsed.lastName||'');
+      document.getElementById('caddr').value=buildAddrString(parsed);
+      showCardParsed(parsed);
+      ws.className='wedge-status captured';ws.textContent='✓ DL captured — edit fields below as needed';
+    }else{
+      ws.className='wedge-status listening';ws.textContent='No barcode found — try again or enter manually';
+    }
+  }catch(e){
+    console.error(e);
+    ws.className='wedge-status listening';ws.textContent='Scan failed: '+(e?.message||'try again');
+  }
+  this.value='';
+});
+
+</script>
+</body>
+</html>
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--tx);height:100dvh;display:flex;flex-direction:column;overflow:hidden;-webkit-text-size-adjust:100%}
 header{background:var(--sf);border-bottom:1px solid var(--bd);padding:10px 14px;display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}
 header h1{font-size:14px;font-weight:700;white-space:nowrap}
