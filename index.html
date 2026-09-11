@@ -754,46 +754,95 @@ const wedge=(function(){
     }
   }
 
-  // Global keydown listener — intercepts wedge scanner input
+  // Global keydown listener — timing-based detection works even when
+  // an input field is focused. Scanner sends chars < 30ms apart;
+  // human typing is > 100ms apart. We detect the burst, buffer it,
+  // prevent chars from leaking into inputs, and clean up any that
+  // leaked before detection kicked in.
+  let lastKeyTime=0;
+  let scanning=false;    // true once we've confirmed it's a scanner burst
+  let leakedChars=0;     // chars that hit the focused input before detection
+
   document.addEventListener('keydown',function(e){
     if(!target) return;
 
-    // Don't intercept if user is focused on a real input field
-    const ae=document.activeElement;
-    if(ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.tagName==='SELECT')){
-      // Exception: if characters are arriving faster than human typing,
-      // it's the wedge scanner even though an input is focused.
-      // We check by timing: wedge sends chars < 30ms apart typically.
-      // But we can't easily distinguish on keydown alone, so we let
-      // focused inputs work normally. The wedge should be used when
-      // no input is focused (click away from input fields first).
-      return;
-    }
+    const now=Date.now();
+    const gap=now-lastKeyTime;
+    lastKeyTime=now;
 
-    // Ignore modifier keys and special keys (except Enter and Tab which terminate)
+    // Enter/Tab = end of scan
     if(e.key==='Enter'||e.key==='Tab'){
       if(buffer.length>=MIN_LENGTH){
         e.preventDefault();
+        e.stopPropagation();
         clearTimeout(timer);
+        // Clean up any chars that leaked into the focused input
+        cleanLeaked();
         process();
       }else{
         buffer='';
       }
+      scanning=false;
+      leakedChars=0;
       return;
     }
 
-    // Only capture printable characters
-    if(e.key.length===1&&!e.ctrlKey&&!e.altKey&&!e.metaKey){
+    // Only printable characters
+    if(e.key.length!==1||e.ctrlKey||e.altKey||e.metaKey) return;
+
+    if(buffer.length===0){
+      // First character — could be human or scanner. Buffer it but
+      // let it through (we don't know yet). Track that it leaked.
+      buffer=e.key;
+      scanning=false;
+      leakedChars=1;
+      clearTimeout(timer);
+      timer=setTimeout(()=>{
+        // Timed out waiting for more fast chars — it was human typing
+        buffer='';scanning=false;leakedChars=0;
+      },CHAR_GAP);
+    }else if(gap<CHAR_GAP){
+      // Fast follow-up character — this is the scanner
+      if(!scanning){
+        scanning=true;
+        // Now we know it's a scanner burst. The first char(s) already
+        // leaked into the focused input. We'll clean them up later.
+      }
       e.preventDefault();
+      e.stopPropagation();
       buffer+=e.key;
       clearTimeout(timer);
-      // If no more chars arrive within CHAR_GAP ms, process what we have
       timer=setTimeout(()=>{
-        if(buffer.length>=MIN_LENGTH)process();
+        if(buffer.length>=MIN_LENGTH){
+          cleanLeaked();
+          process();
+        }
         else buffer='';
+        scanning=false;leakedChars=0;
+      },CHAR_GAP);
+    }else{
+      // Slow follow-up — previous buffer was human typing, start fresh
+      buffer=e.key;
+      scanning=false;
+      leakedChars=1;
+      clearTimeout(timer);
+      timer=setTimeout(()=>{
+        buffer='';scanning=false;leakedChars=0;
       },CHAR_GAP);
     }
   });
+
+  // Remove characters that leaked into the active input before
+  // we detected the scanner burst
+  function cleanLeaked(){
+    if(leakedChars<=0)return;
+    const ae=document.activeElement;
+    if(ae&&ae.tagName==='INPUT'&&ae.type!=='file'){
+      // Remove the leaked chars from the end of the input value
+      ae.value=ae.value.substring(0,Math.max(0,ae.value.length-leakedChars));
+    }
+    leakedChars=0;
+  }
 
   return{setTarget};
 })();
