@@ -227,7 +227,7 @@ tr:hover td{background:#fafafa}
     <p>Scan a driver's license with the DS8101 or phone camera to auto-fill, then edit as needed.</p>
     <div class="wedge-status" id="wedgeStatusCard">Scanner ready — scan a DL barcode</div>
     <div class="scan-actions">
-      <button class="b" onclick="document.getElementById('cardCamInput').click()">📷 Phone camera</button>
+      <button class="b" id="cardCamBtn" onclick="document.getElementById('cardCamInput').click()">📷 Phone camera</button>
     </div>
     <input type="file" accept="image/*" capture="environment" id="cardCamInput" style="display:none"/>
     <div class="card-parsed" id="cardParsedInfo" style="display:none"></div>
@@ -514,14 +514,23 @@ function parseAAMVA(raw){
     const t=line.trim();
     if(t.length<4) continue;
 
-    // Field code is first 3 characters after any leading control chars
+    // Find the first known field code. The first DL field is commonly
+    // attached directly to the ANSI header (for example: ...DLDAQ12345),
+    // so checking only the first three characters loses that field.
     let code='',val='';
-    // Some scanners prepend control chars or spaces before the code
     const cleaned=t.replace(/^[\x00-\x1f\s]+/,'');
     if(cleaned.length<4) continue;
 
-    code=cleaned.substring(0,3);
-    val=cleaned.substring(3).trim();
+    let fieldIndex=-1;
+    for(const candidate of Object.keys(fm)){
+      const i=cleaned.indexOf(candidate);
+      if(i!==-1&&(fieldIndex===-1||i<fieldIndex)){
+        fieldIndex=i;
+        code=candidate;
+      }
+    }
+    if(fieldIndex===-1)continue;
+    val=cleaned.substring(fieldIndex+3).trim();
 
     // Strip trailing control characters
     val=val.replace(/[\x00-\x1f]+$/,'');
@@ -535,7 +544,7 @@ function parseAAMVA(raw){
     if(target==='fullName'){
       // DAA: "LAST,FIRST,MIDDLE" or "LAST,FIRST" — some use spaces
       if(!f.lastName||!f.firstName){
-        const sep=val.includes(',')?',':val.includes(', ')?', ':null;
+        const sep=val.includes(',')?',':null;
         if(sep){
           const parts=val.split(sep).map(s=>s.trim());
           if(!f.lastName)f.lastName=parts[0]||'';
@@ -664,7 +673,9 @@ const wedge=(function(){
   let buffer='';
   let timer=null;
   let target=null; // 'checkpoint' | 'card' | null
-  const CHAR_GAP=80;   // max ms between keystrokes to count as wedge burst
+  // PDF417 keyboard output is long and can pause between AAMVA records.
+  // Wait for an idle period instead of treating an embedded Enter as EOF.
+  const CHAR_GAP=250;
   const MIN_LENGTH=20;  // minimum chars for a valid barcode
 
   function setTarget(t){
@@ -707,6 +718,11 @@ const wedge=(function(){
     }catch(e){
       // Unknown barcode format — show raw in appropriate status
       console.warn('Wedge scan: unrecognized format, length='+raw.length);
+      const ws=document.getElementById(target==='checkpoint'?'wedgeStatusCP':'wedgeStatusCard');
+      if(ws){
+        ws.className='wedge-status listening';
+        ws.textContent='Barcode read, but it is not a supported DL or re-entry QR code';
+      }
     }
   }
 
@@ -770,20 +786,25 @@ const wedge=(function(){
     const gap=now-lastKeyTime;
     lastKeyTime=now;
 
-    // Enter/Tab = end of scan
+    // AAMVA data contains embedded line breaks. Treat Enter/Tab as field
+    // separators and process only after the scanner has gone idle.
     if(e.key==='Enter'||e.key==='Tab'){
-      if(buffer.length>=MIN_LENGTH){
+      if(buffer.length){
         e.preventDefault();
         e.stopPropagation();
+        buffer+='\n';
         clearTimeout(timer);
-        // Clean up any chars that leaked into the focused input
-        cleanLeaked();
-        process();
-      }else{
-        buffer='';
+        timer=setTimeout(()=>{
+          if(buffer.length>=MIN_LENGTH){
+            cleanLeaked();
+            process();
+          }else{
+            buffer='';
+          }
+          scanning=false;
+          leakedChars=0;
+        },CHAR_GAP);
       }
-      scanning=false;
-      leakedChars=0;
       return;
     }
 
@@ -1136,19 +1157,40 @@ function ray(px,py,ring){let ins=false;for(let i=0,j=ring.length-1;i<ring.length
 <script type="module">
 // ---- BARCODE DETECTOR (phone camera) ----
 let detector=null;
+let scannerInitError='';
 async function initScanner(){
   if('BarcodeDetector' in window){
     try{const f=await BarcodeDetector.getSupportedFormats();
-      if(f.includes('pdf417')){detector=new BarcodeDetector({formats:['pdf417','qr_code']});return}}catch(e){}
+      // Use the native detector only when it supports both formats needed here.
+      if(f.includes('pdf417')&&f.includes('qr_code')){
+        detector=new BarcodeDetector({formats:['pdf417','qr_code']});
+        return;
+      }
+    }catch(e){console.warn('Native BarcodeDetector unavailable:',e)}
   }
-  try{const m=await import('https://cdn.jsdelivr.net/npm/barcode-detector@2/dist/es/index.min.js');
-    const D=m.BarcodeDetector||m.default;detector=new D({formats:['pdf417','qr_code']});
-  }catch(e){console.error(e);document.getElementById('ss').textContent='Scanner unavailable';document.getElementById('sBtn').disabled=true}
+  try{
+    const m=await import('https://cdn.jsdelivr.net/npm/barcode-detector@2.3.1/dist/es/index.min.js');
+    const D=m.BarcodeDetector||m.default;
+    if(!D)throw new Error('Barcode detector module did not load');
+    detector=new D({formats:['pdf417','qr_code']});
+  }catch(e){
+    console.error(e);
+    scannerInitError=e?.message||'Barcode decoder could not be loaded';
+    document.getElementById('ss').textContent='Phone scanner unavailable: '+scannerInitError;
+    document.getElementById('sBtn').disabled=true;
+    const cardBtn=document.getElementById('cardCamBtn');
+    if(cardBtn)cardBtn.disabled=true;
+  }
 }
 
+const scannerReady=initScanner();
+
 function preprocess(img,contrast=1.5){
-  const MAX=1600,canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
-  let w=img.width,h=img.height;if(w>MAX){const s=MAX/w;w=MAX;h=Math.round(img.height*s)}
+  // Keep enough detail for the narrow bars in PDF417 while limiting memory use.
+  const MAX=2400,canvas=document.createElement('canvas'),ctx=canvas.getContext('2d',{willReadFrequently:true});
+  let w=img.width,h=img.height;
+  const largest=Math.max(w,h);
+  if(largest>MAX){const s=MAX/largest;w=Math.round(w*s);h=Math.round(h*s)}
   canvas.width=w;canvas.height=h;ctx.drawImage(img,0,0,w,h);
   const id=ctx.getImageData(0,0,w,h),d=id.data;
   for(let i=0;i<d.length;i+=4){let g=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];g=((g-128)*contrast)+128;g=Math.max(0,Math.min(255,g));d[i]=d[i+1]=d[i+2]=g}
@@ -1156,18 +1198,24 @@ function preprocess(img,contrast=1.5){
 }
 
 async function processBarcodeImage(file,targetContext){
-  if(!detector)throw new Error('Scanner not ready');
-  const img=await createImageBitmap(file);let results=[];
+  await scannerReady;
+  if(!detector)throw new Error(scannerInitError||'Phone scanner is unavailable');
+  let img;
+  try{img=await createImageBitmap(file,{imageOrientation:'from-image'})}
+  catch(e){img=await createImageBitmap(file)}
+  let results=[];
 
-  for(const c of [1.5,1.0,2.0,2.5]){
+  // Preserve the original color/detail first, then try grayscale and
+  // progressively stronger contrast for difficult PDF417 photographs.
+  try{results=await detector.detect(img)}catch(e){}
+  for(const c of [1.0,1.4,1.8,2.2]){
+    if(results.length&&results[0]?.rawValue?.length>10)break;
     const canvas=preprocess(img,c);
     try{results=await detector.detect(canvas)}catch(e){}
-    if(results.length&&results[0]?.rawValue?.length>10)break;
   }
-  if(!results.length||!results[0]?.rawValue){try{results=await detector.detect(img)}catch(e){}}
   img.close();
 
-  if(!results.length||!results[0]?.rawValue?.length>10) return null;
+  if(!results.length||!(results[0]?.rawValue?.length>10))return null;
   return results[0];
 }
 
@@ -1182,15 +1230,18 @@ document.getElementById('pi').addEventListener('change',async function(){
       ss.textContent='✓ Barcode read';
       const raw=result.rawValue;
       if(result.format==='qr_code'){
-        try{const qd=JSON.parse(raw);parsedDL={firstName:qd.fn||'',lastName:qd.ln||'',street:qd.st||'',city:qd.ci||'',state:qd.s||'CO',zip:qd.z||'',licenseNum:qd.id||''};
-          showParsed(parsedDL);document.getElementById('ai').value=[qd.st,qd.ci,qd.s,qd.z].filter(Boolean).join(', ');}catch(e){document.getElementById('ai').value=raw}
+        const qd=JSON.parse(raw);
+        if(qd.t!=='card')throw new Error('QR code is not an LPC re-entry card');
+        parsedDL={firstName:qd.fn||'',lastName:qd.ln||'',street:qd.st||'',city:qd.ci||'',state:qd.s||'CO',zip:qd.z||'',licenseNum:qd.id||''};
+        showParsed(parsedDL);document.getElementById('ai').value=[qd.st,qd.ci,qd.s,qd.z].filter(Boolean).join(', ');
       }else{
         parsedDL=parseAAMVA(raw);showParsed(parsedDL);
+        if(!parsedDL.licenseNum&&!parsedDL.lastName)throw new Error('Driver license data could not be parsed');
         document.getElementById('ai').value=buildAddrString(parsedDL);
       }
       sb.style.display='none';document.getElementById('s1dv').style.display='none';
     }else{ss.textContent='No barcode found — try again or type address.';sb.disabled=false;sb.textContent='📷 Scan Barcode'}
-  }catch(e){console.error(e);ss.textContent='Scan failed — try again.';sb.disabled=false;sb.textContent='📷 Scan Barcode'}
+  }catch(e){console.error(e);ss.textContent='Scan failed: '+(e?.message||'try again');sb.disabled=false;sb.textContent='📷 Scan Barcode'}
   this.value='';
 });
 
@@ -1207,12 +1258,14 @@ document.getElementById('cardCamInput').addEventListener('change',async function
       if(result.format==='qr_code'){
         try{
           const qd=JSON.parse(raw);
+          if(qd.t!=='card')throw new Error('Not an LPC re-entry card');
           parsed={firstName:qd.fn||'',lastName:qd.ln||'',street:qd.st||'',city:qd.ci||'',state:qd.s||'CO',zip:qd.z||''};
           if(qd.ph)document.getElementById('cphone').value=qd.ph;
           if(qd.rs)document.getElementById('creason').value=qd.rs;
-        }catch(e){ws.textContent='Could not parse QR';return}
+        }catch(e){ws.textContent='QR code is not a supported re-entry card';return}
       }else{
         parsed=parseAAMVA(raw);
+        if(!parsed.licenseNum&&!parsed.lastName)throw new Error('Driver license data could not be parsed');
       }
       document.getElementById('cfn').value=titleCase(parsed.firstName||'');
       document.getElementById('cln').value=titleCase(parsed.lastName||'');
@@ -1224,12 +1277,11 @@ document.getElementById('cardCamInput').addEventListener('change',async function
     }
   }catch(e){
     console.error(e);
-    ws.className='wedge-status listening';ws.textContent='Scan failed — try again';
+    ws.className='wedge-status listening';ws.textContent='Scan failed: '+(e?.message||'try again');
   }
   this.value='';
 });
 
-initScanner();
 </script>
 </body>
 </html>
