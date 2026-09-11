@@ -98,7 +98,7 @@ tr:hover td{background:#fafafa}
 .rst{width:100%;padding:9px;border:1px solid var(--bd);border-radius:8px;background:var(--sf);font-size:13px;cursor:pointer;color:var(--tx);margin-top:6px}
 
 /* CARD STYLES */
-.card-preview{border:2px solid var(--bd);border-radius:10px;padding:16px;margin-bottom:12px;text-align:center}
+.card-preview{border:2px solid var(--bd);border-radius:10px;padding:16px;margin-bottom:12px;text-align:center;max-width:280px;margin-left:auto;margin-right:auto}
 .card-preview h3{font-size:14px;margin-bottom:4px}
 .card-preview .card-name{font-size:18px;font-weight:700;margin:8px 0 4px}
 .card-preview .card-addr{font-size:12px;color:var(--mu)}
@@ -852,8 +852,8 @@ function generateCard(){
 // ============================================================
 function renderCardCanvas(c){
   return new Promise((resolve,reject)=>{
-    // CR-80 at 300 DPI: 3.375" x 2.125" = 1013 x 638 pixels
-    const W=1013,H=638;
+    // ZC300 portrait CR-80: 640 x 1006 pixels
+    const W=640,H=1006;
     const canvas=document.createElement('canvas');
     canvas.width=W;canvas.height=H;
     const ctx=canvas.getContext('2d');
@@ -861,79 +861,130 @@ function renderCardCanvas(c){
     ctx.fillStyle='#fff';
     ctx.fillRect(0,0,W,H);
 
+    // Preload both images before drawing anything
     const logo=new Image();
-    logo.onload=function(){
-      // Logo centered at top
-      const logoH=60,logoW=logo.width*(logoH/logo.height);
-      ctx.drawImage(logo,(W-logoW)/2,25,logoW,logoH);
+    const qrImg=new Image();
+    let logoLoaded=false,qrLoaded=false;
 
-      // Title
-      ctx.fillStyle='#333';
-      ctx.font='bold 22px -apple-system, sans-serif';
+    function draw(){
+      if(!logoLoaded||!qrLoaded)return;
+
+      // --- TOP ACCENT BORDER ---
+      ctx.strokeStyle='#2563eb';ctx.lineWidth=8;
+      ctx.beginPath();ctx.moveTo(0,4);ctx.lineTo(W,4);ctx.stroke();
+
+      // --- LOGO ---
+      const logoH=80,logoW=logo.width*(logoH/logo.height);
+      ctx.drawImage(logo,(W-logoW)/2,30,logoW,logoH);
+
+      // --- TITLE ---
+      ctx.fillStyle='#1a1a2e';
+      ctx.font='bold 24px -apple-system, sans-serif';
       ctx.textAlign='center';
-      ctx.fillText('OFFICE OF EMERGENCY MANAGEMENT',W/2,110);
+      ctx.fillText('LA PLATA COUNTY',W/2,140);
 
-      ctx.fillStyle='#888';
-      ctx.font='18px -apple-system, sans-serif';
-      ctx.fillText('Evacuation Zone Re-entry Card',W/2,135);
+      ctx.fillStyle='#333';
+      ctx.font='bold 18px -apple-system, sans-serif';
+      ctx.fillText('OFFICE OF EMERGENCY MANAGEMENT',W/2,166);
 
-      // Divider
-      ctx.strokeStyle='#ddd';ctx.lineWidth=1;
-      ctx.beginPath();ctx.moveTo(60,152);ctx.lineTo(W-60,152);ctx.stroke();
+      // --- DIVIDER ---
+      ctx.strokeStyle='#d4d4d8';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(50,185);ctx.lineTo(W-50,185);ctx.stroke();
 
-      // Name
+      // --- CARD TYPE ---
+      ctx.fillStyle='#2563eb';
+      ctx.font='bold 20px -apple-system, sans-serif';
+      ctx.fillText('EVACUATION ZONE RE-ENTRY CARD',W/2,218);
+
+      // --- DIVIDER ---
+      ctx.strokeStyle='#d4d4d8';
+      ctx.beginPath();ctx.moveTo(50,235);ctx.lineTo(W-50,235);ctx.stroke();
+
+      // --- NAME ---
       ctx.fillStyle='#111';
-      ctx.font='bold 42px -apple-system, sans-serif';
-      ctx.fillText(`${c.fn} ${c.ln}`,W/2,205);
+      ctx.font='bold 44px -apple-system, sans-serif';
+      ctx.fillText(`${c.fn} ${c.ln}`,W/2,295);
 
-      // Address
+      // --- ADDRESS (word wrap for long addresses) ---
       ctx.fillStyle='#444';
-      ctx.font='24px -apple-system, sans-serif';
-      ctx.fillText(c.addr,W/2,240);
+      ctx.font='22px -apple-system, sans-serif';
+      const addrLines=wrapText(ctx,c.addr,W-80);
+      let addrY=335;
+      addrLines.forEach(line=>{
+        ctx.fillText(line,W/2,addrY);
+        addrY+=28;
+      });
 
-      // Phone
+      // --- PHONE ---
       if(c.phone){
         ctx.fillStyle='#666';
         ctx.font='20px -apple-system, sans-serif';
-        ctx.fillText(c.phone,W/2,268);
+        ctx.fillText(c.phone,W/2,addrY+10);
       }
 
-      // QR Code
-      const qrImg=new Image();
-      qrImg.onload=function(){
-        const qrSize=200,qrX=80,qrY=H-qrSize-50;
-        ctx.drawImage(qrImg,qrX,qrY,qrSize,qrSize);
+      // --- REASON ---
+      if(c.reason){
+        const reasonY=c.phone?addrY+50:addrY+20;
+        ctx.fillStyle='#555';
+        ctx.font='italic 18px -apple-system, sans-serif';
+        ctx.fillText(c.reason,W/2,reasonY);
+      }
 
-        // Card info next to QR
-        ctx.textAlign='left';
-        ctx.fillStyle='#888';
-        ctx.font='16px monospace';
-        ctx.fillText(c.cardId,qrX+qrSize+30,qrY+30);
+      // --- QR CODE (centered, lower portion) ---
+      const qrSize=240;
+      const qrX=(W-qrSize)/2;
+      const qrY=H-qrSize-130;
+      ctx.drawImage(qrImg,qrX,qrY,qrSize,qrSize);
 
-        if(c.reason){
-          ctx.fillStyle='#666';
-          ctx.font='18px -apple-system, sans-serif';
-          ctx.fillText(c.reason,qrX+qrSize+30,qrY+60);
-        }
+      // --- CARD ID ---
+      ctx.fillStyle='#888';
+      ctx.font='14px monospace';
+      ctx.fillText(c.cardId,W/2,qrY+qrSize+24);
 
-        ctx.fillStyle='#aaa';
-        ctx.font='14px -apple-system, sans-serif';
-        ctx.fillText('Present this card at any evacuation',qrX+qrSize+30,qrY+qrSize-40);
-        ctx.fillText('checkpoint for re-entry verification.',qrX+qrSize+30,qrY+qrSize-20);
+      // --- INSTRUCTIONS ---
+      ctx.fillStyle='#aaa';
+      ctx.font='13px -apple-system, sans-serif';
+      ctx.fillText('Present at any evacuation checkpoint',W/2,H-50);
+      ctx.fillText('for re-entry verification.',W/2,H-32);
 
-        // Top and bottom accent borders
-        ctx.strokeStyle='#2563eb';ctx.lineWidth=6;
-        ctx.beginPath();ctx.moveTo(0,3);ctx.lineTo(W,3);ctx.stroke();
-        ctx.beginPath();ctx.moveTo(0,H-3);ctx.lineTo(W,H-3);ctx.stroke();
+      // --- BOTTOM ACCENT BORDER ---
+      ctx.strokeStyle='#2563eb';ctx.lineWidth=8;
+      ctx.beginPath();ctx.moveTo(0,H-4);ctx.lineTo(W,H-4);ctx.stroke();
 
-        resolve(canvas);
-      };
-      qrImg.onerror=()=>reject(new Error('QR image load failed'));
-      qrImg.src=c.qrDataURL;
+      resolve(canvas);
+    }
+
+    logo.onload=function(){logoLoaded=true;draw()};
+    logo.onerror=function(){
+      // Draw without logo if it fails
+      console.warn('Logo failed to load, rendering without it');
+      logoLoaded=true;draw();
     };
-    logo.onerror=()=>reject(new Error('Logo load failed'));
+    qrImg.onload=function(){qrLoaded=true;draw()};
+    qrImg.onerror=()=>reject(new Error('QR image load failed'));
+
+    // Kick off loads
     logo.src=LPC_LOGO;
+    qrImg.src=c.qrDataURL;
   });
+}
+
+// Word wrap helper for canvas text
+function wrapText(ctx,text,maxWidth){
+  const words=text.split(' ');
+  const lines=[];
+  let line='';
+  for(const word of words){
+    const test=line?line+' '+word:word;
+    if(ctx.measureText(test).width>maxWidth&&line){
+      lines.push(line);
+      line=word;
+    }else{
+      line=test;
+    }
+  }
+  if(line)lines.push(line);
+  return lines;
 }
 
 async function printCard(){
@@ -952,27 +1003,27 @@ async function printCard(){
 <html><head><title>LPC Re-entry Card</title>
 <style>
   @page{
-    size:3.375in 2.125in;
+    size:54mm 86mm portrait;
     margin:0;
   }
-  *{margin:0;padding:0}
+  *{margin:0;padding:0;box-sizing:border-box}
   html,body{
-    width:3.375in;
-    height:2.125in;
+    width:640px;
+    height:1006px;
     overflow:hidden;
     background:#fff;
   }
   img{
-    width:3.375in;
-    height:2.125in;
+    width:640px;
+    height:1006px;
     display:block;
     object-fit:fill;
     -webkit-print-color-adjust:exact;
     print-color-adjust:exact;
   }
   @media print{
-    html,body{width:3.375in;height:2.125in}
-    img{width:100%;height:100%}
+    html,body{width:100%;height:100%;overflow:hidden}
+    img{width:100%;height:100%;object-fit:fill}
   }
 </style>
 </head><body>
