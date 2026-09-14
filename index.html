@@ -160,6 +160,8 @@ tr:hover td{background:#fafafa}
 
 /* Hidden print iframe */
 #printFrame{position:fixed;left:-9999px;top:-9999px;width:0;height:0;border:none}
+.zone-label{font-size:10px;font-weight:700;color:#1e3a5f;text-shadow:1px 1px 2px #fff,-1px -1px 2px #fff,1px -1px 2px #fff,-1px 1px 2px #fff;white-space:nowrap;pointer-events:none}
+#zoneBanner{display:none;position:absolute;top:8px;left:50%;transform:translateX(-50%);z-index:1001;background:rgba(245,158,11,.92);color:#1a1a2e;padding:5px 14px;border-radius:6px;font-size:13px;font-weight:700;white-space:nowrap;pointer-events:none;box-shadow:0 2px 6px rgba(0,0,0,.2);letter-spacing:.02em}
 </style>
 </head>
 <body>
@@ -186,6 +188,7 @@ tr:hover td{background:#fafafa}
 <div id="mc">
   <div class="lb" id="lb"></div>
   <div id="map"></div>
+  <div id="zoneBanner"></div>
   <div class="leg" id="leg" style="display:none">
     <div class="li"><div class="ls" style="background:rgba(37,99,235,.15);border-color:rgba(37,99,235,.6)"></div>Zones</div>
     <div class="li"><div class="ls" style="background:rgba(245,158,11,.25);border-color:#f59e0b"></div>Selected</div>
@@ -376,7 +379,7 @@ async function doLogin(){
 
 // ---- MAP ----
 map=L.map('map',{zoomControl:true}).setView([37.28,-107.88],10);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'©OSM©CARTO',maxZoom:19}).addTo(map);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',maxZoom:19}).addTo(map);
 selLayer=L.geoJSON(null,{style:{color:'#f59e0b',weight:3,fillColor:'#f59e0b',fillOpacity:.25}}).addTo(map);
 evacLayer=L.esri.featureLayer({url:EVAC_URL,
   style:()=>({color:'rgba(37,99,235,.6)',weight:1.5,fillColor:'rgba(37,99,235,.12)',fillOpacity:1}),
@@ -389,12 +392,20 @@ evacLayer.once('load',()=>{
   const s=document.getElementById('zs');
   zones.forEach(z=>{const o=document.createElement('option');o.value=z.id;o.textContent=[z.name,z.incident,z.status].filter(Boolean).join(' — ');s.appendChild(o)});
   const b=evacLayer.getBounds();if(b.isValid())map.fitBounds(b,{padding:[20,20]});
+  // Permanent zone labels at polygon centroids
+  evacLayer.eachFeature(function(l){
+    var name=l.feature.properties.zonename;
+    if(!name)return;
+    var c=l.getBounds().getCenter();
+    L.marker(c,{icon:L.divIcon({className:'zone-label',html:name,iconSize:null}),interactive:false,keyboard:false}).addTo(map);
+  });
+
 });
 document.getElementById('zs').addEventListener('change',function(){if(this.value)selectZone(parseInt(this.value))});
 
 async function selectZone(oid){
   document.getElementById('zs').value=oid;selZoneId=oid;selZone=zones.find(z=>z.id===oid);if(!selZone)return;
-  selGeom=selZone.feature.geometry;selLayer.clearLayers();selLayer.addData(selZone.feature);
+  selGeom=selZone.feature.geometry;var _zb=document.getElementById('zoneBanner');_zb.textContent=[selZone.name,selZone.incident].filter(Boolean).join(' \u2014 ');_zb.style.display='block';selLayer.clearLayers();selLayer.addData(selZone.feature);
   map.fitBounds(selLayer.getBounds(),{padding:[30,30]});
   document.querySelectorAll('.scan-mode-button').forEach(btn=>btn.disabled=false);
   setLoading(true);
