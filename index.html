@@ -140,6 +140,23 @@ tr:hover td{background:#fafafa}
 #cardModal .cb{background:var(--card)}
 #cardModal .cb:hover{background:var(--card-dark)}
 #cardModal .btn-outline:hover{border-color:var(--card);color:var(--card-dark)}
+.card-tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:#f3f4f6;border-radius:8px;padding:4px;margin-bottom:12px}
+.card-tab{border:0;border-radius:6px;padding:8px;background:transparent;color:var(--mu);font-size:12px;font-weight:650;cursor:pointer}
+.card-tab.on{background:#fff;color:var(--card-dark);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.edit-note{display:none;background:var(--card-light);border:1px solid #e5b98c;border-radius:8px;padding:9px 10px;margin-bottom:12px;font-size:11px;color:var(--card-dark)}
+.edit-note button{float:right;border:0;background:transparent;color:var(--card-dark);font-weight:700;cursor:pointer}
+.registry-search{width:100%;padding:10px 11px;border:1px solid var(--bd);border-radius:8px;font-size:14px;outline:none;margin-bottom:8px}
+.registry-search:focus{border-color:var(--card)}
+.registry-status{font-size:11px;color:var(--mu);margin:2px 0 10px;text-align:center}
+.registry-list{display:flex;flex-direction:column;gap:8px}
+.registry-item{border:1px solid var(--bd);border-left:4px solid var(--card);border-radius:8px;padding:10px;background:#fff}
+.registry-name{font-size:14px;font-weight:700}.registry-id{font:10px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--mu);margin-top:2px;word-break:break-all}
+.registry-detail{font-size:11px;color:var(--mu);margin-top:4px;line-height:1.35}.registry-detail strong{color:var(--tx);font-weight:600}
+.registry-actions{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:9px}
+.registry-actions button{padding:7px 4px;border:1px solid var(--bd);border-radius:6px;background:#fff;color:var(--tx);font-size:11px;font-weight:600;cursor:pointer}
+.registry-actions button:hover{border-color:var(--card);color:var(--card-dark)}
+.registry-actions .danger{color:var(--rdd);border-color:#fecaca}.registry-actions .danger:hover{background:var(--rb2);border-color:var(--rd)}
+.registry-empty{padding:25px 10px;text-align:center;color:var(--mu);font-size:12px}
 
 /* Hidden print iframe */
 #printFrame{position:fixed;left:-9999px;top:-9999px;width:0;height:0;border:none}
@@ -246,11 +263,18 @@ tr:hover td{background:#fafafa}
 <!-- CUSTOM CARD MODAL -->
 <div class="mo" id="cardModal">
  <div class="md">
-  <div class="mh"><h2>Create Re-entry Card</h2><button class="mx" onclick="closeCardModal()">×</button></div>
+  <div class="mh"><h2>Custom Cards</h2><button class="mx" onclick="closeCardModal()">×</button></div>
   <div class="mode-switch-compact" aria-label="Switch operating mode">
     <button class="modebtn scan-mode-button" data-workflow="scan" disabled onclick="setWorkflowMode('scan')">Checkpoint Scan</button>
     <button class="modebtn" data-workflow="card" onclick="setWorkflowMode('card')">Custom Card</button>
   </div>
+
+  <div class="card-tabs" aria-label="Custom card view">
+    <button class="card-tab on" data-card-view="create" onclick="switchCardView('create')">Create Card</button>
+    <button class="card-tab" data-card-view="manage" onclick="switchCardView('manage')">Card Registry</button>
+  </div>
+
+  <div id="cardCreateView">
 
   <!-- Scan to populate section -->
   <div class="card-scan-section" id="cardScanSection">
@@ -262,6 +286,11 @@ tr:hover td{background:#fafafa}
     </div>
     <input type="file" accept="image/*" capture="environment" id="cardCamInput" style="display:none"/>
     <div class="card-parsed" id="cardParsedInfo" style="display:none"></div>
+  </div>
+
+  <div class="edit-note" id="cardEditNote">
+    <button onclick="cancelCardEdit()">Cancel</button>
+    Editing an existing card. Only name and phone can be changed.
   </div>
 
   <div class="dv"><span>Card details</span></div>
@@ -288,7 +317,16 @@ tr:hover td{background:#fafafa}
       <button class="cb" onclick="printCard()">Print to ZC300</button>
       <button class="btn-outline" onclick="savePNG()">Save PNG</button>
     </div>
-    <button class="rst" onclick="nextCustomCard()">Create next custom card</button>
+    <button class="rst" onclick="editLastCard()">Edit name or phone</button>
+    <button class="rst" onclick="duplicateLastCard()">Duplicate for another person</button>
+    <button class="rst" onclick="nextCustomCard()">Create a different card</button>
+  </div>
+  </div>
+
+  <div id="cardManageView" style="display:none">
+    <input class="registry-search" id="cardRegistrySearch" type="search" placeholder="Search name, address, phone, or card ID" oninput="filterCardRegistry()"/>
+    <div class="registry-status" id="cardRegistryStatus">Open the registry to load cards.</div>
+    <div class="registry-list" id="cardRegistryList"></div>
   </div>
  </div>
 </div>
@@ -312,6 +350,7 @@ let zones=[],selGeom=null,selZoneId=null,selZone=null;
 let pData=[],aData=[],logData=[],activeTab='parcels';
 let operatorName='',agolToken='';
 let lastCheck=null,parsedDL=null,selectedDir=null;
+let cardRegistry=[],editingCard=null,duplicateContext=null;
 
 // ---- AGOL LOGIN ----
 async function doLogin(){
@@ -1077,15 +1116,130 @@ const wedge=(function(){
 
 
 // ---- CUSTOM CARD MODAL ----
-function openCardModal(){resetCardModal();document.getElementById('cardModal').classList.add('open');syncWorkflowButtons('card');wedge.setTarget('card')}
+function openCardModal(){resetCardModal();document.getElementById('cardModal').classList.add('open');syncWorkflowButtons('card');switchCardView('create')}
 function closeCardModal(){document.getElementById('cardModal').classList.remove('open');wedge.setTarget(null)}
-function nextCustomCard(){resetCardModal();wedge.setTarget('card');document.getElementById('cfn').focus()}
+function nextCustomCard(){resetCardModal();switchCardView('create');document.getElementById('cfn').focus()}
 function resetCardModal(){
+  editingCard=null;duplicateContext=null;
   document.getElementById('cardResult').style.display='none';
   document.getElementById('cardParsedInfo').style.display='none';
   ['cfn','cln','caddr','cphone','creason'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('caddr').readOnly=false;
+  document.getElementById('creason').readOnly=false;
+  document.getElementById('cardScanSection').style.display='';
+  document.getElementById('cardEditNote').style.display='none';
+  const btn=document.getElementById('generateCardBtn');btn.textContent='Generate card';btn.disabled=false;
   const ws=document.getElementById('wedgeStatusCard');
   ws.className='wedge-status listening';ws.textContent='Scanner ready — scan a DL barcode';
+}
+
+function switchCardView(view){
+  const create=view==='create';
+  document.getElementById('cardCreateView').style.display=create?'':'none';
+  document.getElementById('cardManageView').style.display=create?'none':'';
+  document.querySelectorAll('[data-card-view]').forEach(b=>b.classList.toggle('on',b.dataset.cardView===view));
+  wedge.setTarget(create?'card':null);
+  if(!create)loadCardRegistry();
+}
+
+function cardFromAttributes(a){
+  return{
+    objectId:a.OBJECTID??a.objectid??a.ObjectId,
+    cardId:String(a.card_id||''),fn:String(a.first_name||''),ln:String(a.last_name||''),
+    addr:String(a.address||''),phone:String(a.phone||''),reason:String(a.reason||''),
+    zoneName:String(a.zone_name||''),incident:String(a.incident||''),
+    status:String(a.status||''),issuedAt:a.issued_at||null,expiresAt:a.expires_at||null,
+    printCount:Number(a.print_count||0)
+  };
+}
+
+async function loadCardRegistry(){
+  const status=document.getElementById('cardRegistryStatus');
+  const list=document.getElementById('cardRegistryList');
+  status.textContent='Loading cards…';list.replaceChildren();
+  try{
+    if(!agolToken)throw new Error('ArcGIS session expired. Refresh and sign in again.');
+    const rows=[];let offset=0;
+    while(true){
+      const p=new URLSearchParams({where:'1=1',outFields:'*',returnGeometry:'false',
+        resultOffset:String(offset),resultRecordCount:'1000',f:'json',token:agolToken});
+      const r=await fetch(`${CARD_URL}/query`,{method:'POST',body:p});
+      const j=await r.json();if(j.error)throw new Error(j.error.message||'Card registry query failed.');
+      const batch=j.features||[];rows.push(...batch.map(f=>cardFromAttributes(f.attributes||{})));
+      if(!j.exceededTransferLimit&&batch.length<1000)break;
+      if(!batch.length)break;offset+=batch.length;
+    }
+    cardRegistry=rows.sort((a,b)=>Number(b.issuedAt||0)-Number(a.issuedAt||0));
+    filterCardRegistry();
+  }catch(e){status.textContent='Could not load cards: '+e.message;list.replaceChildren()}
+}
+
+function filterCardRegistry(){
+  const q=document.getElementById('cardRegistrySearch').value.trim().toLowerCase();
+  const filtered=!q?cardRegistry:cardRegistry.filter(c=>
+    [c.fn,c.ln,c.addr,c.phone,c.cardId,c.reason].some(v=>String(v).toLowerCase().includes(q)));
+  renderCardRegistry(filtered);
+}
+
+function renderCardRegistry(cards){
+  const list=document.getElementById('cardRegistryList');list.replaceChildren();
+  document.getElementById('cardRegistryStatus').textContent=`${cards.length} of ${cardRegistry.length} cards`;
+  if(!cards.length){const empty=document.createElement('div');empty.className='registry-empty';empty.textContent='No matching custom cards.';list.appendChild(empty);return}
+  cards.forEach(card=>{
+    const item=document.createElement('div');item.className='registry-item';
+    const name=document.createElement('div');name.className='registry-name';name.textContent=[card.fn,card.ln].filter(Boolean).join(' ')||'Unnamed card';
+    const id=document.createElement('div');id.className='registry-id';id.textContent=card.cardId;
+    const detail=document.createElement('div');detail.className='registry-detail';
+    detail.textContent=[card.addr,card.phone,card.reason,card.status].filter(Boolean).join(' · ');
+    const actions=document.createElement('div');actions.className='registry-actions';
+    [['Reprint',()=>reprintRegistryCard(card)],['Edit',()=>beginEditCard(card)],['Duplicate',()=>duplicateCard(card)],['Delete',()=>deleteRegistryCard(card)]].forEach(([label,handler])=>{
+      const b=document.createElement('button');b.type='button';b.textContent=label;if(label==='Delete')b.className='danger';b.addEventListener('click',handler);actions.appendChild(b);
+    });
+    item.append(name,id,detail,actions);list.appendChild(item);
+  });
+}
+
+function duplicateCard(card){
+  resetCardModal();duplicateContext={zoneName:card.zoneName||'',incident:card.incident||''};
+  document.getElementById('caddr').value=card.addr||'';
+  document.getElementById('creason').value=card.reason||'';
+  switchCardView('create');
+  const ws=document.getElementById('wedgeStatusCard');ws.className='wedge-status listening';ws.textContent='Address copied — enter the new cardholder name and phone';
+  document.getElementById('cfn').focus();
+}
+function duplicateLastCard(){if(window._lastCard)duplicateCard(window._lastCard)}
+
+function beginEditCard(card){
+  resetCardModal();editingCard={...card};switchCardView('create');
+  document.getElementById('cfn').value=card.fn;document.getElementById('cln').value=card.ln;
+  document.getElementById('caddr').value=card.addr;document.getElementById('cphone').value=card.phone;
+  document.getElementById('creason').value=card.reason;
+  document.getElementById('caddr').readOnly=true;document.getElementById('creason').readOnly=true;
+  document.getElementById('cardScanSection').style.display='none';document.getElementById('cardEditNote').style.display='block';
+  document.getElementById('generateCardBtn').textContent='Save changes';document.getElementById('cfn').focus();
+}
+function editLastCard(){if(window._lastCard)beginEditCard(window._lastCard)}
+function cancelCardEdit(){resetCardModal();switchCardView('create')}
+
+async function updateCardIdentity(card,fn,ln,phone){
+  if(card.objectId==null)throw new Error('Card record ID is missing. Reload the registry and try again.');
+  const feature={attributes:{OBJECTID:card.objectId,first_name:fn,last_name:ln,phone}};
+  const p=new URLSearchParams({features:JSON.stringify([feature]),rollbackOnFailure:'true',f:'json',token:agolToken});
+  const r=await fetch(`${CARD_URL}/updateFeatures`,{method:'POST',body:p});const j=await r.json();
+  if(j.error)throw new Error(j.error.message||'ArcGIS rejected the update.');
+  const result=j.updateResults?.[0];if(!result?.success)throw new Error(result?.error?.description||'Card update failed.');
+}
+
+async function deleteRegistryCard(card){
+  if(card.objectId==null){alert('Card record ID is missing. Reload the registry and try again.');return}
+  if(!confirm(`Delete ${card.fn} ${card.ln} (${card.cardId})?\n\nThe printed card will immediately fail approval checks.`))return;
+  try{
+    const p=new URLSearchParams({objectIds:String(card.objectId),rollbackOnFailure:'true',f:'json',token:agolToken});
+    const r=await fetch(`${CARD_URL}/deleteFeatures`,{method:'POST',body:p});const j=await r.json();
+    if(j.error)throw new Error(j.error.message||'ArcGIS rejected the deletion.');
+    const result=j.deleteResults?.[0];if(!result?.success)throw new Error(result?.error?.description||'Card deletion failed.');
+    await loadCardRegistry();
+  }catch(e){alert('Card was not deleted: '+e.message)}
 }
 
 // LPC OEM Logo embedded as base64
@@ -1104,8 +1258,8 @@ async function saveCustomCard(card){
     address:card.addr,
     phone:card.phone,
     reason:card.reason,
-    zone_name:selZone?.name||'',
-    incident:selZone?.incident||'',
+    zone_name:card.zoneName||selZone?.name||'',
+    incident:card.incident||selZone?.incident||'',
     issued_at:Date.now(),
     issued_by:operatorName,
     status:'Active',
@@ -1127,6 +1281,36 @@ async function saveCustomCard(card){
   return result;
 }
 
+function showCardPreview(card){
+  const qrData=card.qrData||JSON.stringify({t:'card',id:card.cardId,v:2});
+  document.getElementById('cardName').textContent=`${card.fn} ${card.ln}`;
+  document.getElementById('cardAddr').textContent=card.addr;
+  document.getElementById('cardId').textContent=card.cardId;
+  document.getElementById('cardReason').textContent=card.reason||'';
+  const qr=qrcode(0,'M');
+  qr.addData(qrData);qr.make();
+  const canvas=document.getElementById('qrCanvas');
+  const cellSize=4,margin=8,count=qr.getModuleCount(),size=count*cellSize+margin*2;
+  canvas.width=size;canvas.height=size;
+  const ctx=canvas.getContext('2d');
+  ctx.fillStyle='#fff';ctx.fillRect(0,0,size,size);ctx.fillStyle='#000';
+  for(let r=0;r<count;r++){for(let c=0;c<count;c++){if(qr.isDark(r,c))ctx.fillRect(margin+c*cellSize,margin+r*cellSize,cellSize,cellSize)}}
+  card.qrData=qrData;card.qrDataURL=canvas.toDataURL();
+  window._lastCard=card;
+  document.getElementById('cardResult').style.display='';
+  document.getElementById('cardLogoPreview').src=LPC_LOGO_FIXED;
+  return card;
+}
+
+async function reprintRegistryCard(card){
+  resetCardModal();switchCardView('create');
+  document.getElementById('cfn').value=card.fn;document.getElementById('cln').value=card.ln;
+  document.getElementById('caddr').value=card.addr;document.getElementById('cphone').value=card.phone;
+  document.getElementById('creason').value=card.reason;
+  showCardPreview({...card});
+  await printCard();
+}
+
 async function generateCard(){
   const fn=document.getElementById('cfn').value.trim();
   const ln=document.getElementById('cln').value.trim();
@@ -1135,38 +1319,28 @@ async function generateCard(){
   const reason=document.getElementById('creason').value.trim();
   if(!fn||!ln||!addr){alert('Name and address are required');return}
   const btn=document.getElementById('generateCardBtn');
-  btn.disabled=true;btn.textContent='Saving card…';
+  btn.disabled=true;btn.textContent=editingCard?'Saving changes…':'Saving card…';
   document.getElementById('cardResult').style.display='none';
   window._lastCard=null;
-  const cardId=createCardId();
-  // The QR carries only an opaque card ID. Cardholder details are retrieved
-  // from the private registry after every scan.
-  const qrData=JSON.stringify({t:'card',id:cardId,v:2});
-
-  document.getElementById('cardName').textContent=`${fn} ${ln}`;
-  document.getElementById('cardAddr').textContent=addr;
-  document.getElementById('cardId').textContent=cardId;
-  document.getElementById('cardReason').textContent=reason;
 
   try{
-    const qr=qrcode(0,'M');
-    qr.addData(qrData);
-    qr.make();
-    const canvas=document.getElementById('qrCanvas');
-    const cellSize=4,margin=8;
-    const count=qr.getModuleCount();
-    const size=count*cellSize+margin*2;
-    canvas.width=size;canvas.height=size;
-    const ctx=canvas.getContext('2d');
-    ctx.fillStyle='#fff';ctx.fillRect(0,0,size,size);
-    ctx.fillStyle='#000';
-    for(let r=0;r<count;r++){for(let c=0;c<count;c++){if(qr.isDark(r,c)){ctx.fillRect(margin+c*cellSize,margin+r*cellSize,cellSize,cellSize)}}}
-    const card={fn,ln,addr,phone,reason,cardId,qrDataURL:canvas.toDataURL(),qrData};
-    await saveCustomCard(card);
-    window._lastCard=card;
-    document.getElementById('cardResult').style.display='';
-    document.getElementById('cardLogoPreview').src=LPC_LOGO_FIXED;
-  }catch(e){console.error('Card creation error:',e);alert('Card was not created: '+e.message)}
+    if(editingCard){
+      await updateCardIdentity(editingCard,fn,ln,phone);
+      const card={...editingCard,fn,ln,phone};
+      editingCard=null;
+      document.getElementById('caddr').readOnly=false;document.getElementById('creason').readOnly=false;
+      document.getElementById('cardScanSection').style.display='';document.getElementById('cardEditNote').style.display='none';
+      showCardPreview(card);
+      const i=cardRegistry.findIndex(c=>c.objectId===card.objectId);if(i>=0)cardRegistry[i]=card;
+    }else{
+      const cardId=createCardId();
+      // The QR carries only an opaque card ID. Cardholder details are retrieved
+      // from the private registry after every scan.
+      const card={fn,ln,addr,phone,reason,cardId,zoneName:duplicateContext?.zoneName||selZone?.name||'',incident:duplicateContext?.incident||selZone?.incident||''};
+      const result=await saveCustomCard(card);card.objectId=result.objectId;
+      duplicateContext=null;showCardPreview(card);cardRegistry.unshift(card);
+    }
+  }catch(e){console.error('Card save error:',e);alert('Card was not saved: '+e.message)}
   finally{btn.disabled=false;btn.textContent='Generate card'}
 }
 
