@@ -9,31 +9,33 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/esri-leaflet/3.0.12/esri-leaflet.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <style>
-:root{--bg:#f4f5f7;--sf:#fff;--bd:#d4d4d8;--tx:#1a1a2e;--mu:#6b7280;--ac:#2563eb;--ac2:#1d4ed8;--al:#dbeafe;--gn:#10b981;--gb:#d1fae5;--gd:#065f46;--rd:#ef4444;--rb2:#fee2e2;--rdd:#991b1b;--am:#f59e0b;--ab:#fef3c7}
+:root{--bg:#f4f5f7;--sf:#fff;--bd:#d4d4d8;--tx:#1a1a2e;--mu:#6b7280;--navy:#17324d;--scan:#1769aa;--scan-dark:#0f548c;--scan-light:#e8f2fb;--card:#b65d0a;--card-dark:#934807;--card-light:#fff1df;--ac:#1769aa;--ac2:#0f548c;--al:#e8f2fb;--gn:#10b981;--gb:#d1fae5;--gd:#065f46;--rd:#ef4444;--rb2:#fee2e2;--rdd:#991b1b;--am:#f59e0b;--ab:#fef3c7}
 *{margin:0;padding:0;box-sizing:border-box}
 html{width:100%;height:100%;overflow:hidden}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--tx);width:100%;height:100vh;height:100dvh;min-height:0;display:flex;flex-direction:column;overflow:hidden;-webkit-text-size-adjust:100%}
-header{background:var(--sf);border-bottom:1px solid var(--bd);padding:10px 14px;display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}
-header h1{font-size:14px;font-weight:700;white-space:nowrap}
+header{background:var(--navy);color:#fff;border-bottom:1px solid #0f263b;padding:10px 14px;display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}
+header h1{font-size:14px;font-weight:700;white-space:nowrap;letter-spacing:.02em}
 .sw{position:relative;flex:1;min-width:130px}
 .sw select{width:100%;padding:7px 24px 7px 10px;border:1px solid var(--bd);border-radius:6px;font-size:13px;background:var(--sf);color:var(--tx);appearance:none}
 .sw::after{content:'▾';position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:10px;color:var(--mu);pointer-events:none}
 .hr{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.hs{display:flex;gap:8px;font-size:11px;color:var(--mu)}
-.hs strong{color:var(--tx);font-weight:600}
+.hs{display:flex;gap:8px;font-size:11px;color:#cbd5e1}
+.hs strong{color:#fff;font-weight:600}
 .b{padding:6px 10px;border:1px solid var(--bd);border-radius:6px;font-size:12px;font-weight:500;background:var(--sf);color:var(--tx);cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
 .b:hover{background:var(--bg)}.b:disabled{opacity:.4;cursor:not-allowed}
 .ba{background:var(--ac);color:#fff;border-color:var(--ac);font-weight:600}
 .ba:hover{background:var(--ac2)}
-.ob{font-size:10px;background:var(--al);color:var(--ac);padding:2px 7px;border-radius:9px;font-weight:600;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.modebar{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:8px 12px;background:var(--sf);border-bottom:1px solid var(--bd);flex-shrink:0}
+.ob{font-size:10px;background:rgba(255,255,255,.14);color:#fff;padding:2px 7px;border-radius:9px;font-weight:600;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.modebar{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:8px 12px;background:#e8edf2;border-bottom:1px solid #c8d1da;flex-shrink:0}
 .modebtn{min-height:54px;padding:8px 12px;border:2px solid var(--bd);border-radius:10px;background:var(--sf);color:var(--tx);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px;text-align:left;transition:border-color .15s,background .15s,color .15s}
-.modebtn:hover{border-color:var(--ac);background:#f8fbff}.modebtn:disabled{opacity:.45;cursor:not-allowed;border-color:var(--bd);background:var(--bg)}
-.modebtn.active{border-color:var(--ac);background:var(--al);color:var(--ac)}
-.modebtn .mi{font-size:22px;line-height:1}.modebtn strong{display:block;font-size:14px}.modebtn small{display:block;font-size:10px;color:var(--mu);font-weight:500;margin-top:1px}
+.modebtn[data-workflow="scan"]{border-color:#79abd2;background:var(--scan-light);color:var(--scan-dark)}
+.modebtn[data-workflow="scan"]:hover,.modebtn[data-workflow="scan"].active{border-color:var(--scan);background:var(--scan);color:#fff}
+.modebtn[data-workflow="card"]{border-color:#d8a36f;background:var(--card-light);color:var(--card-dark)}
+.modebtn[data-workflow="card"]:hover,.modebtn[data-workflow="card"].active{border-color:var(--card);background:var(--card);color:#fff}
+.modebtn:disabled{opacity:.42;cursor:not-allowed;border-color:var(--bd)!important;background:var(--bg)!important;color:var(--mu)!important}
+.modebtn strong{display:block;font-size:15px;letter-spacing:.01em}
 .mode-switch-compact{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:-2px 0 12px}
 .mode-switch-compact .modebtn{min-height:38px;padding:7px 9px;border-radius:8px;text-align:center;display:block;font-size:12px;font-weight:650}
-.mode-switch-compact .modebtn .mi{font-size:14px;margin-right:4px}
 #mc{height:28%;min-height:150px;flex-shrink:0;position:relative}
 #map{height:100%;width:100%}
 .leg{position:absolute;bottom:6px;right:6px;background:rgba(255,255,255,.92);border-radius:6px;padding:4px 6px;font-size:9px;z-index:1000;border:1px solid var(--bd);line-height:1.6}
@@ -58,7 +60,7 @@ th{background:var(--bg);text-align:left;padding:6px 8px;font-weight:600;font-siz
 td{padding:5px 8px;border-bottom:1px solid #f0f0f0;white-space:nowrap}
 tr:hover td{background:#fafafa}
 .em{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--mu);font-size:13px;gap:6px;padding:30px;text-align:center}
-.em .ic{font-size:24px;opacity:.4}
+.empty-mark{width:18px;height:18px;border:4px solid #94a3b8;border-radius:50%;opacity:.65}
 .di{color:var(--gn);font-weight:600}.do{color:var(--rd);font-weight:600}
 .lt{font-variant-numeric:tabular-nums;color:var(--mu)}
 
@@ -68,7 +70,7 @@ tr:hover td{background:#fafafa}
 .md{background:var(--sf);width:100%;max-width:480px;max-height:94dvh;border-radius:16px 16px 0 0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:18px;animation:su .25s ease-out}
 @keyframes su{from{transform:translateY(100%)}to{transform:translateY(0)}}
 @media(min-width:600px){.mo{align-items:center}.md{border-radius:12px;max-height:85vh}}
-@media(max-width:520px){.modebar{gap:6px;padding:7px 8px}.modebtn{padding:7px 8px}.modebtn strong{font-size:12px}.modebtn small{font-size:9px}.modebtn .mi{font-size:18px}}
+@media(max-width:520px){.modebar{gap:6px;padding:7px 8px}.modebtn{padding:7px 8px}.modebtn strong{font-size:13px}}
 .mh{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
 .mh h2{font-size:16px;font-weight:600}
 .mx{width:28px;height:28px;border:none;background:var(--bg);border-radius:50%;font-size:14px;cursor:pointer;color:var(--mu);display:flex;align-items:center;justify-content:center}
@@ -119,9 +121,11 @@ tr:hover td{background:#fafafa}
 .wedge-status{font-size:10px;padding:4px 8px;border-radius:4px;text-align:center;margin-bottom:8px;display:none}
 .wedge-status.listening{display:block;background:#eff6ff;color:var(--ac);border:1px solid #bfdbfe}
 .wedge-status.captured{display:block;background:var(--gb);color:var(--gd);border:1px solid var(--gn)}
+.wedge-status.invalid{display:block;background:var(--rb2);color:var(--rdd);border:1px solid var(--rd)}
 
 /* Card scan section in card modal */
 .card-scan-section{background:var(--bg);border-radius:8px;padding:12px;margin-bottom:14px}
+.card-scan-section{border-left:4px solid var(--card)}
 .card-scan-section h3{font-size:12px;font-weight:600;margin-bottom:6px}
 .card-scan-section p{font-size:11px;color:var(--mu);margin-bottom:8px}
 .scan-actions{display:flex;gap:8px}
@@ -133,6 +137,9 @@ tr:hover td{background:#fafafa}
 .print-actions button{flex:1}
 .btn-outline{padding:13px;border:2px solid var(--bd);border-radius:10px;font-size:14px;font-weight:600;background:var(--sf);color:var(--tx);cursor:pointer}
 .btn-outline:hover{border-color:var(--ac);color:var(--ac)}
+#cardModal .cb{background:var(--card)}
+#cardModal .cb:hover{background:var(--card-dark)}
+#cardModal .btn-outline:hover{border-color:var(--card);color:var(--card-dark)}
 
 /* Hidden print iframe */
 #printFrame{position:fixed;left:-9999px;top:-9999px;width:0;height:0;border:none}
@@ -152,10 +159,10 @@ tr:hover td{background:#fafafa}
 
 <nav class="modebar" aria-label="Operating mode">
   <button class="modebtn scan-mode-button" id="scb" data-workflow="scan" disabled onclick="setWorkflowMode('scan')">
-    <span class="mi">📷</span><span><strong>Checkpoint Scan</strong><small>Scan entries and exits</small></span>
+    <span><strong>Checkpoint Scan</strong></span>
   </button>
   <button class="modebtn" data-workflow="card" onclick="setWorkflowMode('card')">
-    <span class="mi">🪪</span><span><strong>Custom Card</strong><small>SAR card generation</small></span>
+    <span><strong>Custom Card</strong></span>
   </button>
 </nav>
 
@@ -176,7 +183,7 @@ tr:hover td{background:#fafafa}
   </div>
   <div class="sb2" id="sbar"><input type="text" id="tsr" placeholder="Filter…" oninput="filterTable()"/></div>
   <div class="tw">
-    <div class="em" id="emp"><div class="ic">📍</div><div>Select a zone to begin</div></div>
+    <div class="em" id="emp"><div class="empty-mark"></div><div>Select a zone to begin</div></div>
     <table id="dt" style="display:none"><thead id="dth"></thead><tbody id="dtb"></tbody></table>
   </div>
 </div>
@@ -196,17 +203,17 @@ tr:hover td{background:#fafafa}
 <!-- CHECKPOINT MODAL -->
 <div class="mo" id="modal">
  <div class="md">
-  <div class="mh"><h2>Checkpoint</h2><button class="mx" onclick="closeModal()">✕</button></div>
+  <div class="mh"><h2>Checkpoint</h2><button class="mx" onclick="closeModal()">×</button></div>
   <div class="mode-switch-compact" aria-label="Switch operating mode">
-    <button class="modebtn scan-mode-button" data-workflow="scan" onclick="setWorkflowMode('scan')"><span class="mi">📷</span>Checkpoint Scan</button>
-    <button class="modebtn" data-workflow="card" onclick="setWorkflowMode('card')"><span class="mi">🪪</span>Custom Card</button>
+    <button class="modebtn scan-mode-button" data-workflow="scan" onclick="setWorkflowMode('scan')">Checkpoint Scan</button>
+    <button class="modebtn" data-workflow="card" onclick="setWorkflowMode('card')">Custom Card</button>
   </div>
   <div class="zn" id="mzn">Zone: —</div>
   <div class="wedge-status" id="wedgeStatusCP">Scanner ready — scan a DL or re-entry card</div>
 
   <!-- STEP 1: scan + check -->
   <div id="s1">
-    <button class="sb1" id="sBtn" onclick="document.getElementById('pi').click()">📷 Scan Barcode</button>
+    <button class="sb1" id="sBtn" onclick="document.getElementById('pi').click()">Scan barcode</button>
     <input type="file" accept="image/*" capture="environment" id="pi"/>
     <div class="ss" id="ss"></div>
     <div class="pf" id="pf"></div>
@@ -214,7 +221,7 @@ tr:hover td{background:#fafafa}
     <div class="af"><input type="text" id="ai" placeholder="123 Main St, Durango, CO 81301"/></div>
     <button class="cb" id="s1chk" onclick="doCheck()">Check address</button>
     <div class="res" id="s1res"><div class="vd" id="s1rv"></div><div class="dt" id="s1rd"></div><div class="ae" id="s1ra"></div></div>
-    <button class="cb gn-btn" id="s1go" style="display:none" onclick="goStep2()">Proceed to check-in →</button>
+    <button class="cb gn-btn" id="s1go" style="display:none" onclick="goStep2()">Proceed to check-in</button>
   </div>
 
   <!-- STEP 2: phone + direction + save -->
@@ -223,8 +230,8 @@ tr:hover td{background:#fafafa}
     <div class="af"><label>Phone number</label><input type="tel" id="s2phone" placeholder="(970) 555-1234"/></div>
     <div class="af"><label>Direction</label>
       <div class="db">
-        <div class="dbtn ib" onclick="pickDir('IN',this)">⬇ IN</div>
-        <div class="dbtn ob2" onclick="pickDir('OUT',this)">⬆ OUT</div>
+        <div class="dbtn ib" onclick="pickDir('IN',this)">IN</div>
+        <div class="dbtn ob2" onclick="pickDir('OUT',this)">OUT</div>
       </div>
     </div>
     <div class="af"><label>Notes (optional)</label><input type="text" id="s2notes" placeholder="Vehicle, occupants, etc."/></div>
@@ -239,10 +246,10 @@ tr:hover td{background:#fafafa}
 <!-- CUSTOM CARD MODAL -->
 <div class="mo" id="cardModal">
  <div class="md">
-  <div class="mh"><h2>Create Re-entry Card</h2><button class="mx" onclick="closeCardModal()">✕</button></div>
+  <div class="mh"><h2>Create Re-entry Card</h2><button class="mx" onclick="closeCardModal()">×</button></div>
   <div class="mode-switch-compact" aria-label="Switch operating mode">
-    <button class="modebtn scan-mode-button" data-workflow="scan" disabled onclick="setWorkflowMode('scan')"><span class="mi">📷</span>Checkpoint Scan</button>
-    <button class="modebtn" data-workflow="card" onclick="setWorkflowMode('card')"><span class="mi">🪪</span>Custom Card</button>
+    <button class="modebtn scan-mode-button" data-workflow="scan" disabled onclick="setWorkflowMode('scan')">Checkpoint Scan</button>
+    <button class="modebtn" data-workflow="card" onclick="setWorkflowMode('card')">Custom Card</button>
   </div>
 
   <!-- Scan to populate section -->
@@ -251,7 +258,7 @@ tr:hover td{background:#fafafa}
     <p>Scan a driver's license with the DS8101 or phone camera to auto-fill, then edit as needed.</p>
     <div class="wedge-status" id="wedgeStatusCard">Scanner ready — scan a DL barcode</div>
     <div class="scan-actions">
-      <button class="b" id="cardCamBtn" onclick="document.getElementById('cardCamInput').click()">📷 Phone camera</button>
+      <button class="b" id="cardCamBtn" onclick="document.getElementById('cardCamInput').click()">Use phone camera</button>
     </div>
     <input type="file" accept="image/*" capture="environment" id="cardCamInput" style="display:none"/>
     <div class="card-parsed" id="cardParsedInfo" style="display:none"></div>
@@ -278,8 +285,8 @@ tr:hover td{background:#fafafa}
       <div style="font-size:10px;color:var(--mu);margin-top:4px" id="cardReason"></div>
     </div>
     <div class="print-actions">
-      <button class="cb" onclick="printCard()">🖨 Print to ZC300</button>
-      <button class="btn-outline" onclick="savePNG()">💾 Save PNG</button>
+      <button class="cb" onclick="printCard()">Print to ZC300</button>
+      <button class="btn-outline" onclick="savePNG()">Save PNG</button>
     </div>
     <button class="rst" onclick="nextCustomCard()">Create next custom card</button>
   </div>
@@ -443,7 +450,7 @@ function resetModal(){
   document.getElementById('ai').value='';document.getElementById('ss').textContent='';
   document.getElementById('pf').style.display='none';document.getElementById('pf').innerHTML='';
   document.getElementById('s1res').style.display='none';document.getElementById('s1go').style.display='none';
-  document.getElementById('sBtn').disabled=false;document.getElementById('sBtn').textContent='📷 Scan Barcode';
+  document.getElementById('sBtn').disabled=false;document.getElementById('sBtn').textContent='Scan barcode';
   document.getElementById('sBtn').style.display='';
   document.getElementById('s1dv').style.display='';
   document.getElementById('s1chk').style.display='';document.getElementById('s1chk').disabled=false;
@@ -468,7 +475,7 @@ async function doCheck(){
     const inside=pip([lng,lat],selGeom);
     lastCheck={inside,addr:ma,lat,lng,score:sc};
     if(sc<70){showS1('re','Low confidence',`Score: ${sc}/100.`,ma)}
-    else if(inside){showS1('ri','✓ INSIDE ZONE','Address is within the evacuation zone.',ma);document.getElementById('s1go').style.display=''}
+    else if(inside){showS1('ri','INSIDE ZONE','Address is within the evacuation zone.',ma);document.getElementById('s1go').style.display=''}
     else{showS1('ro','✗ OUTSIDE ZONE','Address is not within the evacuation zone.',ma)}
   }catch(e){console.error(e);showS1('re','Geocode failed','Network error.',addr)}
   btn.disabled=false;btn.textContent='Check address';
@@ -508,7 +515,7 @@ async function saveRecord(){
     if(agolToken)p.append('token',agolToken);
     const r=await fetch(`${LOG_URL}/applyEdits`,{method:'POST',body:p});const j=await r.json();
     if(j.addResults?.[0]?.success){
-      showS2('ri','✓ Saved',`${selectedDir} — ${feat.attributes.name} — ${new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`);
+      showS2('ri','Saved',`${selectedDir} — ${feat.attributes.name} — ${new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`);
       document.getElementById('rstBtn').style.display='';fetchLog();
     }else{
       showS2('re','Save failed',j.addResults?.[0]?.error?.description||'Unknown error');
@@ -763,9 +770,49 @@ function addressFromQR(qd){
   return [street,locality].filter(Boolean).join(', ');
 }
 
+function createCardId(){
+  if(window.crypto?.getRandomValues){
+    const bytes=new Uint8Array(10);window.crypto.getRandomValues(bytes);
+    return 'LPC-'+Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('').toUpperCase();
+  }
+  return 'LPC-'+Date.now().toString(36).toUpperCase()+Math.random().toString(36).slice(2,10).toUpperCase();
+}
+
+async function getApprovedCard(qd){
+  const cardId=String(qd?.id||qd?.card_id||'').trim();
+  if(qd?.t!=='card'||!cardId)throw new Error('QR code does not contain an LPC card ID.');
+  if(!agolToken)throw new Error('ArcGIS session expired. Refresh and sign in again.');
+  const escaped=cardId.replace(/'/g,"''");
+  const p=new URLSearchParams({
+    where:`card_id='${escaped}'`,outFields:'*',returnGeometry:'false',
+    resultRecordCount:'2',f:'json',token:agolToken
+  });
+  const r=await fetch(`${CARD_URL}/query`,{method:'POST',body:p});
+  const j=await r.json();
+  if(j.error)throw new Error(j.error.message||'Card registry could not be checked.');
+  const rows=j.features||[];
+  if(rows.length!==1)throw new Error(rows.length?'Duplicate card ID found; contact a supervisor.':'Card ID not found in the LPC registry.');
+  const a=rows[0].attributes||{};
+  if(String(a.status||'').trim().toLowerCase()!=='active'){
+    throw new Error(`Card is ${String(a.status||'not active').toUpperCase()}.`);
+  }
+  if(a.expires_at!=null&&a.expires_at!==''){
+    const expiry=typeof a.expires_at==='number'?a.expires_at:Date.parse(a.expires_at);
+    if(Number.isFinite(expiry)&&expiry<Date.now())throw new Error('Card is expired.');
+  }
+  return{
+    firstName:String(a.first_name||''),lastName:String(a.last_name||''),
+    fullAddress:String(a.address||''),phone:String(a.phone||''),
+    reason:String(a.reason||''),cardId:String(a.card_id||cardId),
+    scanType:'Card',approval:'LPC APPROVED'
+  };
+}
+
 function showParsed(p){
   const c=document.getElementById('pf');
   const d=[
+    {l:'Card status',v:p.approval||''},
+    {l:'Card ID',v:p.cardId||''},
     {l:'Name',v:[p.firstName,p.middleName,p.lastName].filter(Boolean).map(titleCase).join(' ')},
     {l:'Address',v:p.fullAddress||[p.street,p.street2].filter(Boolean).map(titleCase).join(' ')},
     {l:'City/State/ZIP',v:p.fullAddress?'':[p.city?titleCase(p.city):'',[p.state,p.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')}
@@ -815,18 +862,22 @@ const wedge=(function(){
     if(cardEl) cardEl.className='wedge-status'+(t==='card'?' listening':'');
   }
 
-  function process(){
+  async function process(){
     const raw=normalizeScanData(buffer);
     buffer='';
     if(raw.length<MIN_LENGTH) return;
 
     // Detect if it's a re-entry card QR (JSON with t:'card')
-    try{
-      const qd=JSON.parse(raw);
-      if(qd.t==='card'){
-        handleCardQR(qd);return;
+    let qd=null;
+    try{qd=JSON.parse(raw)}catch(e){}
+    if(qd?.t==='card'){
+      try{await handleCardQR(qd)}
+      catch(e){
+        const ws=document.getElementById(target==='checkpoint'?'wedgeStatusCP':'wedgeStatusCard');
+        if(ws){ws.className='wedge-status invalid';ws.textContent='CARD NOT APPROVED — '+(e?.message||'registry check failed')}
       }
-    }catch(e){}
+      return;
+    }
 
     // Check if it looks like AAMVA (contains known field codes)
     const isAAMVA=raw.includes('DAQ')||raw.includes('DCS')||raw.includes('DAC')||raw.includes('DAA')||raw.includes('ANSI ')||raw.includes('AAMVA');
@@ -837,18 +888,12 @@ const wedge=(function(){
       }
     }
 
-    // Fallback: try QR JSON parse for any JSON payload
-    try{
-      const qd=JSON.parse(raw);
-      handleCardQR(qd);
-    }catch(e){
-      // Unknown barcode format — show raw in appropriate status
-      console.warn('Wedge scan: unrecognized format, length='+raw.length);
-      const ws=document.getElementById(target==='checkpoint'?'wedgeStatusCP':'wedgeStatusCard');
-      if(ws){
-        ws.className='wedge-status listening';
-        ws.textContent='Barcode read, but it is not a supported DL or re-entry QR code';
-      }
+    // Unknown barcode format — show raw in appropriate status
+    console.warn('Wedge scan: unrecognized format, length='+raw.length);
+    const ws=document.getElementById(target==='checkpoint'?'wedgeStatusCP':'wedgeStatusCard');
+    if(ws){
+      ws.className='wedge-status invalid';
+      ws.textContent='Barcode read, but it is not a supported DL or LPC card';
     }
   }
 
@@ -860,11 +905,11 @@ const wedge=(function(){
         fullAddress:buildAddrString(parsed),scanType:'DL'};
       showParsed(parsedDL);
       document.getElementById('ai').value=parsedDL.fullAddress;
-      document.getElementById('ss').textContent='✓ DL scanned via scanner';
+      document.getElementById('ss').textContent='DL scanned';
       document.getElementById('sBtn').style.display='none';
       document.getElementById('s1dv').style.display='none';
       const ws=document.getElementById('wedgeStatusCP');
-      ws.className='wedge-status captured';ws.textContent='✓ DL captured — '+titleCase(parsed.firstName||'')+' '+titleCase(parsed.lastName||'');
+      ws.className='wedge-status captured';ws.textContent='DL CAPTURED — '+titleCase(parsed.firstName||'')+' '+titleCase(parsed.lastName||'');
     }else if(target==='card'){
       // A caretaker/second-home card may use a different property address.
       // Populate identity only; the manager enters the card-specific details.
@@ -872,32 +917,31 @@ const wedge=(function(){
       document.getElementById('cln').value=titleCase(parsed.lastName||'');
       showCardParsed({firstName:parsed.firstName||'',lastName:parsed.lastName||''});
       const ws=document.getElementById('wedgeStatusCard');
-      ws.className='wedge-status captured';ws.textContent='✓ DL name captured — enter card address and details below';
+      ws.className='wedge-status captured';ws.textContent='DL NAME CAPTURED — enter card address and details below';
     }
   }
 
-  function handleCardQR(qd){
+  async function handleCardQR(qd){
+    const card=await getApprovedCard(qd);
     if(target==='checkpoint'){
-      // Re-entry card scanned at checkpoint — treat like a DL scan
-      const fullAddress=addressFromQR(qd);
-      parsedDL={firstName:qd.fn||'',lastName:qd.ln||'',fullAddress,
-        phone:qd.ph||'',cardId:qd.id||'',scanType:'Card'};
+      // Use the private registry as the authority, never editable QR text.
+      parsedDL=card;
       showParsed(parsedDL);
-      document.getElementById('ai').value=fullAddress;
-      document.getElementById('ss').textContent='✓ Re-entry card scanned';
+      document.getElementById('ai').value=card.fullAddress;
+      document.getElementById('ss').textContent='LPC card approved';
       document.getElementById('sBtn').style.display='none';
       document.getElementById('s1dv').style.display='none';
       const ws=document.getElementById('wedgeStatusCP');
-      ws.className='wedge-status captured';ws.textContent='✓ Re-entry card — '+(qd.fn||'')+' '+(qd.ln||'');
+      ws.className='wedge-status captured';ws.textContent='LPC APPROVED — '+card.firstName+' '+card.lastName;
     }else if(target==='card'){
-      // Re-entry card scanned in card modal — populate form
-      document.getElementById('cfn').value=qd.fn||'';
-      document.getElementById('cln').value=qd.ln||'';
-      document.getElementById('caddr').value=addressFromQR(qd);
-      if(qd.ph)document.getElementById('cphone').value=qd.ph;
-      if(qd.rs)document.getElementById('creason').value=qd.rs;
+      // Existing cards can be loaded only from their approved registry record.
+      document.getElementById('cfn').value=card.firstName;
+      document.getElementById('cln').value=card.lastName;
+      document.getElementById('caddr').value=card.fullAddress;
+      document.getElementById('cphone').value=card.phone;
+      document.getElementById('creason').value=card.reason;
       const ws=document.getElementById('wedgeStatusCard');
-      ws.className='wedge-status captured';ws.textContent='✓ Re-entry card data loaded';
+      ws.className='wedge-status captured';ws.textContent='LPC APPROVED — card data loaded';
     }
   }
 
@@ -1094,10 +1138,10 @@ async function generateCard(){
   btn.disabled=true;btn.textContent='Saving card…';
   document.getElementById('cardResult').style.display='none';
   window._lastCard=null;
-  const cardId='LPC-'+Date.now().toString(36).toUpperCase();
-  // Keep the address intact. Splitting on commas is unreliable because
-  // operators may enter addresses using several valid formats.
-  const qrData=JSON.stringify({fn,ln,a:addr,ph:phone,id:cardId,rs:reason,t:'card'});
+  const cardId=createCardId();
+  // The QR carries only an opaque card ID. Cardholder details are retrieved
+  // from the private registry after every scan.
+  const qrData=JSON.stringify({t:'card',id:cardId,v:2});
 
   document.getElementById('cardName').textContent=`${fn} ${ln}`;
   document.getElementById('cardAddr').textContent=addr;
@@ -1436,15 +1480,13 @@ document.getElementById('pi').addEventListener('change',async function(){
   try{
     const result=await processBarcodeImage(file,'checkpoint');
     if(result&&result.rawValue?.length>10){
-      ss.textContent='✓ Barcode read';
+      ss.textContent='Barcode read';
       const raw=normalizeScanData(result.rawValue);
       if(result.format==='qr_code'){
         const qd=JSON.parse(raw);
-        if(qd.t!=='card')throw new Error('QR code is not an LPC re-entry card');
-        const fullAddress=addressFromQR(qd);
-        parsedDL={firstName:qd.fn||'',lastName:qd.ln||'',fullAddress,
-          phone:qd.ph||'',cardId:qd.id||'',scanType:'Card'};
-        showParsed(parsedDL);document.getElementById('ai').value=fullAddress;
+        parsedDL=await getApprovedCard(qd);
+        showParsed(parsedDL);document.getElementById('ai').value=parsedDL.fullAddress;
+        ss.textContent='LPC card approved';
       }else{
         const parsed=parseAAMVA(raw);
         if(!parsed.licenseNum&&!parsed.lastName)throw new Error('Driver license data could not be parsed');
@@ -1454,8 +1496,8 @@ document.getElementById('pi').addEventListener('change',async function(){
         document.getElementById('ai').value=parsedDL.fullAddress;
       }
       sb.style.display='none';document.getElementById('s1dv').style.display='none';
-    }else{ss.textContent='No barcode found — try again or type address.';sb.disabled=false;sb.textContent='📷 Scan Barcode'}
-  }catch(e){console.error(e);ss.textContent='Scan failed: '+(e?.message||'try again');sb.disabled=false;sb.textContent='📷 Scan Barcode'}
+    }else{ss.textContent='No barcode found — try again or type address.';sb.disabled=false;sb.textContent='Scan barcode'}
+  }catch(e){console.error(e);ss.textContent='Scan failed: '+(e?.message||'try again');sb.disabled=false;sb.textContent='Scan barcode'}
   this.value='';
 });
 
@@ -1473,12 +1515,11 @@ document.getElementById('cardCamInput').addEventListener('change',async function
       if(result.format==='qr_code'){
         try{
           const qd=JSON.parse(raw);
-          if(qd.t!=='card')throw new Error('Not an LPC re-entry card');
           scannedType='Card';
-          parsed={firstName:qd.fn||'',lastName:qd.ln||'',fullAddress:addressFromQR(qd)};
-          if(qd.ph)document.getElementById('cphone').value=qd.ph;
-          if(qd.rs)document.getElementById('creason').value=qd.rs;
-        }catch(e){ws.textContent='QR code is not a supported re-entry card';return}
+          parsed=await getApprovedCard(qd);
+          document.getElementById('cphone').value=parsed.phone;
+          document.getElementById('creason').value=parsed.reason;
+        }catch(e){ws.className='wedge-status invalid';ws.textContent='CARD NOT APPROVED — '+(e?.message||'registry check failed');return}
       }else{
         parsed=parseAAMVA(raw);
         if(!parsed.licenseNum&&!parsed.lastName)throw new Error('Driver license data could not be parsed');
@@ -1488,10 +1529,10 @@ document.getElementById('cardCamInput').addEventListener('change',async function
       if(scannedType==='Card'){
         document.getElementById('caddr').value=buildAddrString(parsed);
         showCardParsed(parsed);
-        ws.className='wedge-status captured';ws.textContent='✓ Re-entry card data loaded';
+        ws.className='wedge-status captured';ws.textContent='LPC APPROVED — card data loaded';
       }else{
         showCardParsed({firstName:parsed.firstName||'',lastName:parsed.lastName||''});
-        ws.className='wedge-status captured';ws.textContent='✓ DL name captured — enter card address and details below';
+        ws.className='wedge-status captured';ws.textContent='DL NAME CAPTURED — enter card address and details below';
       }
     }else{
       ws.className='wedge-status listening';ws.textContent='No barcode found — try again or enter manually';
