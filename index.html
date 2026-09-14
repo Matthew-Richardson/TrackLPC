@@ -120,12 +120,8 @@ tr:hover td{background:#fafafa}
 .rst{width:100%;padding:9px;border:1px solid var(--bd);border-radius:8px;background:var(--sf);font-size:13px;cursor:pointer;color:var(--tx);margin-top:6px}
 
 /* CARD STYLES */
-.card-preview{border:2px solid var(--bd);border-radius:10px;padding:16px;margin-bottom:12px;text-align:center;max-width:280px;margin-left:auto;margin-right:auto}
-.card-preview h3{font-size:14px;margin-bottom:4px}
-.card-preview .card-name{font-size:18px;font-weight:700;margin:8px 0 4px}
-.card-preview .card-addr{font-size:12px;color:var(--mu)}
-.card-preview canvas{margin:10px auto;display:block}
-.card-preview .card-id{font-size:10px;color:var(--mu);font-family:monospace;margin-top:6px}
+.card-preview{border:0;border-radius:11px;padding:0;margin:0 auto 14px;text-align:center;max-width:320px;background:#fff;overflow:hidden;box-shadow:0 2px 10px rgba(15,23,42,.18)}
+#cardPrintPreview{display:block;width:100%;height:auto;margin:0;background:#fff}
 
 /* Wedge scanner indicator */
 .wedge-status{font-size:10px;padding:4px 8px;border-radius:4px;text-align:center;margin-bottom:8px;display:none}
@@ -272,11 +268,9 @@ tr:hover td{background:#fafafa}
     <div class="dv" id="s1dv"><span>check-in details</span></div>
     <div class="af"><label>First name</label><input type="text" id="s1fn" placeholder="Jane"/></div>
     <div class="af"><label>Last name</label><input type="text" id="s1ln" placeholder="Doe"/></div>
-    <div class="af"><label>Address</label><input type="text" id="ai" placeholder="123 Main St, Durango, CO 81301"/></div>
-    <div class="af"><label>Phone number</label><input type="tel" id="s1phone" placeholder="(970) 555-1234"/></div>
-    <button class="cb" id="s1chk" onclick="doCheck()">Check address</button>
+    <input type="hidden" id="s1phone"/>
+    <div class="af"><label>Address</label><input type="text" id="ai" placeholder="Type an address to check automatically"/></div>
     <div class="res" id="s1res"><div class="vd" id="s1rv"></div><div class="dt" id="s1rd"></div><div class="ae" id="s1ra"></div></div>
-    <button class="cb gn-btn" id="s1go" style="display:none" onclick="goStep2()">Proceed to check-in</button>
   </div>
 
   <!-- STEP 2: phone + direction + save -->
@@ -293,8 +287,6 @@ tr:hover td{background:#fafafa}
     <button class="cb gn-btn" id="s2save" disabled onclick="saveRecord()">Save record</button>
     <div class="res" id="s2res"><div class="vd" id="s2rv"></div><div class="dt" id="s2rd"></div></div>
   </div>
-
-  <button class="rst" id="rstBtn" style="display:none" onclick="resetModal()">Next check</button>
   </div>
  </div>
 </div>
@@ -303,17 +295,19 @@ tr:hover td{background:#fafafa}
 <div class="mo" id="cardModal">
  <div class="md">
   <div class="mh"><h2>Custom Cards</h2><button class="mx" onclick="closeCardModal()">×</button></div>
-  <div class="modal-zone" id="cardZoneWrap">
-    <label for="cardZoneSel">Evacuation zone (optional)</label>
-    <div class="mz-wrap"><select id="cardZoneSel" onchange="updateCardZoneState()"><option value="">No specific zone</option></select></div>
-    <div class="mz-hint">Leave unassigned or optionally choose a zone</div>
-  </div>
   <div class="card-tabs" aria-label="Custom card view">
     <button class="card-tab on" data-card-view="create" onclick="switchCardView('create')">Create Card</button>
     <button class="card-tab" data-card-view="manage" onclick="switchCardView('manage')">Card Registry</button>
   </div>
 
   <div id="cardCreateView">
+  <div id="cardForm">
+
+  <div class="modal-zone" id="cardZoneWrap">
+    <label for="cardZoneSel">Evacuation zone (optional)</label>
+    <div class="mz-wrap"><select id="cardZoneSel" onchange="updateCardZoneState()"><option value="">No specific zone</option></select></div>
+    <div class="mz-hint">Leave unassigned or optionally choose a zone</div>
+  </div>
 
   <!-- Scan to populate section -->
   <div class="card-scan-section" id="cardScanSection">
@@ -338,7 +332,7 @@ tr:hover td{background:#fafafa}
     Editing an existing card. Only name and phone can be changed.
   </div>
 
-  <div class="dv"><span>Card details</span></div>
+  <div class="dv"><span id="cardDetailsLabel">Card details</span></div>
 
   <div class="af"><label>First name</label><input type="text" id="cfn" placeholder="Jane"/></div>
   <div class="af"><label>Last name</label><input type="text" id="cln" placeholder="Doe"/></div>
@@ -346,23 +340,17 @@ tr:hover td{background:#fafafa}
   <div class="af"><label>Phone</label><input type="tel" id="cphone" placeholder="(970) 555-1234"/></div>
   <div class="af"><label>Reason</label><input type="text" id="creason" placeholder="2nd homeowner, renter, student, etc."/></div>
   <button class="cb" id="generateCardBtn" onclick="generateCard()">Generate card</button>
+  </div>
 
   <div id="cardResult" style="display:none">
     <div class="card-preview" id="cardPreview">
-      <img id="cardLogoPreview" style="height:36px;margin-bottom:4px"/>
-      <h3 style="font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin:0">Office of Emergency Management</h3>
-      <div style="font-size:10px;color:var(--mu)">Evacuation Zone Re-entry Card</div>
-      <div class="card-name" id="cardName"></div>
-      <div class="card-addr" id="cardAddr"></div>
-      <canvas id="qrCanvas"></canvas>
-      <div class="card-id" id="cardId"></div>
-      <div style="font-size:10px;color:var(--mu);margin-top:4px" id="cardReason"></div>
+      <canvas id="cardPrintPreview" aria-label="Exact card print preview"></canvas>
     </div>
     <div class="print-actions">
       <button class="cb" onclick="printCard()">Print to ZC300</button>
       <button class="btn-outline" onclick="savePNG()">Save PNG</button>
     </div>
-    <div class="print-hint"><strong>ZC300 print settings:</strong> Portrait · Actual size/100% · Margins None · Headers and footers Off. Do not use “Fit to page.”</div>
+    <div class="print-hint"><strong>ZC300 print settings:</strong> CR‑80 card · Portrait · Actual size/100% · Margins None · Headers and footers Off. Print one copy and do not use “Fit to page.”</div>
     <button class="rst" onclick="editLastCard()">Edit name or phone</button>
     <button class="rst" onclick="duplicateLastCard()">Duplicate for another person</button>
     <button class="rst" onclick="nextCustomCard()">Create a different card</button>
@@ -560,50 +548,80 @@ function openModal(){
   if(selZone){wedge.setTarget('checkpoint');requestAnimationFrame(()=>window.LPCLiveScanner?.start())}
 }
 function closeModal(){document.getElementById('modal').classList.remove('open');wedge.setTarget(null);window.LPCLiveScanner?.stop()}
-function resetModal(){
+let manualAddressTimer=null,addressCheckSequence=0;
+function resetModal({resumeScanner=true,statusText=''}={}){
+  clearTimeout(manualAddressTimer);addressCheckSequence++;
   lastCheck=null;parsedDL=null;selectedDir=null;
   document.getElementById('s1').style.display='';document.getElementById('s2').style.display='none';
-  document.getElementById('rstBtn').style.display='none';
   document.getElementById('ai').value='';document.getElementById('s1fn').value='';document.getElementById('s1ln').value='';
-  document.getElementById('s1phone').value='';document.getElementById('ss').textContent='';
+  document.getElementById('s1phone').value='';document.getElementById('ss').textContent=statusText;
   document.getElementById('pf').style.display='none';document.getElementById('pf').innerHTML='';
-  document.getElementById('s1res').style.display='none';document.getElementById('s1go').style.display='none';
+  document.getElementById('s1res').style.display='none';
   document.getElementById('sBtn').disabled=false;document.getElementById('sBtn').textContent='Take barcode photo';
   document.getElementById('sBtn').style.display='';
   document.getElementById('s1dv').style.display='';
-  document.getElementById('s1chk').style.display='';document.getElementById('s1chk').disabled=false;
   document.getElementById('s2phone').value='';document.getElementById('s2notes').value='';
-  document.getElementById('s2res').style.display='none';document.getElementById('s2save').disabled=true;
+  document.getElementById('s2res').style.display='none';document.getElementById('s2save').disabled=true;document.getElementById('s2save').textContent='Save record';
   document.querySelectorAll('.dbtn').forEach(b=>b.classList.remove('sel'));
   const ws=document.getElementById('wedgeStatusCP');
-  ws.className='wedge-status listening';ws.textContent='Scanner ready — scan a DL or re-entry card';
-  if(selZone&&document.getElementById('modal').classList.contains('open'))window.LPCLiveScanner?.start();
+  ws.className='wedge-status listening';ws.textContent=statusText?statusText+' — scan the next DL or card':'Scanner ready — scan a DL or re-entry card';
+  if(resumeScanner&&selZone&&document.getElementById('modal').classList.contains('open'))window.LPCLiveScanner?.start();
 }
 
 // ---- STEP 1: ADDRESS CHECK ----
-async function doCheck(){
+async function doCheck({autoAdvance=true}={}){
   const addr=document.getElementById('ai').value.trim();if(!addr||!selGeom)return;
-  const btn=document.getElementById('s1chk');btn.disabled=true;btn.textContent='Geocoding…';
+  const requestId=++addressCheckSequence;
+  document.getElementById('ss').textContent='Checking address against '+(selZone?.name||'the selected zone')+'…';
   try{
     const p=new URLSearchParams({SingleLine:addr,f:'json',outFields:'Match_addr,Score',maxLocations:1,location:'-107.88,37.28',distance:80000});
     const r=await fetch(`${GEOCODE_URL}?${p}`);const j=await r.json();
-    if(!j.candidates?.length){showS1('re','Could not geocode','No match.',addr);btn.disabled=false;btn.textContent='Check address';return}
+    if(requestId!==addressCheckSequence||document.getElementById('ai').value.trim()!==addr)return;
+    if(!j.candidates?.length){showS1('re','Could not geocode','Edit the address and it will check again automatically.',addr);document.getElementById('ss').textContent='Address not found';return false}
     const c=j.candidates[0],lng=c.location.x,lat=c.location.y,ma=c.attributes?.Match_addr||addr,sc=c.attributes?.Score||0;
     if(scanMarker)map.removeLayer(scanMarker);
     scanMarker=L.circleMarker([lat,lng],{radius:8,color:'#ef4444',fillColor:'#ef4444',fillOpacity:.9,weight:2}).addTo(map);
     const inside=pip([lng,lat],selGeom);
     lastCheck={inside,addr:ma,lat,lng,score:sc};
-    if(sc<70){showS1('re','Low confidence',`Score: ${sc}/100.`,ma)}
-    else if(inside){showS1('ri','INSIDE ZONE','Address is within the evacuation zone.',ma);document.getElementById('s1go').style.display=''}
-    else{showS1('ro','✗ OUTSIDE ZONE','Address is not within the evacuation zone.',ma)}
-  }catch(e){console.error(e);showS1('re','Geocode failed','Network error.',addr)}
-  btn.disabled=false;btn.textContent='Check address';
+    if(sc<70){showS1('re','Low confidence',`Score: ${sc}/100. Edit the address to retry.`,ma);document.getElementById('ss').textContent='Address needs review';return false}
+    if(inside){
+      showS1('ri','INSIDE ZONE','Address verified. Opening check-in details…',ma);
+      document.getElementById('ss').textContent='Address verified inside '+(selZone?.name||'zone');
+      if(autoAdvance)goStep2();
+      return true;
+    }
+    showS1('ro','OUTSIDE ZONE','Edit the address to check again.',ma);document.getElementById('ss').textContent='Address is outside '+(selZone?.name||'the selected zone');return false;
+  }catch(e){
+    if(requestId!==addressCheckSequence)return false;
+    console.error(e);showS1('re','Geocode failed','Network error. Edit the address to retry.',addr);document.getElementById('ss').textContent='Address check failed';return false;
+  }
 }
 function showS1(cls,v,d,a){const r=document.getElementById('s1res');r.style.display='block';r.className='res '+cls;
   document.getElementById('s1rv').textContent=v;document.getElementById('s1rd').textContent=d;document.getElementById('s1ra').textContent=a}
 
+const manualAddressInput=document.getElementById('ai');
+manualAddressInput.addEventListener('input',()=>{
+  clearTimeout(manualAddressTimer);addressCheckSequence++;lastCheck=null;
+  document.getElementById('s1res').style.display='none';
+  const value=manualAddressInput.value.trim();
+  if(value.length>=6&&document.getElementById('s1').style.display!=='none'){
+    manualAddressTimer=setTimeout(()=>doCheck({autoAdvance:true}),900);
+  }
+});
+manualAddressInput.addEventListener('keydown',e=>{
+  if(e.key==='Enter'){
+    e.preventDefault();clearTimeout(manualAddressTimer);doCheck({autoAdvance:true});
+  }
+});
+manualAddressInput.addEventListener('blur',()=>{
+  if(!lastCheck&&manualAddressInput.value.trim().length>=6&&document.getElementById('s1').style.display!=='none'){
+    clearTimeout(manualAddressTimer);doCheck({autoAdvance:true});
+  }
+});
+
 // ---- STEP 2 ----
 function goStep2(){
+  if(!lastCheck?.inside||lastCheck.score<70)return;
   window.LPCLiveScanner?.pause();
   const firstName=document.getElementById('s1fn').value.trim();
   const lastName=document.getElementById('s1ln').value.trim();
@@ -612,7 +630,7 @@ function goStep2(){
   else{parsedDL.firstName=firstName||parsedDL.firstName||'';parsedDL.lastName=lastName||parsedDL.lastName||''}
   document.getElementById('s1').style.display='none';document.getElementById('s2').style.display='';
   const info=document.getElementById('s2info');
-  let html=`<div class="pr"><span class="pl">Address</span><span class="pv">${lastCheck.addr}</span></div>`;
+  let html=`<div class="pr"><span class="pl">Zone check</span><span class="pv" style="color:var(--gd);font-weight:700">INSIDE ${selZone?.name||'ZONE'}</span></div><div class="pr"><span class="pl">Address</span><span class="pv">${lastCheck.addr}</span></div>`;
   if(parsedDL){
     const n=[parsedDL.firstName,parsedDL.lastName].filter(Boolean).map(titleCase).join(' ');
     if(n)html+=`<div class="pr"><span class="pl">Name</span><span class="pv">${n}</span></div>`;
@@ -638,8 +656,9 @@ async function saveRecord(){
     if(agolToken)p.append('token',agolToken);
     const r=await fetch(`${LOG_URL}/applyEdits`,{method:'POST',body:p});const j=await r.json();
     if(j.addResults?.[0]?.success){
-      showS2('ri','Saved',`${selectedDir} — ${feat.attributes.name} — ${new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`);
-      document.getElementById('rstBtn').style.display='';fetchLog();
+      const saved=`Saved ${selectedDir} — ${feat.attributes.name}`;
+      fetchLog();
+      resetModal({resumeScanner:true,statusText:saved});
     }else{
       showS2('re','Save failed',j.addResults?.[0]?.error?.description||'Unknown error');
       btn.disabled=false;btn.textContent='Save record';
@@ -923,6 +942,8 @@ async function lookupPreviousPhone(firstName,lastName,scannedAddress){
 }
 
 async function applyCheckpointDL(parsed){
+  resetModal({resumeScanner:false});
+  window.LPCLiveScanner?.pause();
   // Keep only operational fields. The license number and DOB are never saved.
   parsedDL={firstName:parsed.firstName||'',lastName:parsed.lastName||'',
     fullAddress:buildAddrString(parsed),scanType:'DL'};
@@ -944,6 +965,7 @@ async function applyCheckpointDL(parsed){
   const ws=document.getElementById('wedgeStatusCP');
   ws.className='wedge-status captured';
   ws.textContent='DL CAPTURED — '+normalizePersonName(parsedDL.firstName,parsedDL.lastName);
+  await doCheck({autoAdvance:true});
 }
 
 function addressFromQR(qd){
@@ -1090,6 +1112,7 @@ const wedge=(function(){
     if(target==='checkpoint'){
       await applyCheckpointDL(parsed);
     }else if(target==='card'){
+      beginIncomingCardScan();
       // A caretaker/second-home card may use a different property address.
       // Populate identity only; the manager enters the card-specific details.
       document.getElementById('cfn').value=titleCase(parsed.firstName||'');
@@ -1097,10 +1120,17 @@ const wedge=(function(){
       showCardParsed({firstName:parsed.firstName||'',lastName:parsed.lastName||''});
       const ws=document.getElementById('wedgeStatusCard');
       ws.className='wedge-status captured';ws.textContent='DL NAME CAPTURED — enter card address and details below';
+      advanceCardAfterScan('DL');
     }
   }
 
   async function handleCardQR(qd){
+    if(target==='checkpoint'){
+      resetModal({resumeScanner:false});
+      window.LPCLiveScanner?.pause();
+    }else if(target==='card'){
+      beginIncomingCardScan();
+    }
     const card=await getApprovedCard(qd);
     if(target==='checkpoint'){
       // Use the private registry as the authority, never editable QR text.
@@ -1114,6 +1144,7 @@ const wedge=(function(){
       window.LPCLiveScanner?.pause();
       const ws=document.getElementById('wedgeStatusCP');
       ws.className='wedge-status captured';ws.textContent='LPC APPROVED — '+card.firstName+' '+card.lastName;
+      await doCheck({autoAdvance:true});
     }else if(target==='card'){
       // Existing cards can be loaded only from their approved registry record.
       document.getElementById('cfn').value=card.firstName;
@@ -1124,6 +1155,7 @@ const wedge=(function(){
       setCardZoneByName(card.zoneName||'');
       const ws=document.getElementById('wedgeStatusCard');
       ws.className='wedge-status captured';ws.textContent='LPC APPROVED — card data loaded';
+      advanceCardAfterScan('Card');
     }
   }
 
@@ -1265,10 +1297,12 @@ function setCardZoneByName(name){const match=zones.find(z=>(z.name||'')===name);
 function openCardModal(){resetCardModal();document.getElementById('cardModal').classList.add('open');syncWorkflowButtons('card');switchCardView('create')}
 function closeCardModal(){document.getElementById('cardModal').classList.remove('open');wedge.setTarget(null);window.LPCCardLiveScanner?.stop()}
 function nextCustomCard(){resetCardModal();switchCardView('create');document.getElementById('cfn').focus()}
-function resetCardModal(){
+function resetCardModal({resumeScanner=true}={}){
   editingCard=null;duplicateContext=null;
+  document.getElementById('cardForm').style.display='';
   document.getElementById('cardResult').style.display='none';
   document.getElementById('cardParsedInfo').style.display='none';
+  document.getElementById('cardDetailsLabel').textContent='Card details';
   ['cfn','cln','caddr','cphone','creason'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('cardZoneSel').value='';document.getElementById('cardZoneSel').disabled=false;updateCardZoneState();
   document.getElementById('caddr').readOnly=false;
@@ -1278,9 +1312,27 @@ function resetCardModal(){
   const btn=document.getElementById('generateCardBtn');btn.textContent='Generate card';btn.disabled=false;
   const ws=document.getElementById('wedgeStatusCard');
   ws.className='wedge-status listening';ws.textContent='Scanner ready — scan a DL or re-entry card';
-  if(document.getElementById('cardModal').classList.contains('open')&&document.getElementById('cardCreateView').style.display!=='none'){
+  if(resumeScanner&&document.getElementById('cardModal').classList.contains('open')&&document.getElementById('cardCreateView').style.display!=='none'){
     requestAnimationFrame(()=>window.LPCCardLiveScanner?.start());
   }
+}
+
+function beginIncomingCardScan(){
+  resetCardModal({resumeScanner:false});
+  document.getElementById('cardForm').style.display='';
+  document.getElementById('cardResult').style.display='none';
+  window.LPCCardLiveScanner?.pause();
+}
+
+function advanceCardAfterScan(scanType){
+  window.LPCCardLiveScanner?.pause();
+  document.getElementById('cardScanSection').style.display='none';
+  document.getElementById('cardDetailsLabel').textContent=scanType==='DL'?'Complete card details':'Review card details';
+  const next=scanType==='DL'?document.getElementById('caddr'):document.getElementById('cphone');
+  requestAnimationFrame(()=>{
+    next.scrollIntoView({behavior:'smooth',block:'center'});
+    next.focus();
+  });
 }
 
 function switchCardView(view){
@@ -1435,24 +1487,18 @@ async function saveCustomCard(card){
   return result;
 }
 
-function showCardPreview(card){
+async function showCardPreview(card){
   const qrData=card.qrData||JSON.stringify({t:'card',id:card.cardId,v:2});
-  document.getElementById('cardName').textContent=`${card.fn} ${card.ln}`;
-  document.getElementById('cardAddr').textContent=card.addr;
-  document.getElementById('cardId').textContent=card.cardId;
-  document.getElementById('cardReason').textContent=card.reason||'';
-  const qr=qrcode(0,'M');
-  qr.addData(qrData);qr.make();
-  const canvas=document.getElementById('qrCanvas');
-  const cellSize=4,margin=8,count=qr.getModuleCount(),size=count*cellSize+margin*2;
-  canvas.width=size;canvas.height=size;
-  const ctx=canvas.getContext('2d');
-  ctx.fillStyle='#fff';ctx.fillRect(0,0,size,size);ctx.fillStyle='#000';
-  for(let r=0;r<count;r++){for(let c=0;c<count;c++){if(qr.isDark(r,c))ctx.fillRect(margin+c*cellSize,margin+r*cellSize,cellSize,cellSize)}}
-  card.qrData=qrData;card.qrDataURL=canvas.toDataURL();
+  card.qrData=qrData;
   window._lastCard=card;
+  window.LPCCardLiveScanner?.stop();
+  const rendered=await renderCardCanvas(card);
+  const preview=document.getElementById('cardPrintPreview');
+  preview.width=rendered.width;preview.height=rendered.height;
+  preview.getContext('2d').drawImage(rendered,0,0);
+  document.getElementById('cardForm').style.display='none';
   document.getElementById('cardResult').style.display='';
-  document.getElementById('cardLogoPreview').src=LPC_LOGO_FIXED;
+  requestAnimationFrame(()=>document.getElementById('cardResult').scrollIntoView({behavior:'smooth',block:'start'}));
   return card;
 }
 
@@ -1462,7 +1508,7 @@ async function reprintRegistryCard(card){
   document.getElementById('caddr').value=card.addr;document.getElementById('cphone').value=card.phone;
   document.getElementById('creason').value=card.reason;
   setCardZoneByName(card.zoneName||'');
-  showCardPreview({...card});
+  await showCardPreview({...card});
   await printCard();
 }
 
@@ -1486,7 +1532,7 @@ async function generateCard(){
       editingCard=null;
       document.getElementById('caddr').readOnly=false;document.getElementById('creason').readOnly=false;
       document.getElementById('cardScanSection').style.display='';document.getElementById('cardEditNote').style.display='none';
-      showCardPreview(card);
+      await showCardPreview(card);
       const i=cardRegistry.findIndex(c=>c.objectId===card.objectId);if(i>=0)cardRegistry[i]=card;
     }else{
       const cardId=createCardId();
@@ -1494,7 +1540,7 @@ async function generateCard(){
       // from the private registry after every scan.
       const card={fn,ln,addr,phone,reason,cardId,zoneName:zoneChoice?.name||'',incident:zoneChoice?.incident||''};
       const result=await saveCustomCard(card);card.objectId=result.objectId;
-      duplicateContext=null;showCardPreview(card);cardRegistry.unshift(card);
+      duplicateContext=null;await showCardPreview(card);cardRegistry.unshift(card);
     }
   }catch(e){console.error('Card save error:',e);alert('Card was not saved: '+e.message)}
   finally{btn.disabled=false;btn.textContent='Generate card'}
@@ -1519,66 +1565,62 @@ function renderCardCanvas(c){
     const logo=new Image();
     function draw(hasLogo){
 
-      // --- TOP ACCENT BORDER ---
-      ctx.strokeStyle='#2563eb';ctx.lineWidth=8;
-      ctx.beginPath();ctx.moveTo(0,4);ctx.lineTo(W,4);ctx.stroke();
-
       // --- LOGO ---
       // Keep the top-center punch area clear. Pre-punched vertical cards can
       // obscure content placed in roughly the first 0.33 inch (100 px).
       if(hasLogo){
-        const logoH=66,logoW=Math.min(300,logo.width*(logoH/logo.height));
-        ctx.drawImage(logo,(W-logoW)/2,108,logoW,logoH);
+        const logoH=95,logoW=Math.min(360,logo.width*(logoH/logo.height));
+        ctx.drawImage(logo,(W-logoW)/2,100,logoW,logoH);
       }
 
       // --- TITLE ---
       ctx.fillStyle='#1a1a2e';
       ctx.textAlign='center';
-      ctx.font='bold 18px -apple-system, sans-serif';
-      ctx.fillText('OFFICE OF EMERGENCY MANAGEMENT',W/2,204);
+      ctx.font='bold 23px -apple-system, sans-serif';
+      ctx.fillText('OFFICE OF EMERGENCY MANAGEMENT',W/2,228);
 
       // --- DIVIDER ---
       ctx.strokeStyle='#d4d4d8';ctx.lineWidth=1;
-      ctx.beginPath();ctx.moveTo(45,222);ctx.lineTo(W-45,222);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(38,247);ctx.lineTo(W-38,247);ctx.stroke();
 
       // --- CARD TYPE ---
       ctx.fillStyle='#2563eb';
-      ctx.font='bold 20px -apple-system, sans-serif';
-      ctx.fillText('EVACUATION ZONE RE-ENTRY CARD',W/2,255);
+      ctx.font='bold 24px -apple-system, sans-serif';
+      ctx.fillText('EVACUATION ZONE RE-ENTRY CARD',W/2,282);
 
       // --- DIVIDER ---
       ctx.strokeStyle='#d4d4d8';
-      ctx.beginPath();ctx.moveTo(45,274);ctx.lineTo(W-45,274);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(38,302);ctx.lineTo(W-38,302);ctx.stroke();
 
       // --- NAME ---
       ctx.fillStyle='#111';
-      setCanvasFontToFit(ctx,`${c.fn} ${c.ln}`,44,30,W-72,'bold');
-      ctx.fillText(`${c.fn} ${c.ln}`,W/2,332);
+      setCanvasFontToFit(ctx,`${c.fn} ${c.ln}`,50,32,W-64,'bold');
+      ctx.fillText(`${c.fn} ${c.ln}`,W/2,365);
 
       // --- ADDRESS (word wrap for long addresses) ---
       ctx.fillStyle='#444';
-      ctx.font='22px -apple-system, sans-serif';
-      const addrLines=wrapText(ctx,c.addr,W-88).slice(0,3);
-      let addrY=374;
+      ctx.font='26px -apple-system, sans-serif';
+      const addrLines=wrapText(ctx,c.addr,W-76).slice(0,3);
+      let addrY=410;
       addrLines.forEach(line=>{
         ctx.fillText(line,W/2,addrY);
-        addrY+=28;
+        addrY+=32;
       });
 
       // --- PHONE ---
       if(c.phone){
         ctx.fillStyle='#666';
-        ctx.font='20px -apple-system, sans-serif';
+        ctx.font='24px -apple-system, sans-serif';
         ctx.fillText(c.phone,W/2,addrY+10);
       }
 
       // --- REASON ---
       if(c.reason){
-        const reasonY=c.phone?addrY+50:addrY+20;
+        const reasonY=c.phone?addrY+48:addrY+18;
         ctx.fillStyle='#555';
-        ctx.font='italic 18px -apple-system, sans-serif';
+        ctx.font='italic 21px -apple-system, sans-serif';
         const reasonLines=wrapText(ctx,c.reason,W-100).slice(0,2);
-        reasonLines.forEach((line,i)=>ctx.fillText(line,W/2,reasonY+i*23));
+        reasonLines.forEach((line,i)=>ctx.fillText(line,W/2,reasonY+i*26));
       }
 
       // --- QR CODE (integer modules with a four-module quiet zone) ---
@@ -1587,10 +1629,10 @@ function renderCardCanvas(c){
       printQR.make();
       const moduleCount=printQR.getModuleCount();
       const quiet=4;
-      const cell=Math.max(5,Math.floor(270/(moduleCount+quiet*2)));
+      const cell=Math.max(5,Math.floor(292/(moduleCount+quiet*2)));
       const qrSize=(moduleCount+quiet*2)*cell;
       const qrX=(W-qrSize)/2;
-      const qrY=H-qrSize-130;
+      const qrY=H-qrSize-122;
       ctx.fillStyle='#fff';ctx.fillRect(qrX,qrY,qrSize,qrSize);
       ctx.fillStyle='#000';
       for(let row=0;row<moduleCount;row++){
@@ -1601,18 +1643,14 @@ function renderCardCanvas(c){
 
       // --- CARD ID ---
       ctx.fillStyle='#888';
-      ctx.font='14px monospace';
-      ctx.fillText(c.cardId,W/2,qrY+qrSize+24);
+      ctx.font='16px monospace';
+      ctx.fillText(c.cardId,W/2,qrY+qrSize+25);
 
       // --- INSTRUCTIONS ---
       ctx.fillStyle='#aaa';
-      ctx.font='13px -apple-system, sans-serif';
-      ctx.fillText('Present at any evacuation checkpoint',W/2,H-62);
-      ctx.fillText('for re-entry verification.',W/2,H-44);
-
-      // --- BOTTOM ACCENT BORDER ---
-      ctx.strokeStyle='#2563eb';ctx.lineWidth=8;
-      ctx.beginPath();ctx.moveTo(0,H-4);ctx.lineTo(W,H-4);ctx.stroke();
+      ctx.font='15px -apple-system, sans-serif';
+      ctx.fillText('Present at any evacuation checkpoint',W/2,H-55);
+      ctx.fillText('for re-entry verification.',W/2,H-35);
 
       resolve(canvas);
     }
@@ -1669,27 +1707,32 @@ async function printCard(){
 <html><head><title>LPC Re-entry Card</title>
 <style>
   @page{
-    size:2.125in 3.375in;
+    size:53.98mm 85.60mm;
     margin:0;
   }
   *{margin:0;padding:0;box-sizing:border-box}
-  html,body{
-    width:2.125in;
-    height:3.375in;
+  html{
+    width:53.98mm;
+    height:85.60mm;
     overflow:hidden;
     background:#fff;
   }
+  body{position:fixed;top:0;left:0;width:53.80mm;height:85.40mm;overflow:hidden;background:#fff}
   img{
-    width:2.125in;
-    height:3.375in;
+    position:absolute;
+    top:0;
+    left:0;
+    width:53.80mm;
+    height:85.40mm;
     display:block;
     object-fit:contain;
     -webkit-print-color-adjust:exact;
     print-color-adjust:exact;
   }
   @media print{
-    html,body{width:2.125in;height:3.375in;overflow:hidden}
-    img{width:2.125in;height:3.375in;object-fit:contain}
+    html{width:53.98mm;height:85.60mm;overflow:hidden}
+    body{position:fixed;top:0;left:0;width:53.80mm;height:85.40mm;overflow:hidden}
+    img{position:absolute;top:0;left:0;width:53.80mm;height:85.40mm;object-fit:contain;break-inside:avoid;page-break-inside:avoid}
   }
 </style>
 </head><body>
@@ -1821,6 +1864,8 @@ async function handleCheckpointBarcodeResult(result){
   const ss=document.getElementById('ss');
   const raw=normalizeScanData(result.rawValue);
   if(result.format==='qr_code'){
+    resetModal({resumeScanner:false});
+    window.LPCLiveScanner?.pause();
     let qd;
     try{qd=JSON.parse(raw)}catch(e){throw new Error('QR code is not an LPC re-entry card')}
     parsedDL=await getApprovedCard(qd);
@@ -1832,6 +1877,7 @@ async function handleCheckpointBarcodeResult(result){
     ss.textContent='LPC card approved';
     const ws=document.getElementById('wedgeStatusCP');
     ws.className='wedge-status captured';ws.textContent='LPC APPROVED — '+[parsedDL.firstName,parsedDL.lastName].filter(Boolean).join(' ');
+    await doCheck({autoAdvance:true});
   }else{
     const parsed=parseAAMVA(raw);
     if(!parsed.licenseNum&&!parsed.lastName)throw new Error('Driver license data could not be parsed');
@@ -1904,7 +1950,7 @@ window.LPCLiveScanner=(()=>{
       setUI('Live scanner ready — hold a QR code or DL barcode in the frame',true);schedule(80);
     }catch(e){console.warn('Live camera unavailable:',e);setUI(userInitiated?'Camera unavailable — allow permission or use Take barcode photo':'Tap Start camera to allow live scanning')}
   }
-  function pause(){if(!running)return;paused=true;clearTimeout(timer);setUI('Scan captured — camera pauses until Next check',true)}
+  function pause(){if(!running)return;paused=true;clearTimeout(timer);setUI('Address captured — complete phone and IN/OUT below',true)}
   function stop(){running=false;paused=false;busy=false;clearTimeout(timer);if(stream){stream.getTracks().forEach(track=>track.stop());stream=null}video.srcObject=null;setUI('Camera stopped')}
   function toggle(){if(running)stop();else start(true)}
   return{start,pause,stop,toggle};
@@ -1913,6 +1959,7 @@ window.LPCLiveScanner=(()=>{
 // ---- CARD MODAL CAMERA SCAN ----
 async function handleCardBarcodeResult(result){
   if(!result?.rawValue||result.rawValue.length<=10)return false;
+  beginIncomingCardScan();
   const ws=document.getElementById('wedgeStatusCard');
   const raw=normalizeScanData(result.rawValue);
   let parsed;
@@ -1944,6 +1991,7 @@ async function handleCardBarcodeResult(result){
     showCardParsed({firstName:parsed.firstName||'',lastName:parsed.lastName||''});
     ws.className='wedge-status captured';ws.textContent='DL NAME CAPTURED — enter card address and details below';
   }
+  advanceCardAfterScan(scannedType);
   return true;
 }
 
