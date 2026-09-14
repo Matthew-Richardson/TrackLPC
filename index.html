@@ -317,10 +317,16 @@ tr:hover td{background:#fafafa}
   <!-- Scan to populate section -->
   <div class="card-scan-section" id="cardScanSection">
     <h3>Populate from DL scan</h3>
-    <p>Scan a driver's license with the DS8101 or phone camera to auto-fill, then edit as needed.</p>
-    <div class="wedge-status" id="wedgeStatusCard">Scanner ready — scan a DL barcode</div>
-    <div class="scan-actions">
-      <button class="b" id="cardCamBtn" onclick="document.getElementById('cardCamInput').click()">Use phone camera</button>
+    <p>Hold a driver's license or LPC card in the phone camera, or use the DS8101, to auto-fill the form.</p>
+    <div class="wedge-status" id="wedgeStatusCard">Scanner ready — scan a DL or re-entry card</div>
+    <div class="live-scanner" id="cardLiveScanner">
+      <video id="cardScannerVideo" playsinline muted aria-label="Live custom-card barcode scanner camera"></video>
+      <div class="live-scanner-frame"></div>
+      <div class="live-scanner-label" id="cardLiveScannerLabel">Starting camera — hold a QR code or DL barcode in the frame</div>
+    </div>
+    <div class="live-scanner-actions">
+      <button class="b ba" id="cardLiveCameraBtn" type="button" onclick="window.LPCCardLiveScanner?.toggle()">Start camera</button>
+      <button class="b" id="cardCamBtn" type="button" onclick="document.getElementById('cardCamInput').click()">Take barcode photo</button>
     </div>
     <input type="file" accept="image/*" capture="environment" id="cardCamInput" style="display:none"/>
     <div class="card-parsed" id="cardParsedInfo" style="display:none"></div>
@@ -534,6 +540,7 @@ function syncWorkflowButtons(mode){
 }
 function setWorkflowMode(mode){
   window.LPCLiveScanner?.stop();
+  window.LPCCardLiveScanner?.stop();
   syncWorkflowButtons(mode);
   if(mode==='scan')openModal();else openCardModal();
 }
@@ -872,6 +879,71 @@ function buildAddrString(p){
   return parts.join(', ');
 }
 
+function normalizePersonName(firstName,lastName){
+  return [firstName,lastName].filter(Boolean).map(titleCase).join(' ').replace(/\s+/g,' ').trim();
+}
+
+function addressPartsForMatch(value){
+  // Both the parsed DL and ArcGIS match address place the street before the
+  // first comma. Excluding city/state prevents two people at different
+  // streets in the same town from being treated as the same address.
+  const text=String(value||'').split(',')[0].toUpperCase();
+  const house=(text.match(/\b\d+[A-Z]?\b/)||[])[0]||'';
+  const stop=new Set(['ST','STREET','RD','ROAD','AVE','AVENUE','DR','DRIVE','LN','LANE','CT','COURT','BLVD','BOULEVARD','HWY','HIGHWAY','WAY','PL','PLACE','TRAIL','TRL','CIR','CIRCLE','CO','COLORADO']);
+  const tokens=text.replace(/[^A-Z0-9 ]/g,' ').split(/\s+/).filter(t=>t&&t!==house&&!stop.has(t)&&!/^\d{5}(?:\d{4})?$/.test(t));
+  return{house,tokens:new Set(tokens)};
+}
+
+function addressesLikelySame(scanned,saved){
+  const a=addressPartsForMatch(scanned),b=addressPartsForMatch(saved);
+  if(!a.house||!b.house||a.house!==b.house)return false;
+  let shared=0;
+  a.tokens.forEach(t=>{if(t.length>1&&b.tokens.has(t))shared++});
+  return shared>0;
+}
+
+async function lookupPreviousPhone(firstName,lastName,scannedAddress){
+  const name=normalizePersonName(firstName,lastName);
+  if(!name||!scannedAddress||!agolToken)return'';
+  const escaped=name.replace(/'/g,"''");
+  const p=new URLSearchParams({
+    where:`name='${escaped}' AND phone IS NOT NULL AND phone<>''`,
+    outFields:'address,phone,check_time',orderByFields:'check_time DESC',
+    resultRecordCount:'25',returnGeometry:'false',f:'json',token:agolToken
+  });
+  try{
+    const r=await fetch(`${LOG_URL}/query`,{method:'POST',body:p});
+    const j=await r.json();
+    if(j.error)throw new Error(j.error.message||'Prior checkpoint lookup failed');
+    const match=(j.features||[]).map(f=>f.attributes||{}).find(a=>addressesLikelySame(scannedAddress,a.address));
+    return String(match?.phone||'').trim();
+  }catch(e){console.warn('Previous phone lookup unavailable:',e);return''}
+}
+
+async function applyCheckpointDL(parsed){
+  // Keep only operational fields. The license number and DOB are never saved.
+  parsedDL={firstName:parsed.firstName||'',lastName:parsed.lastName||'',
+    fullAddress:buildAddrString(parsed),scanType:'DL'};
+  showParsed(parsedDL);
+  document.getElementById('s1fn').value=titleCase(parsedDL.firstName);
+  document.getElementById('s1ln').value=titleCase(parsedDL.lastName);
+  document.getElementById('ai').value=parsedDL.fullAddress;
+  const phoneInput=document.getElementById('s1phone');
+  phoneInput.value='';
+  document.getElementById('ss').textContent='DL scanned — checking prior checkpoint records…';
+  const previousPhone=await lookupPreviousPhone(parsedDL.firstName,parsedDL.lastName,parsedDL.fullAddress);
+  if(previousPhone&&!phoneInput.value){
+    phoneInput.value=previousPhone;
+    document.getElementById('ss').textContent='DL scanned — phone restored from the prior matching visit';
+  }else{
+    document.getElementById('ss').textContent='DL scanned'+(previousPhone?' — phone already entered':' — no prior phone found');
+  }
+  window.LPCLiveScanner?.pause();
+  const ws=document.getElementById('wedgeStatusCP');
+  ws.className='wedge-status captured';
+  ws.textContent='DL CAPTURED — '+normalizePersonName(parsedDL.firstName,parsedDL.lastName);
+}
+
 function addressFromQR(qd){
   if(qd.a)return String(qd.a).trim();
   const street=String(qd.st||'').trim();
@@ -999,7 +1071,7 @@ const wedge=(function(){
     if(isAAMVA){
       const parsed=parseAAMVA(raw);
       if(parsed.licenseNum||parsed.lastName){
-        handleDLScan(parsed);return;
+        await handleDLScan(parsed);return;
       }
     }
 
@@ -1012,21 +1084,9 @@ const wedge=(function(){
     }
   }
 
-  function handleDLScan(parsed){
+  async function handleDLScan(parsed){
     if(target==='checkpoint'){
-      // Retain only the fields required for check-in. Never carry the DL
-      // number or DOB forward into the record-saving workflow.
-      parsedDL={firstName:parsed.firstName||'',lastName:parsed.lastName||'',
-        fullAddress:buildAddrString(parsed),scanType:'DL'};
-      showParsed(parsedDL);
-      document.getElementById('s1fn').value=titleCase(parsedDL.firstName);
-      document.getElementById('s1ln').value=titleCase(parsedDL.lastName);
-      document.getElementById('ai').value=parsedDL.fullAddress;
-      document.getElementById('s1phone').value='';
-      document.getElementById('ss').textContent='DL scanned';
-      window.LPCLiveScanner?.pause();
-      const ws=document.getElementById('wedgeStatusCP');
-      ws.className='wedge-status captured';ws.textContent='DL CAPTURED — '+titleCase(parsed.firstName||'')+' '+titleCase(parsed.lastName||'');
+      await applyCheckpointDL(parsed);
     }else if(target==='card'){
       // A caretaker/second-home card may use a different property address.
       // Populate identity only; the manager enters the card-specific details.
@@ -1201,7 +1261,7 @@ function updateCardZoneState(){document.getElementById('cardZoneWrap').classList
 function getCardZoneSelection(){const value=document.getElementById('cardZoneSel').value;return value?zones.find(z=>String(z.id)===String(value))||null:null}
 function setCardZoneByName(name){const match=zones.find(z=>(z.name||'')===name);document.getElementById('cardZoneSel').value=match?String(match.id):'';updateCardZoneState()}
 function openCardModal(){resetCardModal();document.getElementById('cardModal').classList.add('open');syncWorkflowButtons('card');switchCardView('create')}
-function closeCardModal(){document.getElementById('cardModal').classList.remove('open');wedge.setTarget(null)}
+function closeCardModal(){document.getElementById('cardModal').classList.remove('open');wedge.setTarget(null);window.LPCCardLiveScanner?.stop()}
 function nextCustomCard(){resetCardModal();switchCardView('create');document.getElementById('cfn').focus()}
 function resetCardModal(){
   editingCard=null;duplicateContext=null;
@@ -1215,7 +1275,10 @@ function resetCardModal(){
   document.getElementById('cardEditNote').style.display='none';
   const btn=document.getElementById('generateCardBtn');btn.textContent='Generate card';btn.disabled=false;
   const ws=document.getElementById('wedgeStatusCard');
-  ws.className='wedge-status listening';ws.textContent='Scanner ready — scan a DL barcode';
+  ws.className='wedge-status listening';ws.textContent='Scanner ready — scan a DL or re-entry card';
+  if(document.getElementById('cardModal').classList.contains('open')&&document.getElementById('cardCreateView').style.display!=='none'){
+    requestAnimationFrame(()=>window.LPCCardLiveScanner?.start());
+  }
 }
 
 function switchCardView(view){
@@ -1224,7 +1287,8 @@ function switchCardView(view){
   document.getElementById('cardManageView').style.display=create?'none':'';
   document.querySelectorAll('[data-card-view]').forEach(b=>b.classList.toggle('on',b.dataset.cardView===view));
   wedge.setTarget(create?'card':null);
-  if(!create)loadCardRegistry();
+  if(create){requestAnimationFrame(()=>window.LPCCardLiveScanner?.start())}
+  else{window.LPCCardLiveScanner?.stop();loadCardRegistry()}
 }
 
 function cardFromAttributes(a){
@@ -1303,6 +1367,7 @@ function beginEditCard(card){
   setCardZoneByName(card.zoneName||'');document.getElementById('cardZoneSel').disabled=true;
   document.getElementById('caddr').readOnly=true;document.getElementById('creason').readOnly=true;
   document.getElementById('cardScanSection').style.display='none';document.getElementById('cardEditNote').style.display='block';
+  window.LPCCardLiveScanner?.stop();
   document.getElementById('generateCardBtn').textContent='Save changes';document.getElementById('cfn').focus();
 }
 function editLastCard(){if(window._lastCard)beginEditCard(window._lastCard)}
@@ -1755,15 +1820,7 @@ async function handleCheckpointBarcodeResult(result){
   }else{
     const parsed=parseAAMVA(raw);
     if(!parsed.licenseNum&&!parsed.lastName)throw new Error('Driver license data could not be parsed');
-    parsedDL={firstName:parsed.firstName||'',lastName:parsed.lastName||'',fullAddress:buildAddrString(parsed),scanType:'DL'};
-    showParsed(parsedDL);
-    document.getElementById('s1fn').value=titleCase(parsedDL.firstName);
-    document.getElementById('s1ln').value=titleCase(parsedDL.lastName);
-    document.getElementById('ai').value=parsedDL.fullAddress;
-    document.getElementById('s1phone').value='';
-    ss.textContent='Driver license scanned';
-    const ws=document.getElementById('wedgeStatusCP');
-    ws.className='wedge-status captured';ws.textContent='DL CAPTURED — '+[titleCase(parsedDL.firstName),titleCase(parsedDL.lastName)].filter(Boolean).join(' ');
+    await applyCheckpointDL(parsed);
   }
   window.LPCLiveScanner?.pause();
   return true;
@@ -1839,40 +1896,49 @@ window.LPCLiveScanner=(()=>{
 })();
 
 // ---- CARD MODAL CAMERA SCAN ----
+async function handleCardBarcodeResult(result){
+  if(!result?.rawValue||result.rawValue.length<=10)return false;
+  const ws=document.getElementById('wedgeStatusCard');
+  const raw=normalizeScanData(result.rawValue);
+  let parsed;
+  let scannedType='DL';
+  if(result.format==='qr_code'){
+    try{
+      const qd=JSON.parse(raw);
+      scannedType='Card';
+      parsed=await getApprovedCard(qd);
+      document.getElementById('cphone').value=parsed.phone;
+      document.getElementById('creason').value=parsed.reason;
+      setCardZoneByName(parsed.zoneName||'');
+    }catch(e){
+      ws.className='wedge-status invalid';
+      ws.textContent='CARD NOT APPROVED — '+(e?.message||'registry check failed');
+      return false;
+    }
+  }else{
+    parsed=parseAAMVA(raw);
+    if(!parsed.licenseNum&&!parsed.lastName)throw new Error('Driver license data could not be parsed');
+  }
+  document.getElementById('cfn').value=titleCase(parsed.firstName||'');
+  document.getElementById('cln').value=titleCase(parsed.lastName||'');
+  if(scannedType==='Card'){
+    document.getElementById('caddr').value=buildAddrString(parsed);
+    showCardParsed(parsed);
+    ws.className='wedge-status captured';ws.textContent='LPC APPROVED — card data loaded';
+  }else{
+    showCardParsed({firstName:parsed.firstName||'',lastName:parsed.lastName||''});
+    ws.className='wedge-status captured';ws.textContent='DL NAME CAPTURED — enter card address and details below';
+  }
+  return true;
+}
+
 document.getElementById('cardCamInput').addEventListener('change',async function(){
   const file=this.files[0];if(!file)return;
   const ws=document.getElementById('wedgeStatusCard');
   ws.className='wedge-status listening';ws.textContent='Processing image…';
   try{
     const result=await processBarcodeImage(file,'card');
-    if(result&&result.rawValue?.length>10){
-      const raw=normalizeScanData(result.rawValue);
-      let parsed;
-      let scannedType='DL';
-      if(result.format==='qr_code'){
-        try{
-          const qd=JSON.parse(raw);
-          scannedType='Card';
-          parsed=await getApprovedCard(qd);
-          document.getElementById('cphone').value=parsed.phone;
-          document.getElementById('creason').value=parsed.reason;
-          setCardZoneByName(parsed.zoneName||'');
-        }catch(e){ws.className='wedge-status invalid';ws.textContent='CARD NOT APPROVED — '+(e?.message||'registry check failed');return}
-      }else{
-        parsed=parseAAMVA(raw);
-        if(!parsed.licenseNum&&!parsed.lastName)throw new Error('Driver license data could not be parsed');
-      }
-      document.getElementById('cfn').value=titleCase(parsed.firstName||'');
-      document.getElementById('cln').value=titleCase(parsed.lastName||'');
-      if(scannedType==='Card'){
-        document.getElementById('caddr').value=buildAddrString(parsed);
-        showCardParsed(parsed);
-        ws.className='wedge-status captured';ws.textContent='LPC APPROVED — card data loaded';
-      }else{
-        showCardParsed({firstName:parsed.firstName||'',lastName:parsed.lastName||''});
-        ws.className='wedge-status captured';ws.textContent='DL NAME CAPTURED — enter card address and details below';
-      }
-    }else{
+    if(!await handleCardBarcodeResult(result)){
       ws.className='wedge-status listening';ws.textContent='No barcode found — try again or enter manually';
     }
   }catch(e){
@@ -1881,6 +1947,65 @@ document.getElementById('cardCamInput').addEventListener('change',async function
   }
   this.value='';
 });
+
+// Continuous phone scanner in Custom Card mode. It recognizes both LPC QR
+// cards and PDF417 driver licenses and uses the same validated handlers above.
+window.LPCCardLiveScanner=(()=>{
+  const video=document.getElementById('cardScannerVideo');
+  const label=document.getElementById('cardLiveScannerLabel');
+  const button=document.getElementById('cardLiveCameraBtn');
+  const frame=document.createElement('canvas');
+  const frameCtx=frame.getContext('2d',{willReadFrequently:true});
+  let stream=null,running=false,paused=false,busy=false,timer=null,lastValue='',lastReadAt=0;
+
+  function setUI(message,isRunning=false){label.textContent=message;button.textContent=isRunning?'Stop camera':'Start camera'}
+  function schedule(delay=260){clearTimeout(timer);if(running&&!paused)timer=setTimeout(scanFrame,delay)}
+  async function scanFrame(){
+    if(!running||paused||busy||video.readyState<2){schedule();return}
+    busy=true;
+    try{
+      await scannerReady;
+      if(!detector)throw new Error(scannerInitError||'Barcode decoder is unavailable');
+      const maxWidth=1280,scale=Math.min(1,maxWidth/(video.videoWidth||maxWidth));
+      frame.width=Math.max(1,Math.round((video.videoWidth||640)*scale));
+      frame.height=Math.max(1,Math.round((video.videoHeight||480)*scale));
+      frameCtx.drawImage(video,0,0,frame.width,frame.height);
+      let results=[];try{results=await detector.detect(frame)}catch(e){}
+      const result=results.find(r=>r?.rawValue?.length>10);
+      if(result){
+        const now=Date.now(),same=result.rawValue===lastValue&&now-lastReadAt<2500;
+        if(!same){
+          lastValue=result.rawValue;lastReadAt=now;setUI('Barcode found — loading details…',true);
+          try{if(await handleCardBarcodeResult(result)){pause();return}}
+          catch(e){
+            console.error(e);
+            const ws=document.getElementById('wedgeStatusCard');
+            ws.className='wedge-status invalid';ws.textContent='SCAN NOT ACCEPTED — '+(e?.message||'unsupported barcode');
+            setUI('Not accepted — reposition the barcode or enter details manually',true);
+          }
+        }
+      }
+    }finally{busy=false;schedule()}
+  }
+  async function start(userInitiated=false){
+    if(running){paused=false;setUI('Live scanner ready — hold a QR code or DL barcode in the frame',true);schedule(50);return}
+    if(!navigator.mediaDevices?.getUserMedia){setUI('Live camera is not supported in this browser');return}
+    const mobileLike=matchMedia('(pointer:coarse)').matches||innerWidth<700;
+    if(!userInitiated&&!mobileLike){setUI('Live camera available — tap Start camera');return}
+    setUI('Requesting camera access…');
+    try{
+      await scannerReady;if(!detector)throw new Error(scannerInitError||'Barcode decoder is unavailable');
+      stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});
+      video.srcObject=stream;await video.play();
+      running=true;paused=false;lastValue='';
+      setUI('Live scanner ready — hold a QR code or DL barcode in the frame',true);schedule(80);
+    }catch(e){console.warn('Custom-card live camera unavailable:',e);setUI(userInitiated?'Camera unavailable — allow permission or use Take barcode photo':'Tap Start camera to allow live scanning')}
+  }
+  function pause(){if(!running)return;paused=true;clearTimeout(timer);label.textContent='Scan captured — use the form or tap Resume camera';button.textContent='Resume camera'}
+  function stop(){running=false;paused=false;busy=false;clearTimeout(timer);if(stream){stream.getTracks().forEach(track=>track.stop());stream=null}video.srcObject=null;setUI('Camera stopped')}
+  function toggle(){if(running&&paused)start(true);else if(running)stop();else start(true)}
+  return{start,pause,stop,toggle};
+})();
 
 </script>
 </body>
