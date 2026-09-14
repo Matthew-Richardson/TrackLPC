@@ -13,16 +13,31 @@
 *{margin:0;padding:0;box-sizing:border-box}
 html{width:100%;height:100%;overflow:hidden}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--tx);width:100%;height:100vh;height:100dvh;min-height:0;display:flex;flex-direction:column;overflow:hidden;-webkit-text-size-adjust:100%}
-header{background:var(--navy);color:#fff;border-bottom:none;padding:8px 14px;display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}
-header h1{font-size:14px;font-weight:700;white-space:nowrap;letter-spacing:.02em;flex:1}
-.zone-bar{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--navy);border-bottom:1px solid #0f263b;flex-shrink:0;flex-wrap:wrap}
+header{background:var(--navy);color:#fff;border-bottom:1px solid #0f263b;padding:8px 12px;display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}
+header h1{font-size:13px;font-weight:700;white-space:nowrap;letter-spacing:.02em}
+.mode-toggle{display:grid;grid-template-columns:1fr 1fr;position:relative;background:rgba(255,255,255,.12);border-radius:8px;overflow:hidden;flex:1;max-width:300px;min-width:200px}
+.mode-toggle .mt-btn{position:relative;z-index:1;padding:8px 6px;border:none;background:transparent;font-size:12px;font-weight:700;cursor:pointer;text-align:center;color:rgba(255,255,255,.55);transition:color .2s;letter-spacing:.01em;-webkit-tap-highlight-color:transparent}
+.mode-toggle .mt-btn.active{color:#fff}
+.mode-toggle .mt-thumb{position:absolute;top:3px;bottom:3px;left:3px;width:calc(50% - 3px);border-radius:6px;transition:transform .25s ease,background .25s ease;z-index:0;background:var(--scan)}
+.mode-toggle.card-active .mt-thumb{transform:translateX(calc(100% + 0px));background:var(--card)}
+.hdr-right{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-left:auto}
+.zone-bar{display:flex;align-items:center;gap:10px;padding:8px 14px;background:#1e3a54;border-bottom:1px solid #0f263b;flex-shrink:0;flex-wrap:wrap}
 .zone-bar.has-zone .zone-bar-hint{display:none}
-.zone-bar-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;white-space:nowrap}
+.zone-bar-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;white-space:nowrap}
 .zone-bar-select{position:relative;flex:1;min-width:160px}
-.zone-bar-select select{width:100%;padding:10px 28px 10px 12px;border:2px solid #f59e0b;border-radius:8px;font-size:15px;font-weight:600;background:var(--sf);color:var(--tx);appearance:none;transition:border-color .2s}
-.zone-bar.has-zone .zone-bar-select select{border-color:var(--gn);background:#f0fdf4}
-.zone-bar-select::after{content:'▾';position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--mu);pointer-events:none}
-.zone-bar-hint{font-size:12px;color:#f59e0b;width:100%;animation:pulse-hint 2s ease-in-out infinite}
+.zone-bar-select select{width:100%;padding:7px 26px 7px 10px;border:1px solid #475569;border-radius:6px;font-size:13px;font-weight:500;background:#0f263b;color:#e2e8f0;appearance:none;transition:border-color .2s}
+.zone-bar.has-zone .zone-bar-select select{border-color:var(--gn);background:#0b3326;color:#86efac}
+.zone-bar-select::after{content:'▾';position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:10px;color:#64748b;pointer-events:none}
+.zone-bar-hint{font-size:11px;color:#64748b;width:100%}
+.modal-zone{margin-bottom:14px}
+.modal-zone label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--mu);margin-bottom:4px}
+.modal-zone select{width:100%;padding:10px 28px 10px 12px;border:2px solid var(--am);border-radius:8px;font-size:15px;font-weight:600;background:var(--sf);color:var(--tx);appearance:none;transition:border-color .2s}
+.modal-zone.has-zone select{border-color:var(--gn);background:#f0fdf4}
+.modal-zone .mz-after{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--mu);pointer-events:none;content:'▾'}
+.modal-zone .mz-wrap{position:relative}
+.modal-zone .mz-wrap::after{content:'▾';position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--mu);pointer-events:none}
+.modal-zone .mz-hint{font-size:12px;color:var(--am);margin-top:6px;animation:pulse-hint 2s ease-in-out infinite}
+.modal-zone.has-zone .mz-hint{display:none}
 @keyframes pulse-hint{0%,100%{opacity:1}50%{opacity:.5}}
 .hr{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .hs{display:flex;gap:8px;font-size:11px;color:#cbd5e1}
@@ -32,13 +47,6 @@ header h1{font-size:14px;font-weight:700;white-space:nowrap;letter-spacing:.02em
 .ba{background:var(--ac);color:#fff;border-color:var(--ac);font-weight:600}
 .ba:hover{background:var(--ac2)}
 .ob{font-size:10px;background:rgba(255,255,255,.14);color:#fff;padding:2px 7px;border-radius:9px;font-weight:600;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.mode-toggle-bar{display:flex;align-items:center;justify-content:center;padding:8px 12px;background:#e8edf2;border-bottom:1px solid #c8d1da;flex-shrink:0}
-.mode-toggle{display:grid;grid-template-columns:1fr 1fr;position:relative;background:var(--bd);border-radius:10px;overflow:hidden;width:100%;max-width:420px}
-.mode-toggle .mt-btn{position:relative;z-index:1;padding:12px 10px;border:none;background:transparent;font-size:14px;font-weight:700;cursor:pointer;text-align:center;color:var(--mu);transition:color .2s;letter-spacing:.01em;-webkit-tap-highlight-color:transparent}
-.mode-toggle .mt-btn.active{color:#fff}
-.mode-toggle .mt-btn:disabled:not(.active){opacity:.42;cursor:not-allowed}
-.mode-toggle .mt-thumb{position:absolute;top:3px;bottom:3px;left:3px;width:calc(50% - 3px);border-radius:8px;transition:transform .25s ease,background .25s ease;z-index:0;background:var(--scan)}
-.mode-toggle.card-active .mt-thumb{transform:translateX(calc(100% + 0px));background:var(--card)}
 #mc{height:28%;min-height:150px;flex-shrink:0;position:relative}
 #map{height:100%;width:100%}
 .leg{position:absolute;bottom:6px;right:6px;background:rgba(255,255,255,.92);border-radius:6px;padding:4px 6px;font-size:9px;z-index:1000;border:1px solid var(--bd);line-height:1.6}
@@ -73,12 +81,10 @@ tr:hover td{background:#fafafa}
 .md{background:var(--sf);width:100%;max-width:480px;max-height:94dvh;border-radius:16px 16px 0 0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:18px;animation:su .25s ease-out}
 @keyframes su{from{transform:translateY(100%)}to{transform:translateY(0)}}
 @media(min-width:600px){.mo{align-items:center}.md{border-radius:12px;max-height:85vh}}
-@media(max-width:520px){.mode-toggle-bar{padding:6px 8px}.mode-toggle .mt-btn{padding:10px 6px;font-size:13px}.zone-bar{padding:8px 10px;gap:6px}.zone-bar-select select{font-size:14px;padding:9px 26px 9px 10px}}
+@media(max-width:520px){header{padding:6px 10px;gap:6px}.mode-toggle .mt-btn{padding:7px 4px;font-size:11px}.zone-bar{padding:6px 10px;gap:6px}.zone-bar-select select{font-size:12px;padding:6px 24px 6px 8px}.modal-zone select{font-size:14px}}
 .mh{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
 .mh h2{font-size:16px;font-weight:600}
 .mx{width:28px;height:28px;border:none;background:var(--bg);border-radius:50%;font-size:14px;cursor:pointer;color:var(--mu);display:flex;align-items:center;justify-content:center}
-.zn{font-size:12px;margin-bottom:12px;padding:7px 10px;background:var(--al);border-radius:6px;color:var(--ac);font-weight:500}
-.zn-warn{background:var(--ab);color:#92400e;text-align:center;padding:18px 10px;font-size:14px;font-weight:600;animation:pulse-hint 2s ease-in-out infinite}
 .sb1{width:100%;padding:13px;font-size:15px;font-weight:600;border:none;border-radius:10px;background:var(--ac);color:#fff;cursor:pointer;margin-bottom:6px}
 .sb1:hover{background:var(--ac2)}.sb1:disabled{opacity:.4;cursor:not-allowed}
 #pi{display:none}
@@ -170,17 +176,14 @@ tr:hover td{background:#fafafa}
 </head>
 <body>
 
-<nav class="mode-toggle-bar" aria-label="Operating mode">
-  <div class="mode-toggle" id="modeToggle">
-    <div class="mt-thumb"></div>
-    <button class="mt-btn active scan-mode-button" id="scb" onclick="setWorkflowMode('scan')">Checkpoint Scan</button>
-    <button class="mt-btn" onclick="setWorkflowMode('card')">Custom Card</button>
-  </div>
-</nav>
-
 <header>
   <h1>LPC Checkpoint</h1>
-  <div class="hr">
+  <div class="mode-toggle" id="modeToggle">
+    <div class="mt-thumb"></div>
+    <button class="mt-btn active" onclick="setWorkflowMode('scan')">Checkpoint</button>
+    <button class="mt-btn" onclick="setWorkflowMode('card')">Custom Card</button>
+  </div>
+  <div class="hdr-right">
     <div class="hs" id="stats" style="display:none"><span>P:<strong id="pc">0</strong></span><span>A:<strong id="ac">0</strong></span></div>
     <span class="ob" id="opb"></span>
     <button class="b" id="csv" disabled onclick="doExport()">CSV</button>
@@ -233,8 +236,12 @@ tr:hover td{background:#fafafa}
 <!-- CHECKPOINT MODAL -->
 <div class="mo" id="modal">
  <div class="md">
-  <div class="mh"><h2>Checkpoint</h2><button class="mx" onclick="closeModal()">×</button></div>
-  <div class="zn" id="mzn">Zone: —</div>
+  <div class="mh"><h2>Checkpoint Scan</h2><button class="mx" onclick="closeModal()">×</button></div>
+  <div class="modal-zone" id="scanZoneWrap">
+    <label for="scanZoneSel">Evacuation zone</label>
+    <div class="mz-wrap"><select id="scanZoneSel" onchange="if(this.value)selectZone(parseInt(this.value))"><option value="">Select zone…</option></select></div>
+    <div class="mz-hint">Choose a zone to begin scanning</div>
+  </div>
   <div id="scanBody">
   <div class="wedge-status" id="wedgeStatusCP">Scanner ready — scan a DL or re-entry card</div>
 
@@ -275,6 +282,11 @@ tr:hover td{background:#fafafa}
 <div class="mo" id="cardModal">
  <div class="md">
   <div class="mh"><h2>Custom Cards</h2><button class="mx" onclick="closeCardModal()">×</button></div>
+  <div class="modal-zone" id="cardZoneWrap">
+    <label for="cardZoneSel">Evacuation zone</label>
+    <div class="mz-wrap"><select id="cardZoneSel" onchange="if(this.value)selectZone(parseInt(this.value))"><option value="">Select zone…</option></select></div>
+    <div class="mz-hint">Choose a zone for card assignment</div>
+  </div>
   <div class="card-tabs" aria-label="Custom card view">
     <button class="card-tab on" data-card-view="create" onclick="switchCardView('create')">Create Card</button>
     <button class="card-tab" data-card-view="manage" onclick="switchCardView('manage')">Card Registry</button>
@@ -394,7 +406,8 @@ evacLayer.once('load',()=>{
   evacLayer.eachFeature(l=>{const p=l.feature.properties;zones.push({id:p.OBJECTID,name:p.zonename,incident:p.incident,status:p.STATUS,feature:l.feature})});
   zones.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
   const s=document.getElementById('zs');
-  zones.forEach(z=>{const o=document.createElement('option');o.value=z.id;o.textContent=[z.name,z.incident,z.status].filter(Boolean).join(' — ');s.appendChild(o)});
+  const allSelects=[s,document.getElementById('scanZoneSel'),document.getElementById('cardZoneSel')];
+  zones.forEach(z=>{const txt=[z.name,z.incident,z.status].filter(Boolean).join(' — ');allSelects.forEach(sel=>{const o=document.createElement('option');o.value=z.id;o.textContent=txt;sel.appendChild(o)})});
   const b=evacLayer.getBounds();if(b.isValid())map.fitBounds(b,{padding:[20,20]});
   // Permanent zone labels at polygon centroids
   evacLayer.eachFeature(function(l){
@@ -408,15 +421,19 @@ evacLayer.once('load',()=>{
 document.getElementById('zs').addEventListener('change',function(){if(this.value)selectZone(parseInt(this.value))});
 
 async function selectZone(oid){
-  document.getElementById('zs').value=oid;selZoneId=oid;selZone=zones.find(z=>z.id===oid);if(!selZone)return;
+  // Sync all zone selectors
+  document.getElementById('zs').value=oid;
+  document.getElementById('scanZoneSel').value=oid;
+  document.getElementById('cardZoneSel').value=oid;
+  selZoneId=oid;selZone=zones.find(z=>z.id===oid);if(!selZone)return;
   selGeom=selZone.feature.geometry;var _zb=document.getElementById('zoneBanner');_zb.textContent=[selZone.name,selZone.incident].filter(Boolean).join(' \u2014 ');_zb.style.display='block';selLayer.clearLayers();selLayer.addData(selZone.feature);
   map.fitBounds(selLayer.getBounds(),{padding:[30,30]});
-  // Update zone bar to "has zone" state
+  // Update zone bar + modal zone wrappers to "has zone" state
   document.getElementById('zoneBar').classList.add('has-zone');
-  // If checkpoint modal is already open, refresh it live
+  document.getElementById('scanZoneWrap').classList.add('has-zone');
+  document.getElementById('cardZoneWrap').classList.add('has-zone');
+  // If checkpoint modal is already open, activate scan body
   if(document.getElementById('modal').classList.contains('open')){
-    document.getElementById('mzn').textContent='Zone: '+[selZone.name,selZone.incident].filter(Boolean).join(' — ');
-    document.getElementById('mzn').className='zn';
     document.getElementById('scanBody').style.display='';
     wedge.setTarget('checkpoint');
   }
@@ -502,14 +519,13 @@ function setWorkflowMode(mode){
 }
 function openModal(){
   if(selZone){
-    document.getElementById('mzn').textContent='Zone: '+[selZone.name,selZone.incident].filter(Boolean).join(' — ');
-    document.getElementById('mzn').className='zn';
+    document.getElementById('scanZoneWrap').classList.add('has-zone');
     document.getElementById('scanBody').style.display='';
   }else{
-    document.getElementById('mzn').textContent='Select an evacuation zone above to begin scanning';
-    document.getElementById('mzn').className='zn zn-warn';
+    document.getElementById('scanZoneWrap').classList.remove('has-zone');
     document.getElementById('scanBody').style.display='none';
   }
+  document.getElementById('scanZoneSel').value=selZoneId||'';
   resetModal();document.getElementById('modal').classList.add('open');
   syncWorkflowButtons('scan');
   if(selZone)wedge.setTarget('checkpoint');
@@ -1149,7 +1165,7 @@ const wedge=(function(){
 
 
 // ---- CUSTOM CARD MODAL ----
-function openCardModal(){resetCardModal();document.getElementById('cardModal').classList.add('open');syncWorkflowButtons('card');switchCardView('create')}
+function openCardModal(){resetCardModal();document.getElementById('cardZoneSel').value=selZoneId||'';if(selZone)document.getElementById('cardZoneWrap').classList.add('has-zone');else document.getElementById('cardZoneWrap').classList.remove('has-zone');document.getElementById('cardModal').classList.add('open');syncWorkflowButtons('card');switchCardView('create')}
 function closeCardModal(){document.getElementById('cardModal').classList.remove('open');wedge.setTarget(null)}
 function nextCustomCard(){resetCardModal();switchCardView('create');document.getElementById('cfn').focus()}
 function resetCardModal(){
