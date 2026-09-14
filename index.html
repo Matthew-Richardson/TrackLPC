@@ -142,9 +142,8 @@ tr:hover td{background:#fafafa}
 .live-scanner-actions .b{flex:1;justify-content:center}
 @media(min-width:700px) and (pointer:fine){.live-scanner video{height:165px}}
 
-/* Card scan section in card modal */
-.card-scan-section{background:var(--bg);border-radius:8px;padding:12px;margin-bottom:14px}
-.card-scan-section{border-left:4px solid var(--card)}
+/* Card scanner uses the same unboxed layout as Checkpoint Scan. */
+.card-scan-section{background:transparent;border:0;border-radius:0;padding:0;margin-bottom:14px}
 .card-scan-section h3{font-size:12px;font-weight:600;margin-bottom:6px}
 .card-scan-section p{font-size:11px;color:var(--mu);margin-bottom:8px}
 .scan-actions{display:flex;gap:8px}
@@ -154,28 +153,30 @@ tr:hover td{background:#fafafa}
 /* Print actions */
 .print-actions{display:flex;gap:8px;margin-bottom:10px}
 .print-actions button{flex:1}
+.print-hint{margin:-3px 0 11px;padding:8px 10px;border:1px solid #bfdbfe;border-radius:7px;background:#eff6ff;color:#1e3a5f;font-size:10px;line-height:1.4;text-align:left}
 .btn-outline{padding:13px;border:2px solid var(--bd);border-radius:10px;font-size:14px;font-weight:600;background:var(--sf);color:var(--tx);cursor:pointer}
 .btn-outline:hover{border-color:var(--ac);color:var(--ac)}
 #cardModal .cb{background:var(--card)}
 #cardModal .cb:hover{background:var(--card-dark)}
 #cardModal .btn-outline:hover{border-color:var(--card);color:var(--card-dark)}
-.card-tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:#f3f4f6;border-radius:8px;padding:4px;margin-bottom:12px}
+.card-tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:#eef2f6;border:1px solid var(--bd);border-radius:8px;padding:4px;margin-bottom:12px}
 .card-tab{border:0;border-radius:6px;padding:8px;background:transparent;color:var(--mu);font-size:12px;font-weight:650;cursor:pointer}
-.card-tab.on{background:#fff;color:var(--card-dark);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.card-tab.on{background:#fff;color:var(--navy);box-shadow:0 1px 3px rgba(0,0,0,.12)}
 .edit-note{display:none;background:var(--card-light);border:1px solid #e5b98c;border-radius:8px;padding:9px 10px;margin-bottom:12px;font-size:11px;color:var(--card-dark)}
 .edit-note button{float:right;border:0;background:transparent;color:var(--card-dark);font-weight:700;cursor:pointer}
 .registry-search{width:100%;padding:10px 11px;border:1px solid var(--bd);border-radius:8px;font-size:14px;outline:none;margin-bottom:8px}
-.registry-search:focus{border-color:var(--card)}
+.registry-search:focus{border-color:var(--scan);box-shadow:0 0 0 2px rgba(23,105,170,.12)}
 .registry-status{font-size:11px;color:var(--mu);margin:2px 0 10px;text-align:center}
 .registry-list{display:flex;flex-direction:column;gap:8px}
-.registry-item{border:1px solid var(--bd);border-left:4px solid var(--card);border-radius:8px;padding:10px;background:#fff}
-.registry-name{font-size:14px;font-weight:700}.registry-id{font:10px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--mu);margin-top:2px;word-break:break-all}
+.registry-item{border:1px solid var(--bd);border-radius:9px;padding:11px;background:#fff;box-shadow:0 1px 2px rgba(15,23,42,.05)}
+.registry-name{font-size:14px;font-weight:700;color:var(--navy)}.registry-id{display:inline-block;font:10px ui-monospace,SFMono-Regular,Menlo,monospace;color:#475569;background:#f1f5f9;border-radius:4px;padding:2px 5px;margin-top:4px;word-break:break-all}
 .registry-detail{font-size:11px;color:var(--mu);margin-top:4px;line-height:1.35}.registry-detail strong{color:var(--tx);font-weight:600}
 .registry-actions{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:9px}
 .registry-actions button{padding:7px 4px;border:1px solid var(--bd);border-radius:6px;background:#fff;color:var(--tx);font-size:11px;font-weight:600;cursor:pointer}
-.registry-actions button:hover{border-color:var(--card);color:var(--card-dark)}
+.registry-actions button:hover{border-color:var(--scan);color:var(--scan-dark);background:var(--scan-light)}
 .registry-actions .danger{color:var(--rdd);border-color:#fecaca}.registry-actions .danger:hover{background:var(--rb2);border-color:var(--rd)}
 .registry-empty{padding:25px 10px;text-align:center;color:var(--mu);font-size:12px}
+@media(max-width:420px){.registry-actions{grid-template-columns:1fr 1fr}.registry-actions button{padding:9px 5px}}
 
 /* Hidden print iframe */
 #printFrame{position:fixed;left:-9999px;top:-9999px;width:0;height:0;border:none}
@@ -361,6 +362,7 @@ tr:hover td{background:#fafafa}
       <button class="cb" onclick="printCard()">Print to ZC300</button>
       <button class="btn-outline" onclick="savePNG()">Save PNG</button>
     </div>
+    <div class="print-hint"><strong>ZC300 print settings:</strong> Portrait · Actual size/100% · Margins None · Headers and footers Off. Do not use “Fit to page.”</div>
     <button class="rst" onclick="editLastCard()">Edit name or phone</button>
     <button class="rst" onclick="duplicateLastCard()">Duplicate for another person</button>
     <button class="rst" onclick="nextCustomCard()">Create a different card</button>
@@ -1503,8 +1505,8 @@ async function generateCard(){
 // ============================================================
 function renderCardCanvas(c){
   return new Promise((resolve,reject)=>{
-    // ZC300 portrait CR-80: 640 x 1006 pixels
-    const W=640,H=1006;
+    // Standard CR-80 (2.125 x 3.375 in) rounded to whole pixels at 300 dpi.
+    const W=638,H=1013;
     const canvas=document.createElement('canvas');
     canvas.width=W;canvas.height=H;
     const ctx=canvas.getContext('2d');
@@ -1512,55 +1514,52 @@ function renderCardCanvas(c){
     ctx.fillStyle='#fff';
     ctx.fillRect(0,0,W,H);
 
-    // Preload both images before drawing anything
+    // The logo is the only raster asset. The QR is redrawn as integer-sized
+    // modules below so browser scaling cannot blur its edges.
     const logo=new Image();
-    const qrImg=new Image();
-    let logoLoaded=false,qrLoaded=false;
-
-    function draw(){
-      if(!logoLoaded||!qrLoaded)return;
+    function draw(hasLogo){
 
       // --- TOP ACCENT BORDER ---
       ctx.strokeStyle='#2563eb';ctx.lineWidth=8;
       ctx.beginPath();ctx.moveTo(0,4);ctx.lineTo(W,4);ctx.stroke();
 
       // --- LOGO ---
-      const logoH=80,logoW=logo.width*(logoH/logo.height);
-      ctx.drawImage(logo,(W-logoW)/2,30,logoW,logoH);
+      // Keep the top-center punch area clear. Pre-punched vertical cards can
+      // obscure content placed in roughly the first 0.33 inch (100 px).
+      if(hasLogo){
+        const logoH=66,logoW=Math.min(300,logo.width*(logoH/logo.height));
+        ctx.drawImage(logo,(W-logoW)/2,108,logoW,logoH);
+      }
 
       // --- TITLE ---
       ctx.fillStyle='#1a1a2e';
-      ctx.font='bold 24px -apple-system, sans-serif';
       ctx.textAlign='center';
-      ctx.fillText('LA PLATA COUNTY',W/2,140);
-
-      ctx.fillStyle='#333';
       ctx.font='bold 18px -apple-system, sans-serif';
-      ctx.fillText('OFFICE OF EMERGENCY MANAGEMENT',W/2,166);
+      ctx.fillText('OFFICE OF EMERGENCY MANAGEMENT',W/2,204);
 
       // --- DIVIDER ---
       ctx.strokeStyle='#d4d4d8';ctx.lineWidth=1;
-      ctx.beginPath();ctx.moveTo(50,185);ctx.lineTo(W-50,185);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(45,222);ctx.lineTo(W-45,222);ctx.stroke();
 
       // --- CARD TYPE ---
       ctx.fillStyle='#2563eb';
       ctx.font='bold 20px -apple-system, sans-serif';
-      ctx.fillText('EVACUATION ZONE RE-ENTRY CARD',W/2,218);
+      ctx.fillText('EVACUATION ZONE RE-ENTRY CARD',W/2,255);
 
       // --- DIVIDER ---
       ctx.strokeStyle='#d4d4d8';
-      ctx.beginPath();ctx.moveTo(50,235);ctx.lineTo(W-50,235);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(45,274);ctx.lineTo(W-45,274);ctx.stroke();
 
       // --- NAME ---
       ctx.fillStyle='#111';
-      ctx.font='bold 44px -apple-system, sans-serif';
-      ctx.fillText(`${c.fn} ${c.ln}`,W/2,295);
+      setCanvasFontToFit(ctx,`${c.fn} ${c.ln}`,44,30,W-72,'bold');
+      ctx.fillText(`${c.fn} ${c.ln}`,W/2,332);
 
       // --- ADDRESS (word wrap for long addresses) ---
       ctx.fillStyle='#444';
       ctx.font='22px -apple-system, sans-serif';
-      const addrLines=wrapText(ctx,c.addr,W-80);
-      let addrY=335;
+      const addrLines=wrapText(ctx,c.addr,W-88).slice(0,3);
+      let addrY=374;
       addrLines.forEach(line=>{
         ctx.fillText(line,W/2,addrY);
         addrY+=28;
@@ -1578,14 +1577,27 @@ function renderCardCanvas(c){
         const reasonY=c.phone?addrY+50:addrY+20;
         ctx.fillStyle='#555';
         ctx.font='italic 18px -apple-system, sans-serif';
-        ctx.fillText(c.reason,W/2,reasonY);
+        const reasonLines=wrapText(ctx,c.reason,W-100).slice(0,2);
+        reasonLines.forEach((line,i)=>ctx.fillText(line,W/2,reasonY+i*23));
       }
 
-      // --- QR CODE (centered, lower portion) ---
-      const qrSize=240;
+      // --- QR CODE (integer modules with a four-module quiet zone) ---
+      const printQR=qrcode(0,'M');
+      printQR.addData(c.qrData||JSON.stringify({t:'card',id:c.cardId,v:2}));
+      printQR.make();
+      const moduleCount=printQR.getModuleCount();
+      const quiet=4;
+      const cell=Math.max(5,Math.floor(270/(moduleCount+quiet*2)));
+      const qrSize=(moduleCount+quiet*2)*cell;
       const qrX=(W-qrSize)/2;
       const qrY=H-qrSize-130;
-      ctx.drawImage(qrImg,qrX,qrY,qrSize,qrSize);
+      ctx.fillStyle='#fff';ctx.fillRect(qrX,qrY,qrSize,qrSize);
+      ctx.fillStyle='#000';
+      for(let row=0;row<moduleCount;row++){
+        for(let col=0;col<moduleCount;col++){
+          if(printQR.isDark(row,col))ctx.fillRect(qrX+(quiet+col)*cell,qrY+(quiet+row)*cell,cell,cell);
+        }
+      }
 
       // --- CARD ID ---
       ctx.fillStyle='#888';
@@ -1595,8 +1607,8 @@ function renderCardCanvas(c){
       // --- INSTRUCTIONS ---
       ctx.fillStyle='#aaa';
       ctx.font='13px -apple-system, sans-serif';
-      ctx.fillText('Present at any evacuation checkpoint',W/2,H-50);
-      ctx.fillText('for re-entry verification.',W/2,H-32);
+      ctx.fillText('Present at any evacuation checkpoint',W/2,H-62);
+      ctx.fillText('for re-entry verification.',W/2,H-44);
 
       // --- BOTTOM ACCENT BORDER ---
       ctx.strokeStyle='#2563eb';ctx.lineWidth=8;
@@ -1605,19 +1617,22 @@ function renderCardCanvas(c){
       resolve(canvas);
     }
 
-    logo.onload=function(){logoLoaded=true;draw()};
+    logo.onload=function(){draw(true)};
     logo.onerror=function(){
       // Draw without logo if it fails
       console.warn('Logo failed to load, rendering without it');
-      logoLoaded=true;draw();
+      draw(false);
     };
-    qrImg.onload=function(){qrLoaded=true;draw()};
-    qrImg.onerror=()=>reject(new Error('QR image load failed'));
 
-    // Kick off loads
+    // Kick off logo load
     logo.src=LPC_LOGO_FIXED;
-    qrImg.src=c.qrDataURL;
   });
+}
+
+function setCanvasFontToFit(ctx,text,startSize,minSize,maxWidth,weight='normal'){
+  let size=startSize;
+  do{ctx.font=`${weight} ${size}px -apple-system, sans-serif`;size--}
+  while(size>=minSize&&ctx.measureText(text).width>maxWidth);
 }
 
 // Word wrap helper for canvas text
@@ -1654,27 +1669,27 @@ async function printCard(){
 <html><head><title>LPC Re-entry Card</title>
 <style>
   @page{
-    size:54mm 86mm portrait;
+    size:2.125in 3.375in;
     margin:0;
   }
   *{margin:0;padding:0;box-sizing:border-box}
   html,body{
-    width:640px;
-    height:1006px;
+    width:2.125in;
+    height:3.375in;
     overflow:hidden;
     background:#fff;
   }
   img{
-    width:640px;
-    height:1006px;
+    width:2.125in;
+    height:3.375in;
     display:block;
-    object-fit:fill;
+    object-fit:contain;
     -webkit-print-color-adjust:exact;
     print-color-adjust:exact;
   }
   @media print{
-    html,body{width:100%;height:100%;overflow:hidden}
-    img{width:100%;height:100%;object-fit:fill}
+    html,body{width:2.125in;height:3.375in;overflow:hidden}
+    img{width:2.125in;height:3.375in;object-fit:contain}
   }
 </style>
 </head><body>
