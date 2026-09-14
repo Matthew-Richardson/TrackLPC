@@ -13,11 +13,17 @@
 *{margin:0;padding:0;box-sizing:border-box}
 html{width:100%;height:100%;overflow:hidden}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--tx);width:100%;height:100vh;height:100dvh;min-height:0;display:flex;flex-direction:column;overflow:hidden;-webkit-text-size-adjust:100%}
-header{background:var(--navy);color:#fff;border-bottom:1px solid #0f263b;padding:10px 14px;display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}
-header h1{font-size:14px;font-weight:700;white-space:nowrap;letter-spacing:.02em}
-.sw{position:relative;flex:1;min-width:130px}
-.sw select{width:100%;padding:7px 24px 7px 10px;border:1px solid var(--bd);border-radius:6px;font-size:13px;background:var(--sf);color:var(--tx);appearance:none}
-.sw::after{content:'▾';position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:10px;color:var(--mu);pointer-events:none}
+header{background:var(--navy);color:#fff;border-bottom:none;padding:8px 14px;display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}
+header h1{font-size:14px;font-weight:700;white-space:nowrap;letter-spacing:.02em;flex:1}
+.zone-bar{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--navy);border-bottom:1px solid #0f263b;flex-shrink:0;flex-wrap:wrap}
+.zone-bar.has-zone .zone-bar-hint{display:none}
+.zone-bar-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;white-space:nowrap}
+.zone-bar-select{position:relative;flex:1;min-width:160px}
+.zone-bar-select select{width:100%;padding:10px 28px 10px 12px;border:2px solid #f59e0b;border-radius:8px;font-size:15px;font-weight:600;background:var(--sf);color:var(--tx);appearance:none;transition:border-color .2s}
+.zone-bar.has-zone .zone-bar-select select{border-color:var(--gn);background:#f0fdf4}
+.zone-bar-select::after{content:'▾';position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--mu);pointer-events:none}
+.zone-bar-hint{font-size:12px;color:#f59e0b;width:100%;animation:pulse-hint 2s ease-in-out infinite}
+@keyframes pulse-hint{0%,100%{opacity:1}50%{opacity:.5}}
 .hr{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .hs{display:flex;gap:8px;font-size:11px;color:#cbd5e1}
 .hs strong{color:#fff;font-weight:600}
@@ -67,11 +73,12 @@ tr:hover td{background:#fafafa}
 .md{background:var(--sf);width:100%;max-width:480px;max-height:94dvh;border-radius:16px 16px 0 0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:18px;animation:su .25s ease-out}
 @keyframes su{from{transform:translateY(100%)}to{transform:translateY(0)}}
 @media(min-width:600px){.mo{align-items:center}.md{border-radius:12px;max-height:85vh}}
-@media(max-width:520px){.mode-toggle-bar{padding:6px 8px}.mode-toggle .mt-btn{padding:10px 6px;font-size:13px}}
+@media(max-width:520px){.mode-toggle-bar{padding:6px 8px}.mode-toggle .mt-btn{padding:10px 6px;font-size:13px}.zone-bar{padding:8px 10px;gap:6px}.zone-bar-select select{font-size:14px;padding:9px 26px 9px 10px}}
 .mh{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
 .mh h2{font-size:16px;font-weight:600}
 .mx{width:28px;height:28px;border:none;background:var(--bg);border-radius:50%;font-size:14px;cursor:pointer;color:var(--mu);display:flex;align-items:center;justify-content:center}
 .zn{font-size:12px;margin-bottom:12px;padding:7px 10px;background:var(--al);border-radius:6px;color:var(--ac);font-weight:500}
+.zn-warn{background:var(--ab);color:#92400e;text-align:center;padding:18px 10px;font-size:14px;font-weight:600;animation:pulse-hint 2s ease-in-out infinite}
 .sb1{width:100%;padding:13px;font-size:15px;font-weight:600;border:none;border-radius:10px;background:var(--ac);color:#fff;cursor:pointer;margin-bottom:6px}
 .sb1:hover{background:var(--ac2)}.sb1:disabled{opacity:.4;cursor:not-allowed}
 #pi{display:none}
@@ -163,9 +170,16 @@ tr:hover td{background:#fafafa}
 </head>
 <body>
 
+<nav class="mode-toggle-bar" aria-label="Operating mode">
+  <div class="mode-toggle" id="modeToggle">
+    <div class="mt-thumb"></div>
+    <button class="mt-btn active scan-mode-button" id="scb" onclick="setWorkflowMode('scan')">Checkpoint Scan</button>
+    <button class="mt-btn" onclick="setWorkflowMode('card')">Custom Card</button>
+  </div>
+</nav>
+
 <header>
   <h1>LPC Checkpoint</h1>
-  <div class="sw"><select id="zs"><option value="">Select zone…</option></select></div>
   <div class="hr">
     <div class="hs" id="stats" style="display:none"><span>P:<strong id="pc">0</strong></span><span>A:<strong id="ac">0</strong></span></div>
     <span class="ob" id="opb"></span>
@@ -173,13 +187,13 @@ tr:hover td{background:#fafafa}
   </div>
 </header>
 
-<nav class="mode-toggle-bar" aria-label="Operating mode">
-  <div class="mode-toggle" id="modeToggle">
-    <div class="mt-thumb"></div>
-    <button class="mt-btn active scan-mode-button" id="scb" disabled onclick="setWorkflowMode('scan')">Checkpoint Scan</button>
-    <button class="mt-btn" onclick="setWorkflowMode('card')">Custom Card</button>
+<div class="zone-bar" id="zoneBar">
+  <label class="zone-bar-label" for="zs">Evacuation zone</label>
+  <div class="zone-bar-select">
+    <select id="zs"><option value="">Select zone…</option></select>
   </div>
-</nav>
+  <div class="zone-bar-hint" id="zoneHint">Choose a zone to begin checkpoint scanning</div>
+</div>
 
 <div id="mc">
   <div class="lb" id="lb"></div>
@@ -221,6 +235,7 @@ tr:hover td{background:#fafafa}
  <div class="md">
   <div class="mh"><h2>Checkpoint</h2><button class="mx" onclick="closeModal()">×</button></div>
   <div class="zn" id="mzn">Zone: —</div>
+  <div id="scanBody">
   <div class="wedge-status" id="wedgeStatusCP">Scanner ready — scan a DL or re-entry card</div>
 
   <!-- STEP 1: scan + check -->
@@ -252,6 +267,7 @@ tr:hover td{background:#fafafa}
   </div>
 
   <button class="rst" id="rstBtn" style="display:none" onclick="resetModal()">Next check</button>
+  </div>
  </div>
 </div>
 
@@ -361,6 +377,7 @@ async function doLogin(){
     operatorName=op;
     document.getElementById('opb').textContent=op;
     document.getElementById('loginModal').classList.remove('open');
+    setWorkflowMode('scan');
   }catch(e){st.textContent='Network error';document.getElementById('loginBtn').disabled=false}
 }
 
@@ -394,7 +411,15 @@ async function selectZone(oid){
   document.getElementById('zs').value=oid;selZoneId=oid;selZone=zones.find(z=>z.id===oid);if(!selZone)return;
   selGeom=selZone.feature.geometry;var _zb=document.getElementById('zoneBanner');_zb.textContent=[selZone.name,selZone.incident].filter(Boolean).join(' \u2014 ');_zb.style.display='block';selLayer.clearLayers();selLayer.addData(selZone.feature);
   map.fitBounds(selLayer.getBounds(),{padding:[30,30]});
-  document.querySelectorAll('.scan-mode-button').forEach(btn=>btn.disabled=false);
+  // Update zone bar to "has zone" state
+  document.getElementById('zoneBar').classList.add('has-zone');
+  // If checkpoint modal is already open, refresh it live
+  if(document.getElementById('modal').classList.contains('open')){
+    document.getElementById('mzn').textContent='Zone: '+[selZone.name,selZone.incident].filter(Boolean).join(' — ');
+    document.getElementById('mzn').className='zn';
+    document.getElementById('scanBody').style.display='';
+    wedge.setTarget('checkpoint');
+  }
   setLoading(true);
   try{
     const gr=await fetch(`${EVAC_URL}/query?where=OBJECTID=${oid}&outFields=OBJECTID&returnGeometry=true&outSR=3857&f=json`);
@@ -472,15 +497,22 @@ function syncWorkflowButtons(mode){
   tog.classList.toggle('card-active',mode==='card');
 }
 function setWorkflowMode(mode){
-  if(mode==='scan'&&!selZoneId){alert('Select an evacuation zone before starting checkpoint scan mode.');return}
   syncWorkflowButtons(mode);
   if(mode==='scan')openModal();else openCardModal();
 }
-function openModal(){if(!selZoneId)return;
-  document.getElementById('mzn').textContent='Zone: '+[selZone?.name,selZone?.incident].filter(Boolean).join(' — ');
+function openModal(){
+  if(selZone){
+    document.getElementById('mzn').textContent='Zone: '+[selZone.name,selZone.incident].filter(Boolean).join(' — ');
+    document.getElementById('mzn').className='zn';
+    document.getElementById('scanBody').style.display='';
+  }else{
+    document.getElementById('mzn').textContent='Select an evacuation zone above to begin scanning';
+    document.getElementById('mzn').className='zn zn-warn';
+    document.getElementById('scanBody').style.display='none';
+  }
   resetModal();document.getElementById('modal').classList.add('open');
   syncWorkflowButtons('scan');
-  wedge.setTarget('checkpoint');
+  if(selZone)wedge.setTarget('checkpoint');
 }
 function closeModal(){document.getElementById('modal').classList.remove('open');wedge.setTarget(null)}
 function resetModal(){
