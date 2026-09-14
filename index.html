@@ -350,7 +350,7 @@ tr:hover td{background:#fafafa}
       <button class="cb" onclick="printCard()">Print to ZC300</button>
       <button class="btn-outline" onclick="savePNG()">Save PNG</button>
     </div>
-    <div class="print-hint"><strong>ZC300 print settings:</strong> CR‑80 card · Portrait · Actual size/100% · Margins None · Headers and footers Off. Print one copy and do not use “Fit to page.”</div>
+    <div class="print-hint"><strong>ZC300 print settings:</strong> CR‑80 card · Landscape · Actual size/100% · Margins None · Headers and footers Off · One copy. The app rotates the portrait badge onto one physical card.</div>
     <button class="rst" onclick="editLastCard()">Edit name or phone</button>
     <button class="rst" onclick="duplicateLastCard()">Duplicate for another person</button>
     <button class="rst" onclick="nextCustomCard()">Create a different card</button>
@@ -1569,58 +1569,57 @@ function renderCardCanvas(c){
       // Keep the top-center punch area clear. Pre-punched vertical cards can
       // obscure content placed in roughly the first 0.33 inch (100 px).
       if(hasLogo){
-        const logoH=95,logoW=Math.min(360,logo.width*(logoH/logo.height));
-        ctx.drawImage(logo,(W-logoW)/2,100,logoW,logoH);
+        const logoH=105,logoW=Math.min(370,logo.width*(logoH/logo.height));
+        ctx.drawImage(logo,(W-logoW)/2,96,logoW,logoH);
       }
 
       // --- TITLE ---
       ctx.fillStyle='#1a1a2e';
       ctx.textAlign='center';
-      ctx.font='bold 23px -apple-system, sans-serif';
-      ctx.fillText('OFFICE OF EMERGENCY MANAGEMENT',W/2,228);
+      ctx.font='bold 26px -apple-system, sans-serif';
+      ctx.fillText('OFFICE OF EMERGENCY MANAGEMENT',W/2,238);
 
       // --- DIVIDER ---
       ctx.strokeStyle='#d4d4d8';ctx.lineWidth=1;
-      ctx.beginPath();ctx.moveTo(38,247);ctx.lineTo(W-38,247);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(34,257);ctx.lineTo(W-34,257);ctx.stroke();
 
       // --- CARD TYPE ---
       ctx.fillStyle='#2563eb';
-      ctx.font='bold 24px -apple-system, sans-serif';
-      ctx.fillText('EVACUATION ZONE RE-ENTRY CARD',W/2,282);
+      ctx.font='bold 28px -apple-system, sans-serif';
+      ctx.fillText('EVACUATION ZONE RE-ENTRY CARD',W/2,296);
 
       // --- DIVIDER ---
       ctx.strokeStyle='#d4d4d8';
-      ctx.beginPath();ctx.moveTo(38,302);ctx.lineTo(W-38,302);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(34,317);ctx.lineTo(W-34,317);ctx.stroke();
 
       // --- NAME ---
       ctx.fillStyle='#111';
-      setCanvasFontToFit(ctx,`${c.fn} ${c.ln}`,50,32,W-64,'bold');
-      ctx.fillText(`${c.fn} ${c.ln}`,W/2,365);
+      setCanvasFontToFit(ctx,`${c.fn} ${c.ln}`,58,36,W-54,'bold');
+      ctx.fillText(`${c.fn} ${c.ln}`,W/2,385);
 
       // --- ADDRESS (word wrap for long addresses) ---
       ctx.fillStyle='#444';
-      ctx.font='26px -apple-system, sans-serif';
-      const addrLines=wrapText(ctx,c.addr,W-76).slice(0,3);
-      let addrY=410;
+      ctx.font='30px -apple-system, sans-serif';
+      const addrLines=wrapText(ctx,c.addr,W-66).slice(0,3);
+      let addrY=435;
       addrLines.forEach(line=>{
         ctx.fillText(line,W/2,addrY);
-        addrY+=32;
+        addrY+=35;
       });
 
       // --- PHONE ---
       if(c.phone){
         ctx.fillStyle='#666';
-        ctx.font='24px -apple-system, sans-serif';
-        ctx.fillText(c.phone,W/2,addrY+10);
+        ctx.font='28px -apple-system, sans-serif';
+        ctx.fillText(c.phone,W/2,addrY+12);
       }
 
       // --- REASON ---
       if(c.reason){
-        const reasonY=c.phone?addrY+48:addrY+18;
+        const reasonY=c.phone?addrY+54:addrY+24;
         ctx.fillStyle='#555';
-        ctx.font='italic 21px -apple-system, sans-serif';
-        const reasonLines=wrapText(ctx,c.reason,W-100).slice(0,2);
-        reasonLines.forEach((line,i)=>ctx.fillText(line,W/2,reasonY+i*26));
+        setCanvasFontToFit(ctx,c.reason,25,17,W-78,'italic');
+        ctx.fillText(c.reason,W/2,reasonY);
       }
 
       // --- QR CODE (integer modules with a four-module quiet zone) ---
@@ -1629,10 +1628,10 @@ function renderCardCanvas(c){
       printQR.make();
       const moduleCount=printQR.getModuleCount();
       const quiet=4;
-      const cell=Math.max(5,Math.floor(292/(moduleCount+quiet*2)));
+      const cell=Math.max(5,Math.floor(310/(moduleCount+quiet*2)));
       const qrSize=(moduleCount+quiet*2)*cell;
       const qrX=(W-qrSize)/2;
-      const qrY=H-qrSize-122;
+      const qrY=H-qrSize-112;
       ctx.fillStyle='#fff';ctx.fillRect(qrX,qrY,qrSize,qrSize);
       ctx.fillStyle='#000';
       for(let row=0;row<moduleCount;row++){
@@ -1643,14 +1642,14 @@ function renderCardCanvas(c){
 
       // --- CARD ID ---
       ctx.fillStyle='#888';
-      ctx.font='16px monospace';
+      ctx.font='18px monospace';
       ctx.fillText(c.cardId,W/2,qrY+qrSize+25);
 
       // --- INSTRUCTIONS ---
       ctx.fillStyle='#aaa';
-      ctx.font='15px -apple-system, sans-serif';
-      ctx.fillText('Present at any evacuation checkpoint',W/2,H-55);
-      ctx.fillText('for re-entry verification.',W/2,H-35);
+      ctx.font='18px -apple-system, sans-serif';
+      ctx.fillText('Present at any evacuation checkpoint',W/2,H-48);
+      ctx.fillText('for re-entry verification.',W/2,H-26);
 
       resolve(canvas);
     }
@@ -1706,33 +1705,39 @@ async function printCard(){
     doc.write(`<!DOCTYPE html>
 <html><head><title>LPC Re-entry Card</title>
 <style>
+  /* The ZC300 transports a CR-80 card as one landscape sheet.  Keep the
+     print document landscape, then rotate the portrait badge inside it. */
   @page{
-    size:53.98mm 85.60mm;
+    size:85.60mm 53.98mm;
     margin:0;
   }
   *{margin:0;padding:0;box-sizing:border-box}
-  html{
-    width:53.98mm;
-    height:85.60mm;
+  html,body{
+    width:85.60mm;
+    height:53.98mm;
     overflow:hidden;
     background:#fff;
   }
-  body{position:fixed;top:0;left:0;width:53.80mm;height:85.40mm;overflow:hidden;background:#fff}
+  body{position:fixed;top:0;left:0}
   img{
-    position:absolute;
+    position:fixed;
     top:0;
     left:0;
-    width:53.80mm;
-    height:85.40mm;
+    width:53.70mm;
+    height:85.30mm;
     display:block;
     object-fit:contain;
+    transform-origin:0 0;
+    transform:translateX(85.30mm) rotate(90deg);
     -webkit-print-color-adjust:exact;
     print-color-adjust:exact;
+    break-inside:avoid;
+    page-break-inside:avoid;
   }
   @media print{
-    html{width:53.98mm;height:85.60mm;overflow:hidden}
-    body{position:fixed;top:0;left:0;width:53.80mm;height:85.40mm;overflow:hidden}
-    img{position:absolute;top:0;left:0;width:53.80mm;height:85.40mm;object-fit:contain;break-inside:avoid;page-break-inside:avoid}
+    html,body{width:85.60mm;height:53.98mm;overflow:hidden}
+    body{position:fixed;top:0;left:0}
+    img{position:fixed;top:0;left:0;width:53.70mm;height:85.30mm;object-fit:contain;transform-origin:0 0;transform:translateX(85.30mm) rotate(90deg);break-inside:avoid;page-break-inside:avoid}
   }
 </style>
 </head><body>
