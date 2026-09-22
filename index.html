@@ -1631,7 +1631,8 @@ function renderCardCanvas(c){
       const cell=Math.max(5,Math.floor(310/(moduleCount+quiet*2)));
       const qrSize=(moduleCount+quiet*2)*cell;
       const qrX=(W-qrSize)/2;
-      const qrY=H-qrSize-112;
+      // Pull the QR block upward to use the open space beneath the reason.
+      const qrY=H-qrSize-145;
       ctx.fillStyle='#fff';ctx.fillRect(qrX,qrY,qrSize,qrSize);
       ctx.fillStyle='#000';
       for(let row=0;row<moduleCount;row++){
@@ -1648,7 +1649,7 @@ function renderCardCanvas(c){
       // --- CONTACT FOOTER ---
       // Two equal cells keep both operational numbers prominent without
       // reducing the QR code or cardholder information above.
-      const footerX=34,footerY=943,footerW=W-68,footerH=54,cellW=footerW/2;
+      const footerX=34,footerY=923,footerW=W-68,footerH=74,cellW=footerW/2;
       ctx.fillStyle='#f8fafc';
       ctx.fillRect(footerX,footerY,footerW,footerH);
       ctx.strokeStyle='#17324d';ctx.lineWidth=2;
@@ -1658,13 +1659,13 @@ function renderCardCanvas(c){
       ctx.fillStyle='#17324d';
       ctx.textAlign='center';
       ctx.font='bold 13px -apple-system, sans-serif';
-      ctx.fillText('GENERAL QUESTIONS / LPC OEM',footerX+cellW/2,footerY+18);
-      ctx.fillText('EMERGENCY CALL CENTER',footerX+cellW+cellW/2,footerY+18);
+      ctx.fillText('GENERAL QUESTIONS / LPC OEM',footerX+cellW/2,footerY+21);
+      ctx.fillText('EMERGENCY CALL CENTER',footerX+cellW+cellW/2,footerY+21);
 
       ctx.fillStyle='#111827';
-      ctx.font='bold 21px -apple-system, sans-serif';
-      ctx.fillText('970-382-6275',footerX+cellW/2,footerY+43);
-      ctx.fillText('970-385-8700',footerX+cellW+cellW/2,footerY+43);
+      ctx.font='bold 30px -apple-system, sans-serif';
+      ctx.fillText('970-382-6275',footerX+cellW/2,footerY+57);
+      ctx.fillText('970-385-8700',footerX+cellW+cellW/2,footerY+57);
 
       resolve(canvas);
     }
