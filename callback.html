@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Completing ArcGIS Online sign-in</title>
+  <script src="https://unpkg.com/@esri/arcgis-rest-request@4/dist/bundled/request.umd.js"></script>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:#f4f5f7;color:#17324d;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif}
+    main{width:min(360px,100%);padding:24px;border:1px solid #d4d4d8;border-radius:12px;background:#fff;text-align:center;box-shadow:0 4px 18px rgba(15,23,42,.12)}
+    h1{margin:0 0 8px;font-size:20px}
+    p{margin:0;color:#6b7280;font-size:14px;line-height:1.5}
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Completing sign-in…</h1>
+    <p id="status">This window will close automatically.</p>
+  </main>
+  <script>
+    const OAUTH_OPTIONS={
+      clientId:'c1VEzHRz6PpUyto0',
+      redirectUri:'https://matthew-richardson.github.io/TrackLPC/callback.html',
+      portal:'https://www.arcgis.com/sharing/rest',
+      popup:true,
+      pkce:true,
+      expiration:480
+    };
+
+    (async()=>{
+      try{
+        if(!window.arcgisRest?.ArcGISIdentityManager)throw new Error('ArcGIS authentication library did not load.');
+        await arcgisRest.ArcGISIdentityManager.completeOAuth2(OAUTH_OPTIONS);
+      }catch(e){
+        console.error('ArcGIS OAuth callback failed:',e);
+        document.getElementById('status').textContent='Sign-in could not be completed. Close this window and try again.';
+      }
+    })();
+  </script>
+</body>
+</html>
