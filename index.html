@@ -348,12 +348,6 @@ tr:hover td{background:#fafafa}
   <div id="cardCreateView">
   <div id="cardForm">
 
-  <div class="modal-zone" id="cardZoneWrap">
-    <label for="cardZoneSel">Evacuation zone (optional)</label>
-    <div class="mz-wrap"><select id="cardZoneSel" onchange="updateCardZoneState()"><option value="">No specific zone</option></select></div>
-    <div class="mz-hint">Leave unassigned or optionally choose a zone</div>
-  </div>
-
   <!-- Scan to populate section -->
   <div class="card-scan-section" id="cardScanSection">
     <h3>Populate from DL scan</h3>
@@ -432,7 +426,7 @@ let pData=[],aData=[],logData=[],activeTab='parcels';
 let activityFilter='current',currentInsideRows=[];
 let operatorName='',agolToken='';
 let lastCheck=null,parsedDL=null,selectedDir=null;
-let cardRegistry=[],editingCard=null,duplicateContext=null;
+let cardRegistry=[],editingCard=null;
 let refreshInFlight=false;
 
 // ---- AGOL LOGIN ----
@@ -473,9 +467,9 @@ function rebuildZoneCatalog({fit=false}={}){
   zones=[];zoneLabelLayer.clearLayers();
   evacLayer.eachFeature(l=>{const p=l.feature.properties;zones.push({id:p.OBJECTID,name:p.zonename,incident:p.incident,status:p.STATUS,feature:l.feature})});
   zones.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
-  const allSelects=[document.getElementById('zs'),document.getElementById('scanZoneSel'),document.getElementById('cardZoneSel')];
-  allSelects.forEach((sel,index)=>{
-    const first=document.createElement('option');first.value='';first.textContent=index===2?'No specific zone':'Select zone…';
+  const allSelects=[document.getElementById('zs'),document.getElementById('scanZoneSel')];
+  allSelects.forEach(sel=>{
+    const first=document.createElement('option');first.value='';first.textContent='Select zone…';
     sel.replaceChildren(first);
   });
   zones.forEach(z=>{const txt=[z.name,z.incident,z.status].filter(Boolean).join(' — ');allSelects.forEach(sel=>{const o=document.createElement('option');o.value=z.id;o.textContent=txt;sel.appendChild(o)})});
@@ -612,11 +606,13 @@ function renderLog(){
   const rows=getFilteredLogRows();
   const emp=document.getElementById('emp');emp.style.display=rows.length?'none':'';document.getElementById('dt').style.display=rows.length?'':'none';
   if(!rows.length){emp.lastElementChild.textContent=activityFilter==='current'?'No unmatched IN records for this zone':'No matching activity';return}
-  document.getElementById('dth').innerHTML='<tr><th>Time</th><th>Status</th><th>Name</th><th>Address</th><th>Phone</th><th>Op</th><th>Type</th></tr>';
+  document.getElementById('dth').innerHTML='<tr><th>Check-in date</th><th>Time</th><th>Status</th><th>Name</th><th>Address</th><th>Phone</th><th>Op</th><th>Type</th></tr>';
   document.getElementById('dtb').innerHTML=rows.map(r=>{
-    const t=r.check_time?new Date(r.check_time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'—';
+    const checkedAt=r.check_time?new Date(r.check_time):null;
+    const d=checkedAt?checkedAt.toLocaleDateString([],{month:'short',day:'numeric',year:'numeric'}):'—';
+    const t=checkedAt?checkedAt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'—';
     const status=r._currentlyIn?'CURRENTLY IN':(r.direction||'');
-    return`<tr><td class="lt">${t}</td><td class="${String(r.direction).toUpperCase()==='IN'?'di':'do'}">${escapeTableHTML(status)}</td><td>${escapeTableHTML(r.name)}</td><td>${escapeTableHTML(r.address)}</td><td>${phoneLink(r.phone)}</td><td>${escapeTableHTML(r.operator_name)}</td><td>${escapeTableHTML(r.card_type)}</td></tr>`}).join('');
+    return`<tr><td class="lt">${d}</td><td class="lt">${t}</td><td class="${String(r.direction).toUpperCase()==='IN'?'di':'do'}">${escapeTableHTML(status)}</td><td>${escapeTableHTML(r.name)}</td><td>${escapeTableHTML(r.address)}</td><td>${phoneLink(r.phone)}</td><td>${escapeTableHTML(r.operator_name)}</td><td>${escapeTableHTML(r.card_type)}</td></tr>`}).join('');
 }
 function doExport(){
   const data=activeTab==='parcels'?pData:activeTab==='addrs'?aData:getFilteredLogRows();
@@ -1186,7 +1182,6 @@ async function getApprovedCard(qd){
     firstName:String(a.first_name||''),lastName:String(a.last_name||''),
     fullAddress:String(a.address||''),phone:String(a.phone||''),
     reason:String(a.reason||''),cardId:String(a.card_id||cardId),
-    zoneName:String(a.zone_name||''),incident:String(a.incident||''),
     scanType:'Card',approval:'LPC APPROVED'
   };
 }
@@ -1324,7 +1319,6 @@ const wedge=(function(){
       document.getElementById('caddr').value=card.fullAddress;
       document.getElementById('cphone').value=card.phone;
       document.getElementById('creason').value=card.reason;
-      setCardZoneByName(card.zoneName||'');
       const ws=document.getElementById('wedgeStatusCard');
       ws.className='wedge-status captured';ws.textContent='LPC APPROVED — card data loaded';
       advanceCardAfterScan('Card');
@@ -1463,9 +1457,6 @@ const wedge=(function(){
 
 
 // ---- CUSTOM CARD MODAL ----
-function updateCardZoneState(){document.getElementById('cardZoneWrap').classList.toggle('has-zone',!!document.getElementById('cardZoneSel').value)}
-function getCardZoneSelection(){const value=document.getElementById('cardZoneSel').value;return value?zones.find(z=>String(z.id)===String(value))||null:null}
-function setCardZoneByName(name){const match=zones.find(z=>(z.name||'')===name);document.getElementById('cardZoneSel').value=match?String(match.id):'';updateCardZoneState()}
 function openCardModal(){resetCardModal();document.getElementById('cardModal').classList.add('open');syncWorkflowButtons('card');switchCardView('create')}
 function closeCardModal(){document.getElementById('cardModal').classList.remove('open');wedge.setTarget(null);window.LPCCardLiveScanner?.stop()}
 function nextCustomCard(){resetCardModal();switchCardView('create');document.getElementById('cfn').focus()}
@@ -1475,8 +1466,7 @@ async function checkInLastCard(){
   const status=document.getElementById('cardCheckinStatus');
   const btn=document.getElementById('cardCheckinBtn');
   status.className='card-checkin-status';status.textContent='';
-  const zone=card.zoneName?zones.find(z=>(z.name||'')===card.zoneName):selZone;
-  if(!zone){status.className='card-checkin-status error';status.textContent=card.zoneName?'The assigned zone is not currently available. Refresh the map and try again.':'Assign a zone to the card or select a zone on the map before checking in.';return}
+  if(!zones.length){status.className='card-checkin-status error';status.textContent='Current evacuation zones are not loaded. Refresh the map and try again.';return}
   btn.disabled=true;btn.textContent='Checking address…';
   try{
     const gp=new URLSearchParams({SingleLine:card.addr||'',f:'json',outFields:'Match_addr,Score',maxLocations:'1',location:'-107.88,37.28',distance:'80000'});
@@ -1484,7 +1474,9 @@ async function checkInLastCard(){
     if(!gj.candidates?.length)throw new Error('The card address could not be located.');
     const candidate=gj.candidates[0],score=Number(candidate.attributes?.Score||0),lng=candidate.location.x,lat=candidate.location.y;
     if(score<70)throw new Error(`The address match was too uncertain (${score}/100).`);
-    if(!pip([lng,lat],zone.feature.geometry))throw new Error(`The card address is outside ${zone.name}.`);
+    const matchingZones=zones.filter(z=>z.feature?.geometry&&pip([lng,lat],z.feature.geometry));
+    if(!matchingZones.length)throw new Error('The card address is not inside a current evacuation zone.');
+    const zone=matchingZones.find(z=>selZone&&String(z.id)===String(selZone.id))||matchingZones[0];
     const feature={geometry:{x:lng,y:lat,spatialReference:{wkid:4326}},attributes:{
       name:[card.fn,card.ln].filter(Boolean).map(titleCase).join(' ')||'Custom Card',
       address:candidate.attributes?.Match_addr||card.addr||'',phone:card.phone||'',license_num:card.cardId||'',
@@ -1494,7 +1486,7 @@ async function checkInLastCard(){
     const p=new URLSearchParams({adds:JSON.stringify([feature]),f:'json'});if(agolToken)p.append('token',agolToken);
     const r=await fetch(`${LOG_URL}/applyEdits`,{method:'POST',body:p});const j=await r.json();
     if(!j.addResults?.[0]?.success)throw new Error(j.addResults?.[0]?.error?.description||'The check-in record was not saved.');
-    status.className='card-checkin-status ok';status.textContent=`Checked IN to ${zone.name} at ${new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}.`;
+    status.className='card-checkin-status ok';status.textContent=`Address matched ${zone.name}. Checked IN at ${new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}.`;
     btn.textContent='✓ Checked in';
     if(selZone&&String(selZone.id)===String(zone.id))await fetchLog();
   }catch(e){
@@ -1503,13 +1495,12 @@ async function checkInLastCard(){
   }
 }
 function resetCardModal({resumeScanner=true}={}){
-  editingCard=null;duplicateContext=null;
+  editingCard=null;
   document.getElementById('cardForm').style.display='';
   document.getElementById('cardResult').style.display='none';
   document.getElementById('cardParsedInfo').style.display='none';
   document.getElementById('cardDetailsLabel').textContent='Card details';
   ['cfn','cln','caddr','cphone','creason'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('cardZoneSel').value='';document.getElementById('cardZoneSel').disabled=false;updateCardZoneState();
   document.getElementById('caddr').readOnly=false;
   document.getElementById('creason').readOnly=false;
   document.getElementById('cardScanSection').style.display='';
@@ -1555,7 +1546,6 @@ function cardFromAttributes(a){
     objectId:a.OBJECTID??a.objectid??a.ObjectId,
     cardId:String(a.card_id||''),fn:String(a.first_name||''),ln:String(a.last_name||''),
     addr:String(a.address||''),phone:String(a.phone||''),reason:String(a.reason||''),
-    zoneName:String(a.zone_name||''),incident:String(a.incident||''),
     status:String(a.status||''),issuedAt:a.issued_at||null,expiresAt:a.expires_at||null,
     printCount:Number(a.print_count||0)
   };
@@ -1608,10 +1598,9 @@ function renderCardRegistry(cards){
 }
 
 function duplicateCard(card){
-  resetCardModal();duplicateContext={zoneName:card.zoneName||'',incident:card.incident||''};
+  resetCardModal();
   document.getElementById('caddr').value=card.addr||'';
   document.getElementById('creason').value=card.reason||'';
-  setCardZoneByName(card.zoneName||'');
   switchCardView('create');
   const ws=document.getElementById('wedgeStatusCard');ws.className='wedge-status listening';ws.textContent='Address copied — enter the new cardholder name and phone';
   document.getElementById('cfn').focus();
@@ -1623,7 +1612,6 @@ function beginEditCard(card){
   document.getElementById('cfn').value=card.fn;document.getElementById('cln').value=card.ln;
   document.getElementById('caddr').value=card.addr;document.getElementById('cphone').value=card.phone;
   document.getElementById('creason').value=card.reason;
-  setCardZoneByName(card.zoneName||'');document.getElementById('cardZoneSel').disabled=true;
   document.getElementById('caddr').readOnly=true;document.getElementById('creason').readOnly=true;
   document.getElementById('cardScanSection').style.display='none';document.getElementById('cardEditNote').style.display='block';
   window.LPCCardLiveScanner?.stop();
@@ -1672,8 +1660,8 @@ async function saveCustomCard(card){
     address:card.addr,
     phone:card.phone,
     reason:card.reason,
-    zone_name:card.zoneName||'',
-    incident:card.incident||'',
+    zone_name:'',
+    incident:'',
     issued_at:Date.now(),
     issued_by:operatorName,
     status:'Active',
@@ -1717,7 +1705,6 @@ async function reprintRegistryCard(card){
   document.getElementById('cfn').value=card.fn;document.getElementById('cln').value=card.ln;
   document.getElementById('caddr').value=card.addr;document.getElementById('cphone').value=card.phone;
   document.getElementById('creason').value=card.reason;
-  setCardZoneByName(card.zoneName||'');
   await showCardPreview({...card});
   await printCard();
 }
@@ -1728,7 +1715,6 @@ async function generateCard(){
   const addr=document.getElementById('caddr').value.trim();
   const phone=document.getElementById('cphone').value.trim();
   const reason=document.getElementById('creason').value.trim();
-  const zoneChoice=getCardZoneSelection();
   if(!fn||!ln||!addr){alert('Name and address are required');return}
   const btn=document.getElementById('generateCardBtn');
   btn.disabled=true;btn.textContent=editingCard?'Saving changes…':'Saving card…';
@@ -1748,9 +1734,9 @@ async function generateCard(){
       const cardId=createCardId();
       // The QR carries only an opaque card ID. Cardholder details are retrieved
       // from the private registry after every scan.
-      const card={fn,ln,addr,phone,reason,cardId,zoneName:zoneChoice?.name||'',incident:zoneChoice?.incident||''};
+      const card={fn,ln,addr,phone,reason,cardId};
       const result=await saveCustomCard(card);card.objectId=result.objectId;
-      duplicateContext=null;await showCardPreview(card);cardRegistry.unshift(card);
+      await showCardPreview(card);cardRegistry.unshift(card);
     }
   }catch(e){console.error('Card save error:',e);alert('Card was not saved: '+e.message)}
   finally{btn.disabled=false;btn.textContent='Generate card'}
@@ -2202,7 +2188,6 @@ async function handleCardBarcodeResult(result){
       parsed=await getApprovedCard(qd);
       document.getElementById('cphone').value=parsed.phone;
       document.getElementById('creason').value=parsed.reason;
-      setCardZoneByName(parsed.zoneName||'');
     }catch(e){
       ws.className='wedge-status invalid';
       ws.textContent='CARD NOT APPROVED — '+(e?.message||'registry check failed');
