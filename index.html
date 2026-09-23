@@ -151,6 +151,8 @@ tr:hover td{background:#fafafa}
 .wedge-status.listening{display:block;background:#eff6ff;color:var(--ac);border:1px solid #bfdbfe}
 .wedge-status.captured{display:block;background:var(--gb);color:var(--gd);border:1px solid var(--gn)}
 .wedge-status.invalid{display:block;background:var(--rb2);color:var(--rdd);border:1px solid var(--rd)}
+.privacy-note{margin:8px 0 12px;padding:9px 10px;border:1px solid #cbd5e1;border-radius:7px;background:#f8fafc;color:#475569;font-size:10px;line-height:1.45;text-align:left}
+.privacy-note strong{color:var(--navy)}
 
 /* Live mobile scanner */
 .live-scanner{position:relative;overflow:hidden;border-radius:10px;background:#111827;margin-bottom:10px;min-height:155px}
@@ -280,6 +282,7 @@ tr:hover td{background:#fafafa}
   <div class="mh"><h2>Checkpoint Login</h2></div>
   <div class="af"><label>Operator name</label><input type="text" id="opIn" placeholder="Your name" autocomplete="name"/></div>
   <div class="print-hint">Continue to ArcGIS Online to authenticate the shared account. The EZcard page never receives or stores the ArcGIS password.</div>
+  <div class="privacy-note"><strong>Privacy:</strong> Driver-license barcodes are processed temporarily in this browser. EZcard does not retain or transmit the license number, date of birth, or license image. Name, address, phone number, and checkpoint activity may be stored in the County's secured ArcGIS Online records.</div>
   <div class="ss" id="loginStatus"></div>
   <button class="cb" id="loginBtn" onclick="doLogin()">Sign in with ArcGIS Online</button>
  </div>
@@ -875,13 +878,12 @@ function showS2(cls,v,d){const r=document.getElementById('s2res');r.style.displa
 function parseAAMVA(raw){
   const f={};
 
-  // Full field mapping: standard AAMVA + older/alternate codes
+  // Return only the operational fields needed by EZcard. Other AAMVA field
+  // codes remain in fieldCodes solely to delimit the barcode correctly; their
+  // values are never copied into the parsed result.
   const fm={
     // Name fields — current spec (v3+)
     'DCS':'lastName','DCT':'firstAndMiddle','DCU':'suffix',
-    // Name truncation indicators (N = not truncated, T = truncated,
-    // U = unknown). These are metadata and must not become part of a name.
-    'DDE':'lastNameTruncated','DDF':'firstNameTruncated','DDG':'middleNameTruncated',
     // Name fields — older spec (v1-2) and alternates
     'DAB':'lastName','DAC':'firstName','DAD':'middleName',
     'DAE':'suffix','DAF':'prefix',
@@ -891,20 +893,19 @@ function parseAAMVA(raw){
     'DAG':'street','DAH':'street2','DAI':'city','DAJ':'state','DAK':'zip',
     // Address — alternate set (some states use these instead)
     'DAL':'street','DAM':'city','DAN':'state','DAO':'zip',
-    // License info
-    'DAQ':'licenseNum','DBA':'expiry','DBB':'dob','DBC':'sex',
-    'DBD':'issueDate',
-    // Physical
-    'DAU':'height','DAW':'weight','DAY':'hairColor','DAZ':'hairColor',
-    // Jurisdiction
-    'DCG':'country','DCD':'vehicleClass','DCF':'documentId',
   };
+
+  const fieldCodes=[
+    ...Object.keys(fm),
+    // Sensitive or unnecessary fields: boundaries only; values are ignored.
+    'DAQ','DBA','DBB','DBC','DBD','DAU','DAW','DAY','DAZ','DCG','DCD','DCF',
+    'DDE','DDF','DDG'
+  ];
 
   // Zebra HID output may turn AAMVA control separators into ordinary spaces.
   // Restore a boundary before a known field code when it follows whitespace or
   // the DL subfile designator, then split the records normally.
-  const fieldCodes=Object.keys(fm).join('|');
-  const fieldBoundary=new RegExp('(?:[\\x00-\\x20]+|DL)(?=(?:'+fieldCodes+'))','g');
+  const fieldBoundary=new RegExp('(?:[\\x00-\\x20]+|DL)(?=(?:'+fieldCodes.join('|')+'))','g');
   const normalizedRaw=String(raw||'').replace(fieldBoundary,'\n');
   const lines=normalizedRaw.split(/[\x1e\x1d\x0a\x0d]+/);
 
@@ -920,7 +921,7 @@ function parseAAMVA(raw){
     if(cleaned.length<4) continue;
 
     let fieldIndex=-1;
-    for(const candidate of Object.keys(fm)){
+    for(const candidate of fieldCodes){
       const i=cleaned.indexOf(candidate);
       if(i!==-1&&(fieldIndex===-1||i<fieldIndex)){
         fieldIndex=i;
@@ -928,15 +929,14 @@ function parseAAMVA(raw){
       }
     }
     if(fieldIndex===-1)continue;
+    const target=fm[code];
+    if(!target)continue;
     val=cleaned.substring(fieldIndex+3).trim();
 
     // Strip trailing control characters
     val=val.replace(/[\x00-\x1f]+$/,'');
 
     if(!val) continue;
-
-    const target=fm[code];
-    if(!target) continue;
 
     // Don't overwrite — first value wins (some states duplicate fields)
     if(target==='fullName'){
@@ -981,9 +981,11 @@ function parseAAMVA(raw){
   if(!f.firstName||!f.lastName||!f.street||!f.city||!f.state||!f.zip){
     const fallbackMap={
       DCS:'lastName',DAC:'firstName',DCT:'firstAndMiddle',DAD:'middleName',
-      DAG:'street',DAH:'street2',DAI:'city',DAJ:'state',DAK:'zip',DAQ:'licenseNum'
+      DAG:'street',DAH:'street2',DAI:'city',DAJ:'state',DAK:'zip'
     };
-    const fallbackCodes=Object.keys(fallbackMap);
+    // Include ignored codes as delimiters so their values cannot become part
+    // of an adjacent name or address when a scanner removes all separators.
+    const fallbackCodes=fieldCodes;
     const markerPattern=new RegExp('('+fallbackCodes.join('|')+')','g');
     const source=String(raw||'');
     const markers=[...source.matchAll(markerPattern)];
@@ -991,9 +993,10 @@ function parseAAMVA(raw){
       const code=markers[i][1];
       const start=markers[i].index+3;
       const end=i+1<markers.length?markers[i+1].index:source.length;
+      const target=fallbackMap[code];
+      if(!target)continue;
       const val=source.substring(start,end).replace(/[\x00-\x20]+$/g,'').trim();
       if(!val)continue;
-      const target=fallbackMap[code];
       if(target==='firstAndMiddle'&&!f.firstName){
         const parts=val.split(/[,\s]+/).filter(Boolean);
         f.firstName=parts.shift()||'';
@@ -1023,41 +1026,6 @@ function parseAAMVA(raw){
     }
     // Trim trailing zeros beyond 9 digits
     if(f.zip.length>10)f.zip=f.zip.substring(0,10);
-  }
-
-  // Normalize DOB: states use MMDDYYYY, YYYYMMDD, or sometimes MM/DD/YYYY
-  if(f.dob){
-    const d=f.dob.replace(/[\/\-]/g,'');
-    if(d.length===8){
-      // Detect YYYYMMDD vs MMDDYYYY
-      const firstFour=parseInt(d.substring(0,4));
-      if(firstFour>1900&&firstFour<2100){
-        // YYYYMMDD
-        f.dob=d.substring(4,6)+'/'+d.substring(6,8)+'/'+d.substring(0,4);
-      }else{
-        // MMDDYYYY (most common)
-        f.dob=d.substring(0,2)+'/'+d.substring(2,4)+'/'+d.substring(4);
-      }
-    }
-  }
-
-  // Normalize expiry same way
-  if(f.expiry){
-    const d=f.expiry.replace(/[\/\-]/g,'');
-    if(d.length===8){
-      const firstFour=parseInt(d.substring(0,4));
-      if(firstFour>1900&&firstFour<2100){
-        f.expiry=d.substring(4,6)+'/'+d.substring(6,8)+'/'+d.substring(0,4);
-      }else{
-        f.expiry=d.substring(0,2)+'/'+d.substring(2,4)+'/'+d.substring(4);
-      }
-    }
-  }
-
-  // Sex code to label
-  if(f.sex){
-    const s={'1':'M','2':'F','9':'X'};
-    f.sex=s[f.sex]||f.sex;
   }
 
   return f;
@@ -1296,7 +1264,7 @@ const wedge=(function(){
     const isAAMVA=raw.includes('DAQ')||raw.includes('DCS')||raw.includes('DAC')||raw.includes('DAA')||raw.includes('ANSI ')||raw.includes('AAMVA');
     if(isAAMVA){
       const parsed=parseAAMVA(raw);
-      if(parsed.licenseNum||parsed.lastName){
+      if(parsed.firstName||parsed.lastName||parsed.street){
         await handleDLScan(parsed);return;
       }
     }
@@ -2137,7 +2105,7 @@ async function handleCheckpointBarcodeResult(result){
     await doCheck({autoAdvance:true});
   }else{
     const parsed=parseAAMVA(raw);
-    if(!parsed.licenseNum&&!parsed.lastName)throw new Error('Driver license data could not be parsed');
+    if(!parsed.firstName&&!parsed.lastName&&!parsed.street)throw new Error('Driver license data could not be parsed');
     await applyCheckpointDL(parsed);
   }
   window.LPCLiveScanner?.pause();
@@ -2235,7 +2203,7 @@ async function handleCardBarcodeResult(result){
     }
   }else{
     parsed=parseAAMVA(raw);
-    if(!parsed.licenseNum&&!parsed.lastName)throw new Error('Driver license data could not be parsed');
+    if(!parsed.firstName&&!parsed.lastName&&!parsed.street)throw new Error('Driver license data could not be parsed');
   }
   document.getElementById('cfn').value=titleCase(parsed.firstName||'');
   document.getElementById('cln').value=titleCase(parsed.lastName||'');
