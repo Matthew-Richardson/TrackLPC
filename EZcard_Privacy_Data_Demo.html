@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EZcard Privacy & Data Flow Demo</title>
+<style>
+:root{--navy:#17324d;--blue:#1769aa;--orange:#b65d0a;--green:#08775b;--red:#9f2525;--bg:#f3f5f7;--card:#fff;--line:#d5d9df;--text:#172033;--muted:#5e6878}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}header{background:var(--navy);color:#fff;padding:18px 22px}header h1{font-size:21px;margin:0 0 3px}header p{font-size:12px;margin:0;color:#d9e4ee}.wrap{max-width:1040px;margin:auto;padding:20px}.notice{padding:12px 14px;border:1px solid #e8b66f;border-radius:9px;background:#fff7e8;color:#70400b;font-size:13px;line-height:1.45;margin-bottom:15px}.panel{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:17px;margin-bottom:15px;box-shadow:0 1px 3px rgba(15,23,42,.05)}h2{font-size:17px;margin:0 0 11px;color:var(--navy)}h3{font-size:13px;margin:0 0 7px;color:var(--navy)}p{line-height:1.5}.sub{font-size:12px;color:var(--muted);margin:0 0 12px}.controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}button{border:1px solid var(--line);border-radius:7px;padding:9px 12px;background:#fff;color:var(--text);font-weight:650;cursor:pointer}button.primary{background:var(--blue);border-color:var(--blue);color:#fff}button:hover{filter:brightness(.97)}textarea{display:block;width:100%;min-height:190px;padding:11px;border:1px solid var(--line);border-radius:8px;font:12px ui-monospace,SFMono-Regular,Consolas,monospace;resize:vertical;color:var(--text);background:#fbfcfd}.status{margin-top:10px;padding:9px 11px;border-radius:7px;background:#eaf8f3;color:#075f49;font-size:12px;font-weight:650}.flow{display:grid;grid-template-columns:1fr 42px 1fr 42px 1fr;align-items:stretch;gap:8px}.step{border:1px solid var(--line);border-radius:9px;padding:12px;background:#fff}.step strong{display:block;color:var(--navy);font-size:13px;margin-bottom:5px}.step span{font-size:12px;line-height:1.4;color:var(--muted)}.arrow{align-self:center;text-align:center;color:var(--blue);font-size:25px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.tag{display:inline-block;padding:2px 6px;border-radius:10px;font-size:10px;font-weight:700}.used{background:#d9f5e9;color:#086348}.ignored{background:#eef1f4;color:#596273}.sensitive{background:#fde8e8;color:#8d2020}table{width:100%;border-collapse:collapse;font-size:12px}th,td{text-align:left;padding:7px 8px;border-bottom:1px solid #e8ebef;vertical-align:top}th{background:#f6f7f9;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.04em}td code{font-size:11px}pre{white-space:pre-wrap;word-break:break-word;background:#f6f7f9;border:1px solid var(--line);border-radius:8px;padding:11px;font-size:11px;line-height:1.45;min-height:100px}.transfer{border-left:4px solid var(--blue);padding:8px 11px;margin:8px 0;background:#f7fafc}.transfer.no{border-left-color:var(--green)}.transfer strong{display:block;font-size:12px}.transfer span{font-size:11px;color:var(--muted)}.empty{color:var(--muted);font-size:12px;font-style:italic}.foot{font-size:11px;color:var(--muted);text-align:center;margin:17px 0}.hidden{display:none}@media(max-width:760px){.grid{grid-template-columns:1fr}.flow{grid-template-columns:1fr}.arrow{transform:rotate(90deg)}.wrap{padding:12px}header{padding:15px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>La Plata County EZcard</h1>
+  <p>Privacy and data-flow demonstration · simulation only</p>
+</header>
+<main class="wrap">
+  <div class="notice"><strong>Use synthetic information for demonstrations.</strong> This page performs all processing locally and contains no network requests, external libraries, analytics, or storage. It does not contact ArcGIS Online, a geocoder, OpenAI, or any other service.</div>
+
+  <section class="panel">
+    <h2>1. Provide a test barcode</h2>
+    <p class="sub">Load a safe example or paste test scanner output. The raw text remains in this browser tab.</p>
+    <div class="controls">
+      <button type="button" id="loadDl">Load synthetic driver license</button>
+      <button type="button" id="loadCard">Load synthetic EZcard</button>
+      <button type="button" class="primary" id="runDemo">Run demonstration</button>
+    </div>
+    <label for="rawInput"><strong>Raw barcode content</strong></label>
+    <textarea id="rawInput" spellcheck="false" aria-describedby="localStatus"></textarea>
+    <div class="status" id="localStatus">Local simulation: nothing has been transmitted or saved.</div>
+  </section>
+
+  <section class="panel">
+    <h2>2. Follow the process</h2>
+    <div class="flow" aria-label="Barcode data flow">
+      <div class="step"><strong>Scanner</strong><span>Reads the complete physical barcode and gives the raw text to the webpage.</span></div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="step"><strong>Browser</strong><span>Recognizes the barcode type, extracts allowed fields, and ignores unnecessary fields.</span></div>
+      <div class="arrow" aria-hidden="true">→</div>
+      <div class="step"><strong>Operational services</strong><span>In production, only the identified address and necessary checkpoint or card record are transferred.</span></div>
+    </div>
+  </section>
+
+  <div id="results" class="hidden">
+    <section class="panel">
+      <h2>3. Inspect the decoded fields</h2>
+      <div id="fieldTable"></div>
+    </section>
+
+    <div class="grid">
+      <section class="panel">
+        <h2>Information EZcard uses</h2>
+        <div id="usedFields"></div>
+      </section>
+      <section class="panel">
+        <h2>Information EZcard discards</h2>
+        <div id="discardedFields"></div>
+      </section>
+    </div>
+
+    <section class="panel">
+      <h2>4. What production EZcard would transfer</h2>
+      <div id="transferList"></div>
+      <h3>Illustrative checkpoint record</h3>
+      <pre id="recordPreview"></pre>
+    </section>
+  </div>
+  <p class="foot">This demonstration intentionally makes no external requests. It explains the production workflow but does not validate ArcGIS permissions, retention, or availability.</p>
+</main>
+<script>
+const syntheticDL=`@\nANSI 636000000002DLDAQD123456789\nDCSDOE\nDCTJANE MARIE\nDBB01011990\nDBA01012030\nDBC2\nDAU068 IN\nDAG123 MAIN ST\nDAIDURANGO\nDAJCO\nDAK813010000\nDCFDEMO-DOCUMENT-001`;
+const syntheticCard=JSON.stringify({t:'card',id:'LPC-DEMO-7A4F29C1',v:2});
+const labels={DAQ:'Driver-license number',DCS:'Last name',DCT:'First and middle name',DAC:'First name',DAD:'Middle name',DAA:'Full name',DBB:'Date of birth',DBA:'Expiration date',DBC:'Sex',DBD:'Issue date',DAU:'Height',DAW:'Weight',DAG:'Street address',DAH:'Address line 2',DAI:'City',DAJ:'State',DAK:'ZIP code',DCF:'Document ID',DCG:'Country',DCD:'Vehicle class',DDE:'Last-name truncation flag',DDF:'First-name truncation flag',DDG:'Middle-name truncation flag'};
+const usedCodes=new Set(['DCS','DCT','DAC','DAD','DAA','DAG','DAH','DAI','DAJ','DAK']);
+const sensitiveCodes=new Set(['DAQ','DBB','DBA','DBC','DBD','DAU','DAW','DCF']);
+
+function extractFields(raw){
+  const codes=Object.keys(labels);
+  const pattern=new RegExp('('+codes.join('|')+')','g');
+  const markers=[...String(raw||'').matchAll(pattern)];
+  const fields=[];const seen=new Set();
+  for(let i=0;i<markers.length;i++){
+    const code=markers[i][1];
+    if(seen.has(code))continue;
+    const start=markers[i].index+3;
+    const end=i+1<markers.length?markers[i+1].index:String(raw).length;
+    const value=String(raw).slice(start,end).replace(/[\x00-\x20]+/g,' ').trim();
+    if(value){fields.push({code,label:labels[code]||code,value});seen.add(code)}
+  }
+  return fields;
+}
+
+function getValue(fields,...codes){for(const code of codes){const hit=fields.find(f=>f.code===code);if(hit)return hit.value}return''}
+function titleCase(value){return String(value||'').toLowerCase().replace(/\b\w/g,c=>c.toUpperCase())}
+function normalizeZip(value){const z=String(value||'').replace(/\s+/g,'');return /^\d{5}0{4}$/.test(z)?z.slice(0,5):z}
+function addText(parent,tag,text,className){const el=document.createElement(tag);if(className)el.className=className;el.textContent=text;parent.appendChild(el);return el}
+
+function renderTable(fields){
+  const host=document.getElementById('fieldTable');host.replaceChildren();
+  if(!fields.length){addText(host,'p','No recognized AAMVA fields were found.','empty');return}
+  const table=document.createElement('table');
+  const head=document.createElement('thead'),hr=document.createElement('tr');
+  ['Code','Meaning','Synthetic value','EZcard handling'].forEach(x=>addText(hr,'th',x));head.appendChild(hr);table.appendChild(head);
+  const body=document.createElement('tbody');
+  fields.forEach(field=>{
+    const row=document.createElement('tr');addText(row,'td',field.code);addText(row,'td',field.label);addText(row,'td',field.value);
+    const td=document.createElement('td');const span=addText(td,'span',usedCodes.has(field.code)?'Used':'Discarded','tag '+(usedCodes.has(field.code)?'used':sensitiveCodes.has(field.code)?'sensitive':'ignored'));row.appendChild(td);body.appendChild(row);
+  });
+  table.appendChild(body);host.appendChild(table);
+}
+
+function renderDriverLicense(raw){
+  const fields=extractFields(raw);renderTable(fields);
+  const first=titleCase(getValue(fields,'DCT','DAC').split(/[ ,]+/)[0]);
+  const last=titleCase(getValue(fields,'DCS'));
+  const street=titleCase(getValue(fields,'DAG'));
+  const city=titleCase(getValue(fields,'DAI'));
+  const state=getValue(fields,'DAJ').toUpperCase();
+  const zip=normalizeZip(getValue(fields,'DAK'));
+  const locality=[city,[state,zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+  const address=[street,locality].filter(Boolean).join(', ');
+
+  const used=document.getElementById('usedFields');used.replaceChildren();
+  addText(used,'p','Name: '+([first,last].filter(Boolean).join(' ')||'Not found'));
+  addText(used,'p','Address: '+(address||'Not found'));
+  addText(used,'p','These values exist temporarily in the browser and become operational fields.','sub');
+
+  const discarded=document.getElementById('discardedFields');discarded.replaceChildren();
+  const ignored=fields.filter(f=>!usedCodes.has(f.code));
+  if(!ignored.length)addText(discarded,'p','No unnecessary fields were recognized.','empty');
+  ignored.forEach(f=>addText(discarded,'p',f.label+': '+f.value));
+  addText(discarded,'p','The production parser does not return these fields or include them in an AGOL edit.','sub');
+
+  const transfers=document.getElementById('transferList');transfers.replaceChildren();
+  transfer(transfers,'ArcGIS World Geocoding Service',address||'Address not found','Address only, used to locate and verify the evacuation zone.');
+  transfer(transfers,'Secured AGOL checkpoint table','Operational record','Name, address, operator-entered phone, IN/OUT direction, time, operator, zone, notes, scan type, and verified map point.');
+  transfer(transfers,'Not transferred','DL number, DOB, expiration, sex, physical fields, document ID, raw barcode or image','These fields are discarded in the browser.',true);
+  document.getElementById('recordPreview').textContent=JSON.stringify({name:[first,last].filter(Boolean).join(' '),address,phone:'(970) 555-0100',direction:'IN',check_time:'Current timestamp',operator_name:'Demo Operator',zone_name:'Selected evacuation zone',card_type:'DL',notes:'',geometry:'Verified geocoder point'},null,2);
+}
+
+function renderCard(raw){
+  let card;try{card=JSON.parse(raw)}catch(e){card=null}
+  const host=document.getElementById('fieldTable');host.replaceChildren();
+  if(!card||card.t!=='card'||!card.id){addText(host,'p','This is not a recognized synthetic EZcard QR payload.','empty');return}
+  const table=document.createElement('table'),body=document.createElement('tbody');
+  [['Type',card.t,'Routing only'],['Card ID',card.id,'Used for secured registry lookup'],['Version',String(card.v||''),'Format version']].forEach(values=>{const row=document.createElement('tr');values.forEach(v=>addText(row,'td',v));body.appendChild(row)});table.appendChild(body);host.appendChild(table);
+  const used=document.getElementById('usedFields');used.replaceChildren();addText(used,'p','Opaque card ID: '+card.id);addText(used,'p','The ID is used to retrieve the approved County registry record.','sub');
+  const discarded=document.getElementById('discardedFields');discarded.replaceChildren();addText(discarded,'p','The printed QR does not contain the cardholder name, address, phone number, or reason.','sub');
+  const transfers=document.getElementById('transferList');transfers.replaceChildren();
+  transfer(transfers,'Secured AGOL card registry',card.id,'The card ID is submitted for approval and record lookup.');
+  transfer(transfers,'Returned to the authenticated browser','Approved card record','Name, address, phone, reason and status are returned only after the registry approves the ID.');
+  transfer(transfers,'Not encoded in the QR','Name, address, phone and reason','Cardholder details cannot be read directly from the printed QR.',true);
+  document.getElementById('recordPreview').textContent=JSON.stringify({card_id:card.id,lookup:'Secured registry query',checkpoint_record:'Created only after approval and operator confirmation'},null,2);
+}
+
+function transfer(parent,title,value,detail,isNo){const box=document.createElement('div');box.className='transfer'+(isNo?' no':'');addText(box,'strong',title+' — '+value);addText(box,'span',detail);parent.appendChild(box)}
+function run(){
+  const raw=document.getElementById('rawInput').value.trim();
+  document.getElementById('results').classList.remove('hidden');
+  if(raw.startsWith('{'))renderCard(raw);else renderDriverLicense(raw);
+  document.getElementById('localStatus').textContent='Demonstration complete: no network request was made and nothing was saved.';
+}
+document.getElementById('loadDl').addEventListener('click',()=>{document.getElementById('rawInput').value=syntheticDL;run()});
+document.getElementById('loadCard').addEventListener('click',()=>{document.getElementById('rawInput').value=syntheticCard;run()});
+document.getElementById('runDemo').addEventListener('click',run);
+document.getElementById('rawInput').value=syntheticDL;run();
+</script>
+</body>
+</html>
