@@ -153,6 +153,14 @@ tr:hover td{background:#fafafa}
 .wedge-status.invalid{display:block;background:var(--rb2);color:var(--rdd);border:1px solid var(--rd)}
 .privacy-note{margin:8px 0 12px;padding:9px 10px;border:1px solid #cbd5e1;border-radius:7px;background:#f8fafc;color:#475569;font-size:10px;line-height:1.45;text-align:left}
 .privacy-note strong{color:var(--navy)}
+.privacy-link{display:block;margin:0 auto 10px;border:0;background:transparent;color:var(--scan);font-size:11px;font-weight:600;text-decoration:underline;cursor:pointer}
+.privacy-link:hover{color:var(--scan-dark)}
+.privacy-modal{z-index:2100}
+.privacy-summary{display:grid;gap:10px}
+.privacy-section{padding:10px 11px;border:1px solid var(--bd);border-radius:8px;background:#f8fafc}
+.privacy-section h3{font-size:12px;color:var(--navy);margin-bottom:5px}
+.privacy-section p,.privacy-section li{font-size:11px;line-height:1.45;color:#475569}
+.privacy-section ul{margin:5px 0 0 17px}
 
 /* Live mobile scanner */
 .live-scanner{position:relative;overflow:hidden;border-radius:10px;background:#111827;margin-bottom:10px;min-height:155px}
@@ -283,8 +291,39 @@ tr:hover td{background:#fafafa}
   <div class="af"><label>Operator name</label><input type="text" id="opIn" placeholder="Your name" autocomplete="name"/></div>
   <div class="print-hint">Continue to ArcGIS Online to authenticate the shared account. The EZcard page never receives or stores the ArcGIS password.</div>
   <div class="privacy-note"><strong>Privacy:</strong> Driver-license barcodes are processed temporarily in this browser. EZcard does not retain or transmit the license number, date of birth, or license image. Name, address, phone number, and checkpoint activity may be stored in the County's secured ArcGIS Online records.</div>
+  <button class="privacy-link" type="button" onclick="openPrivacyModal()">Privacy &amp; Data Use</button>
   <div class="ss" id="loginStatus"></div>
   <button class="cb" id="loginBtn" onclick="doLogin()">Sign in with ArcGIS Online</button>
+ </div>
+</div>
+
+<!-- PRIVACY AND DATA USE MODAL -->
+<div class="mo privacy-modal" id="privacyModal" role="dialog" aria-modal="true" aria-labelledby="privacyTitle">
+ <div class="md" style="max-width:520px">
+  <div class="mh"><h2 id="privacyTitle">Privacy &amp; Data Use</h2><button class="mx" type="button" onclick="closePrivacyModal()" aria-label="Close privacy information">×</button></div>
+  <div class="privacy-summary">
+    <section class="privacy-section">
+      <h3>Information EZcard stores</h3>
+      <p>Secured County ArcGIS Online records may include name, authorized address, phone number, checkpoint direction and time, operator, evacuation zone, notes, card ID, and card-issuance details.</p>
+    </section>
+    <section class="privacy-section">
+      <h3>Information EZcard does not store</h3>
+      <p>EZcard does not retain the driver's-license number, date of birth, issue or expiration date, sex, physical characteristics, raw license barcode, or a license image.</p>
+    </section>
+    <section class="privacy-section">
+      <h3>Where information is sent</h3>
+      <ul>
+        <li>The address is sent to the ArcGIS World Geocoding Service for location and zone verification.</li>
+        <li>Necessary checkpoint and card records are sent to the County's secured ArcGIS Online tables.</li>
+        <li>ArcGIS credentials are entered directly through ArcGIS Online authentication; EZcard receives a temporary access token, not the password.</li>
+      </ul>
+    </section>
+    <section class="privacy-section">
+      <h3>What happens during a barcode scan</h3>
+      <p>The complete barcode is read temporarily in the operator's browser. EZcard extracts only the operational name and address fields from a driver's license, ignores the remaining fields, and does not retain the raw barcode. EZcard QR codes contain only an opaque card ID used to retrieve the approved County record.</p>
+    </section>
+  </div>
+  <button class="rst" type="button" onclick="closePrivacyModal()">Close</button>
  </div>
 </div>
 
@@ -482,6 +521,9 @@ async function signOutOfArcGIS(){
   oauthManager=null;agolToken='';operatorName='';
   location.reload();
 }
+
+function openPrivacyModal(){document.getElementById('privacyModal').classList.add('open')}
+function closePrivacyModal(){document.getElementById('privacyModal').classList.remove('open')}
 
 // ---- MAP ----
 map=L.map('map',{zoomControl:true}).setView([37.28,-107.88],10);
