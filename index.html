@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>La Plata County EZtag</title>
+<title>La Plata County EZcard</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/esri-leaflet/3.0.12/esri-leaflet.min.js"></script>
@@ -83,6 +83,7 @@ tr:hover td{background:#fafafa}
 .empty-mark{width:18px;height:18px;border:4px solid #94a3b8;border-radius:50%;opacity:.65}
 .di{color:var(--gn);font-weight:600}.do{color:var(--rd);font-weight:600}
 .lt{font-variant-numeric:tabular-nums;color:var(--mu)}
+.phone-link{color:var(--scan-dark);font-weight:700;text-decoration:underline;text-underline-offset:2px}.phone-link:hover{color:var(--scan)}
 
 /* MODALS */
 .mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;align-items:flex-end;justify-content:center}
@@ -128,6 +129,7 @@ tr:hover td{background:#fafafa}
 
 .rst{width:100%;padding:9px;border:1px solid var(--bd);border-radius:8px;background:var(--sf);font-size:13px;cursor:pointer;color:var(--tx);margin-top:6px}
 .checkin-card-btn{background:var(--gn)!important}.checkin-card-btn:hover{background:#059669!important}
+.card-checkin-status{display:none;margin:-2px 0 10px;padding:9px 10px;border-radius:8px;font-size:11px;text-align:center}.card-checkin-status.ok{display:block;background:var(--gb);border:1px solid var(--gn);color:var(--gd)}.card-checkin-status.error{display:block;background:var(--rb2);border:1px solid var(--rd);color:var(--rdd)}
 
 /* START / MODE GUIDE */
 .guide-md{max-width:620px!important;padding:20px!important}
@@ -203,9 +205,9 @@ tr:hover td{background:#fafafa}
 <body>
 
 <header>
-  <button class="brand" type="button" onclick="openModeGuide()" aria-label="Open EZtag mode guide">
+  <button class="brand" type="button" onclick="openModeGuide()" aria-label="Open EZcard mode guide">
     <img class="brand-logo" id="appLogo" alt="La Plata County logo"/>
-    <span class="brand-copy"><span class="brand-title">La Plata County EZtag</span><small>EVACUATION ZONE TAG</small></span>
+    <span class="brand-copy"><span class="brand-title">La Plata County EZcard</span><small>EVACUATION ZONE CARD</small></span>
   </button>
   <div class="mode-toggle" id="modeToggle">
     <div class="mt-thumb"></div>
@@ -261,10 +263,10 @@ tr:hover td{background:#fafafa}
 <!-- EZTAG MODE GUIDE -->
 <div class="mo" id="modeGuide">
  <div class="md guide-md">
-  <div class="mh"><div class="guide-brand"><img id="guideLogo" alt="La Plata County logo"/><div><h2>La Plata County EZtag</h2><p>Evacuation Zone Tag</p></div></div><button class="mx" onclick="closeModeGuide()">×</button></div>
+  <div class="mh"><div class="guide-brand"><img id="guideLogo" alt="La Plata County logo"/><div><h2>La Plata County EZcard</h2><p>Evacuation Zone Card</p></div></div><button class="mx" onclick="closeModeGuide()">×</button></div>
   <div class="mode-guide-grid">
-    <button class="mode-guide-card" type="button" onclick="chooseMode('scan')"><span class="mode-guide-icon">📍</span><strong>Checkpoint mode</strong><span>Scan a driver license or EZtag, verify the address, and record IN or OUT.</span></button>
-    <button class="mode-guide-card card-choice" type="button" onclick="chooseMode('card')"><span class="mode-guide-icon">🪪</span><strong>Custom Card mode</strong><span>Create, print, update, or reprint an EZtag for an authorized cardholder.</span></button>
+    <button class="mode-guide-card" type="button" onclick="chooseMode('scan')"><span class="mode-guide-icon">📍</span><strong>Checkpoint mode</strong><span>Scan a driver license or EZcard, verify the address, and record IN or OUT.</span></button>
+    <button class="mode-guide-card card-choice" type="button" onclick="chooseMode('card')"><span class="mode-guide-icon">🪪</span><strong>Custom Card mode</strong><span>Create, print, update, or reprint an EZcard for an authorized cardholder.</span></button>
     <button class="mode-guide-card map-choice" type="button" onclick="chooseMode('map')"><span class="mode-guide-icon">🗺️</span><strong>Map &amp; activity mode</strong><span>Review evacuation zones and see who is currently recorded inside a selected zone.</span></button>
   </div>
  </div>
@@ -394,7 +396,8 @@ tr:hover td{background:#fafafa}
       <button class="btn-outline" onclick="savePNG()">Save PNG</button>
     </div>
     <div class="print-hint"><strong>ZC300 print settings:</strong> CR‑80 card · Landscape · Actual size/100% · Margins None · Headers and footers Off · One copy. The app rotates the portrait badge onto one physical card.</div>
-    <button class="cb checkin-card-btn" onclick="checkInLastCard()">Check in this cardholder</button>
+    <button class="cb checkin-card-btn" id="cardCheckinBtn" onclick="checkInLastCard()">Check in this cardholder</button>
+    <div class="card-checkin-status" id="cardCheckinStatus" role="status"></div>
     <button class="rst" onclick="editLastCard()">Edit name or phone</button>
     <button class="rst" onclick="duplicateLastCard()">Duplicate for another person</button>
     <button class="rst" onclick="nextCustomCard()">Create a different card</button>
@@ -430,7 +433,7 @@ let activityFilter='current',currentInsideRows=[];
 let operatorName='',agolToken='';
 let lastCheck=null,parsedDL=null,selectedDir=null;
 let cardRegistry=[],editingCard=null,duplicateContext=null;
-let pendingCheckInCard=null,refreshInFlight=false;
+let refreshInFlight=false;
 
 // ---- AGOL LOGIN ----
 async function doLogin(){
@@ -518,8 +521,7 @@ async function selectZone(oid,{fit=true}={}){
   if(document.getElementById('modal').classList.contains('open')){
     document.getElementById('scanBody').style.display='';
     wedge.setTarget('checkpoint');
-    if(pendingCheckInCard)requestAnimationFrame(()=>applyPendingCardCheckIn());
-    else requestAnimationFrame(()=>window.LPCLiveScanner?.start());
+    requestAnimationFrame(()=>window.LPCLiveScanner?.start());
   }
   setLoading(true);
   try{
@@ -599,6 +601,13 @@ function getFilteredLogRows(){
   return rows;
 }
 
+function escapeTableHTML(value){return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}
+function phoneLink(value){
+  const label=String(value||'').trim();if(!label)return'';
+  const dial=(label.startsWith('+')?'+':'')+label.replace(/\D/g,'');
+  return dial.replace(/\D/g,'').length>=7?`<a class="phone-link" href="tel:${dial}">${escapeTableHTML(label)}</a>`:escapeTableHTML(label);
+}
+
 function renderLog(){
   const rows=getFilteredLogRows();
   const emp=document.getElementById('emp');emp.style.display=rows.length?'none':'';document.getElementById('dt').style.display=rows.length?'':'none';
@@ -607,7 +616,7 @@ function renderLog(){
   document.getElementById('dtb').innerHTML=rows.map(r=>{
     const t=r.check_time?new Date(r.check_time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'—';
     const status=r._currentlyIn?'CURRENTLY IN':(r.direction||'');
-    return`<tr><td class="lt">${t}</td><td class="${String(r.direction).toUpperCase()==='IN'?'di':'do'}">${status}</td><td>${r.name||''}</td><td>${r.address||''}</td><td>${r.phone||''}</td><td>${r.operator_name||''}</td><td>${r.card_type||''}</td></tr>`}).join('');
+    return`<tr><td class="lt">${t}</td><td class="${String(r.direction).toUpperCase()==='IN'?'di':'do'}">${escapeTableHTML(status)}</td><td>${escapeTableHTML(r.name)}</td><td>${escapeTableHTML(r.address)}</td><td>${phoneLink(r.phone)}</td><td>${escapeTableHTML(r.operator_name)}</td><td>${escapeTableHTML(r.card_type)}</td></tr>`}).join('');
 }
 function doExport(){
   const data=activeTab==='parcels'?pData:activeTab==='addrs'?aData:getFilteredLogRows();
@@ -621,25 +630,26 @@ function doExport(){
 function setLoading(on){document.getElementById('lb').classList.toggle('on',on)}
 
 function refreshZoneLayer(){
-  return new Promise(resolve=>{
-    let done=false;
-    const finish=()=>{if(done)return;done=true;rebuildZoneCatalog();resolve()};
-    evacLayer.once('load',finish);
-    evacLayer.refresh();
-    setTimeout(finish,5000);
-  });
+  evacLayer.once('load',()=>rebuildZoneCatalog());
+  evacLayer.refresh();
 }
 
 async function refreshAll(){
   if(refreshInFlight)return;
   refreshInFlight=true;const btn=document.getElementById('refreshBtn');btn.disabled=true;btn.textContent='↻ Refreshing…';setLoading(true);
+  let succeeded=false;
   try{
-    await refreshZoneLayer();
+    refreshZoneLayer();
     if(selZoneId&&zones.some(z=>String(z.id)===String(selZoneId)))await selectZone(selZoneId,{fit:false});
     else await fetchLog();
     map.invalidateSize();
+    succeeded=true;
   }catch(e){console.error('Refresh failed:',e);alert('Refresh failed: '+e.message)}
-  finally{refreshInFlight=false;btn.disabled=false;btn.textContent='↻ Refresh';setLoading(false)}
+  finally{
+    refreshInFlight=false;btn.disabled=false;setLoading(false);
+    if(succeeded){btn.textContent='✓ Refreshed';setTimeout(()=>{if(!refreshInFlight)btn.textContent='↻ Refresh'},1400)}
+    else btn.textContent='↻ Refresh';
+  }
 }
 
 // ---- LOG POLLING ----
@@ -681,11 +691,9 @@ function setWorkflowMode(mode){
     document.getElementById('cardModal').classList.remove('open');
     openModal();
   }else if(mode==='card'){
-    pendingCheckInCard=null;
     document.getElementById('modal').classList.remove('open');
     openCardModal();
   }else{
-    pendingCheckInCard=null;
     document.getElementById('modal').classList.remove('open');
     document.getElementById('cardModal').classList.remove('open');
     wedge.setTarget(null);switchTab('log');
@@ -708,11 +716,10 @@ function openModal(){
   syncWorkflowButtons('scan');
   if(selZone){
     wedge.setTarget('checkpoint');
-    if(pendingCheckInCard)requestAnimationFrame(()=>applyPendingCardCheckIn());
-    else requestAnimationFrame(()=>window.LPCLiveScanner?.start());
+    requestAnimationFrame(()=>window.LPCLiveScanner?.start());
   }
 }
-function closeModal(){document.getElementById('modal').classList.remove('open');pendingCheckInCard=null;wedge.setTarget(null);window.LPCLiveScanner?.stop()}
+function closeModal(){document.getElementById('modal').classList.remove('open');wedge.setTarget(null);window.LPCLiveScanner?.stop()}
 let manualAddressTimer=null,addressCheckSequence=0;
 function resetModal({resumeScanner=true,statusText=''}={}){
   clearTimeout(manualAddressTimer);addressCheckSequence++;
@@ -1465,31 +1472,35 @@ function nextCustomCard(){resetCardModal();switchCardView('create');document.get
 
 async function checkInLastCard(){
   const card=window._lastCard;if(!card)return;
-  pendingCheckInCard={...card};
-  closeCardModal();
-  const assigned=zones.find(z=>card.zoneName&&(z.name||'')===card.zoneName);
-  if(assigned&&String(assigned.id)!==String(selZoneId))await selectZone(assigned.id);
-  openModal();
-  if(!selZone){
-    const hint=document.querySelector('#scanZoneWrap .mz-hint');
-    if(hint)hint.textContent='Choose the checkpoint zone to check in this cardholder';
+  const status=document.getElementById('cardCheckinStatus');
+  const btn=document.getElementById('cardCheckinBtn');
+  status.className='card-checkin-status';status.textContent='';
+  const zone=card.zoneName?zones.find(z=>(z.name||'')===card.zoneName):selZone;
+  if(!zone){status.className='card-checkin-status error';status.textContent=card.zoneName?'The assigned zone is not currently available. Refresh the map and try again.':'Assign a zone to the card or select a zone on the map before checking in.';return}
+  btn.disabled=true;btn.textContent='Checking address…';
+  try{
+    const gp=new URLSearchParams({SingleLine:card.addr||'',f:'json',outFields:'Match_addr,Score',maxLocations:'1',location:'-107.88,37.28',distance:'80000'});
+    const gr=await fetch(`${GEOCODE_URL}?${gp}`);const gj=await gr.json();
+    if(!gj.candidates?.length)throw new Error('The card address could not be located.');
+    const candidate=gj.candidates[0],score=Number(candidate.attributes?.Score||0),lng=candidate.location.x,lat=candidate.location.y;
+    if(score<70)throw new Error(`The address match was too uncertain (${score}/100).`);
+    if(!pip([lng,lat],zone.feature.geometry))throw new Error(`The card address is outside ${zone.name}.`);
+    const feature={geometry:{x:lng,y:lat,spatialReference:{wkid:4326}},attributes:{
+      name:[card.fn,card.ln].filter(Boolean).map(titleCase).join(' ')||'Custom Card',
+      address:candidate.attributes?.Match_addr||card.addr||'',phone:card.phone||'',license_num:card.cardId||'',
+      zone_name:zone.name||'',incident:zone.incident||'',direction:'IN',check_time:Date.now(),operator_name:operatorName,
+      card_type:'Card',notes:'Checked in from Custom Card mode'
+    }};
+    const p=new URLSearchParams({adds:JSON.stringify([feature]),f:'json'});if(agolToken)p.append('token',agolToken);
+    const r=await fetch(`${LOG_URL}/applyEdits`,{method:'POST',body:p});const j=await r.json();
+    if(!j.addResults?.[0]?.success)throw new Error(j.addResults?.[0]?.error?.description||'The check-in record was not saved.');
+    status.className='card-checkin-status ok';status.textContent=`Checked IN to ${zone.name} at ${new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}.`;
+    btn.textContent='✓ Checked in';
+    if(selZone&&String(selZone.id)===String(zone.id))await fetchLog();
+  }catch(e){
+    console.error('Custom-card check-in failed:',e);status.className='card-checkin-status error';status.textContent=e.message||'Check-in failed.';
+    btn.disabled=false;btn.textContent='Check in this cardholder';
   }
-}
-
-async function applyPendingCardCheckIn(){
-  if(!pendingCheckInCard||!selZone)return;
-  const card=pendingCheckInCard;pendingCheckInCard=null;
-  resetModal({resumeScanner:false});
-  parsedDL={firstName:card.fn||'',lastName:card.ln||'',fullAddress:card.addr||'',phone:card.phone||'',cardId:card.cardId||'',scanType:'Card',approval:'LPC APPROVED'};
-  showParsed(parsedDL);
-  document.getElementById('s1fn').value=titleCase(parsedDL.firstName);
-  document.getElementById('s1ln').value=titleCase(parsedDL.lastName);
-  document.getElementById('ai').value=parsedDL.fullAddress;
-  document.getElementById('s1phone').value=parsedDL.phone;
-  document.getElementById('ss').textContent='EZtag created — checking address for immediate check-in';
-  const ws=document.getElementById('wedgeStatusCP');ws.className='wedge-status captured';ws.textContent='LPC APPROVED — '+normalizePersonName(parsedDL.firstName,parsedDL.lastName);
-  const hint=document.querySelector('#scanZoneWrap .mz-hint');if(hint)hint.textContent='Choose a zone to begin scanning';
-  await doCheck({autoAdvance:true});
 }
 function resetCardModal({resumeScanner=true}={}){
   editingCard=null;duplicateContext=null;
@@ -1693,6 +1704,8 @@ async function showCardPreview(card){
   const preview=document.getElementById('cardPrintPreview');
   preview.width=rendered.width;preview.height=rendered.height;
   preview.getContext('2d').drawImage(rendered,0,0);
+  const checkinBtn=document.getElementById('cardCheckinBtn');checkinBtn.disabled=false;checkinBtn.textContent='Check in this cardholder';
+  const checkinStatus=document.getElementById('cardCheckinStatus');checkinStatus.className='card-checkin-status';checkinStatus.textContent='';
   document.getElementById('cardForm').style.display='none';
   document.getElementById('cardResult').style.display='';
   requestAnimationFrame(()=>document.getElementById('cardResult').scrollIntoView({behavior:'smooth',block:'start'}));
