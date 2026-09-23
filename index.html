@@ -4,11 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>La Plata County EZcard</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/esri-leaflet/3.0.12/esri-leaflet.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
-<script src="https://unpkg.com/@esri/arcgis-rest-request@4/dist/bundled/request.umd.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" integrity="sha384-c6Rcwz4e4CITMbu/NBmnNS8yN2sC3cUElMEMfP3vqqKFp7GOYaaBBCqmaWBjmkjb" crossorigin="anonymous"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js" integrity="sha384-NElt3Op+9NBMCYaef5HxeJmU4Xeard/Lku8ek6hoPTvYkQPh3zLIrJP7KiRocsxO" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/esri-leaflet/3.0.12/esri-leaflet.min.js" integrity="sha384-TyCsIrYlxSpmtpoq/Huk+xDqLItS1XlIaUIVgauaLmoZz8XZx3BatqsBKl95G6Bw" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js" integrity="sha384-8FWZA6BGMXhsfO+BLtrJK0We6gg5o1JyO8xQm6peWDEUs17ACA5ziE/NIAkl9z2k" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/barcode-detector@2.3.1/dist/iife/index.js" integrity="sha384-xC4XjVu1WljK8zi5UZEiAygZ75m4KpSXlEpji1F8oNrC86YCe0grBfULiq8BO6Rf" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@esri/arcgis-rest-request@4.11.1/dist/bundled/request.umd.js" integrity="sha384-zKcF30d1vnB5/cBl5eWk7dYdvBc2gEbOWmjcL5BgD5kPhLmimRgvloDE+cCZmHpT" crossorigin="anonymous"></script>
 <style>
 :root{--bg:#f4f5f7;--sf:#fff;--bd:#d4d4d8;--tx:#1a1a2e;--mu:#6b7280;--navy:#17324d;--scan:#1769aa;--scan-dark:#0f548c;--scan-light:#e8f2fb;--card:#b65d0a;--card-dark:#934807;--card-light:#fff1df;--ac:#1769aa;--ac2:#0f548c;--al:#e8f2fb;--gn:#10b981;--gb:#d1fae5;--gd:#065f46;--rd:#ef4444;--rb2:#fee2e2;--rdd:#991b1b;--am:#f59e0b;--ab:#fef3c7}
 *{margin:0;padding:0;box-sizing:border-box}
@@ -473,6 +474,37 @@ let cardRegistry=[],editingCard=null;
 let refreshInFlight=false;
 
 function escapeHTML(value){return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}
+function makeElement(tag,{className='',text=''}={}){
+  const element=document.createElement(tag);
+  if(className)element.className=className;
+  element.textContent=String(text??'');
+  return element;
+}
+function renderTableHeader(labels){
+  const row=document.createElement('tr');
+  labels.forEach(label=>row.appendChild(makeElement('th',{text:label})));
+  document.getElementById('dth').replaceChildren(row);
+}
+function renderKeyValueRows(container,items){
+  const fragment=document.createDocumentFragment();
+  items.forEach(item=>{
+    const row=makeElement('div',{className:'pr'});
+    row.append(makeElement('span',{className:'pl',text:item.l}),makeElement('span',{className:'pv',text:item.v}));
+    fragment.appendChild(row);
+  });
+  container.replaceChildren(fragment);
+}
+async function scanFingerprint(value){
+  const text=String(value??'');
+  if(window.crypto?.subtle&&window.TextEncoder){
+    const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text));
+    return Array.from(new Uint8Array(digest),byte=>byte.toString(16).padStart(2,'0')).join('');
+  }
+  // Non-cryptographic fallback used only for short-lived duplicate suppression.
+  let hash=2166136261;
+  for(let i=0;i<text.length;i++){hash^=text.charCodeAt(i);hash=Math.imul(hash,16777619)}
+  return(hash>>>0).toString(16).padStart(8,'0');
+}
 function csvCell(value){
   let text=String(value??'');
   // Prevent spreadsheet applications from treating exported user data as a formula.
@@ -625,8 +657,18 @@ function renderTable(filt){
   const f=activeTab==='parcels'?PF:AFlds,h=activeTab==='parcels'?PH:AHdr;
   if(!pData.length&&!aData.length){document.getElementById('dt').style.display='none';document.getElementById('emp').style.display='';return}
   document.getElementById('emp').style.display='none';document.getElementById('dt').style.display='';
-  document.getElementById('dth').innerHTML='<tr>'+h.map(x=>`<th>${escapeHTML(x)}</th>`).join('')+'</tr>';
-  document.getElementById('dtb').innerHTML=data.map(r=>'<tr>'+f.map(k=>{let v=r[k];if(v==null)v='';if(k==='ACRES'&&v!=='')v=parseFloat(v).toFixed(2);return`<td>${escapeHTML(v)}</td>`}).join('')+'</tr>').join('');
+  renderTableHeader(h);
+  const fragment=document.createDocumentFragment();
+  data.forEach(record=>{
+    const row=document.createElement('tr');
+    f.forEach(field=>{
+      let value=record[field];if(value==null)value='';
+      if(field==='ACRES'&&value!=='')value=parseFloat(value).toFixed(2);
+      row.appendChild(makeElement('td',{text:value}));
+    });
+    fragment.appendChild(row);
+  });
+  document.getElementById('dtb').replaceChildren(fragment);
 }
 function filterTable(){if(activeTab==='log'){renderLog();return}const q=document.getElementById('tsr').value.toLowerCase().trim();if(!q){renderTable();return}
   const f=activeTab==='parcels'?PF:AFlds,src=activeTab==='parcels'?pData:aData;
@@ -669,22 +711,31 @@ function getFilteredLogRows(){
 }
 
 function phoneLink(value){
-  const label=String(value||'').trim();if(!label)return'';
+  const label=String(value||'').trim();
+  if(!label)return document.createTextNode('');
   const dial=(label.startsWith('+')?'+':'')+label.replace(/\D/g,'');
-  return dial.replace(/\D/g,'').length>=7?`<a class="phone-link" href="tel:${dial}">${escapeHTML(label)}</a>`:escapeHTML(label);
+  if(dial.replace(/\D/g,'').length<7)return document.createTextNode(label);
+  const link=makeElement('a',{className:'phone-link',text:label});link.href='tel:'+dial;return link;
 }
 
 function renderLog(){
   const rows=getFilteredLogRows();
   const emp=document.getElementById('emp');emp.style.display=rows.length?'none':'';document.getElementById('dt').style.display=rows.length?'':'none';
   if(!rows.length){emp.lastElementChild.textContent=activityFilter==='current'?'No unmatched IN records for this zone':'No matching activity';return}
-  document.getElementById('dth').innerHTML='<tr><th>Check-in date</th><th>Time</th><th>Status</th><th>Name</th><th>Address</th><th>Phone</th><th>Op</th><th>Type</th></tr>';
-  document.getElementById('dtb').innerHTML=rows.map(r=>{
+  renderTableHeader(['Check-in date','Time','Status','Name','Address','Phone','Op','Type']);
+  const fragment=document.createDocumentFragment();
+  rows.forEach(r=>{
     const checkedAt=r.check_time?new Date(r.check_time):null;
     const d=checkedAt?checkedAt.toLocaleDateString([],{month:'short',day:'numeric',year:'numeric'}):'—';
     const t=checkedAt?checkedAt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'—';
     const status=r._currentlyIn?'CURRENTLY IN':(r.direction||'');
-    return`<tr><td class="lt">${escapeHTML(d)}</td><td class="lt">${escapeHTML(t)}</td><td class="${String(r.direction).toUpperCase()==='IN'?'di':'do'}">${escapeHTML(status)}</td><td>${escapeHTML(r.name)}</td><td>${escapeHTML(r.address)}</td><td>${phoneLink(r.phone)}</td><td>${escapeHTML(r.operator_name)}</td><td>${escapeHTML(r.card_type)}</td></tr>`}).join('');
+    const row=document.createElement('tr');
+    row.append(makeElement('td',{className:'lt',text:d}),makeElement('td',{className:'lt',text:t}),makeElement('td',{className:String(r.direction).toUpperCase()==='IN'?'di':'do',text:status}),makeElement('td',{text:r.name}),makeElement('td',{text:r.address}));
+    const phoneCell=document.createElement('td');phoneCell.appendChild(phoneLink(r.phone));row.appendChild(phoneCell);
+    row.append(makeElement('td',{text:r.operator_name}),makeElement('td',{text:r.card_type}));
+    fragment.appendChild(row);
+  });
+  document.getElementById('dtb').replaceChildren(fragment);
 }
 function doExport(){
   const data=activeTab==='parcels'?pData:activeTab==='addrs'?aData:getFilteredLogRows();
@@ -796,7 +847,7 @@ function resetModal({resumeScanner=true,statusText=''}={}){
   document.getElementById('s1').style.display='';document.getElementById('s2').style.display='none';
   document.getElementById('ai').value='';document.getElementById('s1fn').value='';document.getElementById('s1ln').value='';
   document.getElementById('s1phone').value='';document.getElementById('ss').textContent=statusText;
-  document.getElementById('pf').style.display='none';document.getElementById('pf').innerHTML='';
+  document.getElementById('pf').style.display='none';document.getElementById('pf').replaceChildren();
   document.getElementById('s1res').style.display='none';
   document.getElementById('s1dv').style.display='';
   document.getElementById('s2phone').value='';document.getElementById('s2notes').value='';
@@ -869,13 +920,14 @@ function goStep2(){
   else{parsedDL.firstName=firstName||parsedDL.firstName||'';parsedDL.lastName=lastName||parsedDL.lastName||''}
   document.getElementById('s1').style.display='none';document.getElementById('s2').style.display='';
   const info=document.getElementById('s2info');
-  let html=`<div class="pr"><span class="pl">Zone check</span><span class="pv" style="color:var(--gd);font-weight:700">INSIDE ${escapeHTML(selZone?.name||'ZONE')}</span></div><div class="pr"><span class="pl">Address</span><span class="pv">${escapeHTML(lastCheck.addr)}</span></div>`;
+  const details=[{l:'Zone check',v:'INSIDE '+(selZone?.name||'ZONE')},{l:'Address',v:lastCheck.addr}];
   if(parsedDL){
     const n=[parsedDL.firstName,parsedDL.lastName].filter(Boolean).map(titleCase).join(' ');
-    if(n)html+=`<div class="pr"><span class="pl">Name</span><span class="pv">${escapeHTML(n)}</span></div>`;
-    if(parsedDL.cardId)html+=`<div class="pr"><span class="pl">Card ID</span><span class="pv">${escapeHTML(parsedDL.cardId)}</span></div>`;
+    if(n)details.push({l:'Name',v:n});
+    if(parsedDL.cardId)details.push({l:'Card ID',v:parsedDL.cardId});
   }
-  info.innerHTML=html;
+  renderKeyValueRows(info,details);
+  info.querySelector('.pv').style.cssText='color:var(--gd);font-weight:700';
   document.getElementById('s2phone').value=enteredPhone||(parsedDL?.scanType==='Card'?(parsedDL.phone||''):'');
 }
 function pickDir(dir,el){selectedDir=dir;document.querySelectorAll('.dbtn').forEach(b=>b.classList.remove('sel'));el.classList.add('sel');document.getElementById('s2save').disabled=false}
@@ -1234,7 +1286,7 @@ function showParsed(p){
     {l:'Address',v:p.fullAddress||[p.street,p.street2].filter(Boolean).map(titleCase).join(' ')},
     {l:'City/State/ZIP',v:p.fullAddress?'':[p.city?titleCase(p.city):'',[p.state,p.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')}
   ].filter(x=>x.v);
-  c.innerHTML=d.map(x=>`<div class="pr"><span class="pl">${escapeHTML(x.l)}</span><span class="pv">${escapeHTML(x.v)}</span></div>`).join('');
+  renderKeyValueRows(c,d);
   c.style.display='block';
 }
 
@@ -1245,7 +1297,7 @@ function showCardParsed(p){
     {l:'Address',v:p.fullAddress||[p.street,p.street2].filter(Boolean).map(titleCase).join(' ')},
     {l:'City/State/ZIP',v:p.fullAddress?'':[p.city?titleCase(p.city):'',[p.state,p.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')}
   ].filter(x=>x.v);
-  c.innerHTML=d.map(x=>`<div class="pr"><span class="pl">${escapeHTML(x.l)}</span><span class="pv">${escapeHTML(x.v)}</span></div>`).join('');
+  renderKeyValueRows(c,d);
   c.style.display='block';
 }
 
@@ -2069,8 +2121,7 @@ async function initScanner(){
     }catch(e){console.warn('Native BarcodeDetector unavailable:',e)}
   }
   try{
-    const m=await import('https://cdn.jsdelivr.net/npm/barcode-detector@2.3.1/dist/es/index.min.js');
-    const D=m.BarcodeDetector||m.default;
+    const D=window.BarcodeDetectionAPI?.BarcodeDetector;
     if(!D)throw new Error('Barcode detector module did not load');
     detector=new D({formats:['pdf417','qr_code']});
   }catch(e){
@@ -2118,7 +2169,7 @@ window.LPCLiveScanner=(()=>{
   const button=document.getElementById('liveCameraBtn');
   const frame=document.createElement('canvas');
   const frameCtx=frame.getContext('2d',{willReadFrequently:true});
-  let stream=null,running=false,paused=false,busy=false,timer=null,lastValue='',lastReadAt=0;
+  let stream=null,running=false,paused=false,busy=false,timer=null,lastFingerprint='',lastReadAt=0;
 
   function setUI(message,isRunning=false){label.textContent=message;button.textContent=isRunning?'Stop camera':'Start camera'}
   function schedule(delay=260){clearTimeout(timer);if(running&&!paused)timer=setTimeout(scanFrame,delay)}
@@ -2135,9 +2186,9 @@ window.LPCLiveScanner=(()=>{
       let results=[];try{results=await detector.detect(frame)}catch(e){}
       const result=results.find(r=>r?.rawValue?.length>10);
       if(result){
-        const now=Date.now(),same=result.rawValue===lastValue&&now-lastReadAt<2500;
+        const now=Date.now(),fingerprint=await scanFingerprint(result.rawValue),same=fingerprint===lastFingerprint&&now-lastReadAt<2500;
         if(!same){
-          lastValue=result.rawValue;lastReadAt=now;setUI('Barcode found — checking…',true);
+          lastFingerprint=fingerprint;lastReadAt=now;setUI('Barcode found — checking…',true);
           try{if(await handleCheckpointBarcodeResult(result)){pause();return}}
           catch(e){
             console.error(e);
@@ -2159,7 +2210,7 @@ window.LPCLiveScanner=(()=>{
       await scannerReady;if(!detector)throw new Error(scannerInitError||'Barcode decoder is unavailable');
       stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});
       video.srcObject=stream;await video.play();
-      running=true;paused=false;lastValue='';
+      running=true;paused=false;lastFingerprint='';
       setUI('Live scanner ready — hold a QR code or DL barcode in the frame',true);schedule(80);
     }catch(e){console.warn('Live camera unavailable:',e);setUI(userInitiated?'Camera unavailable — allow permission or use the USB scanner':'Tap Start camera to allow live scanning')}
   }
@@ -2215,7 +2266,7 @@ window.LPCCardLiveScanner=(()=>{
   const button=document.getElementById('cardLiveCameraBtn');
   const frame=document.createElement('canvas');
   const frameCtx=frame.getContext('2d',{willReadFrequently:true});
-  let stream=null,running=false,paused=false,busy=false,timer=null,lastValue='',lastReadAt=0;
+  let stream=null,running=false,paused=false,busy=false,timer=null,lastFingerprint='',lastReadAt=0;
 
   function setUI(message,isRunning=false){label.textContent=message;button.textContent=isRunning?'Stop camera':'Start camera'}
   function schedule(delay=260){clearTimeout(timer);if(running&&!paused)timer=setTimeout(scanFrame,delay)}
@@ -2232,9 +2283,9 @@ window.LPCCardLiveScanner=(()=>{
       let results=[];try{results=await detector.detect(frame)}catch(e){}
       const result=results.find(r=>r?.rawValue?.length>10);
       if(result){
-        const now=Date.now(),same=result.rawValue===lastValue&&now-lastReadAt<2500;
+        const now=Date.now(),fingerprint=await scanFingerprint(result.rawValue),same=fingerprint===lastFingerprint&&now-lastReadAt<2500;
         if(!same){
-          lastValue=result.rawValue;lastReadAt=now;setUI('Barcode found — loading details…',true);
+          lastFingerprint=fingerprint;lastReadAt=now;setUI('Barcode found — loading details…',true);
           try{if(await handleCardBarcodeResult(result)){pause();return}}
           catch(e){
             console.error(e);
@@ -2256,7 +2307,7 @@ window.LPCCardLiveScanner=(()=>{
       await scannerReady;if(!detector)throw new Error(scannerInitError||'Barcode decoder is unavailable');
       stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});
       video.srcObject=stream;await video.play();
-      running=true;paused=false;lastValue='';
+      running=true;paused=false;lastFingerprint='';
       setUI('Live scanner ready — hold a QR code or DL barcode in the frame',true);schedule(80);
     }catch(e){console.warn('Custom-card live camera unavailable:',e);setUI(userInitiated?'Camera unavailable — allow permission or use the USB scanner':'Tap Start camera to allow live scanning')}
   }
