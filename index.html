@@ -21,8 +21,10 @@ header{background:var(--navy);color:#fff;border-bottom:1px solid #0f263b;padding
 .brand-logo{width:42px;height:24px;object-fit:contain;background:#fff;border-radius:3px;padding:2px}
 .brand-copy{display:flex;flex-direction:column;line-height:1.05}.brand-copy small{font-size:8px;color:#cbd5e1;font-weight:600;letter-spacing:.04em;margin-top:2px}
 .mode-toggle{display:grid;grid-template-columns:repeat(3,1fr);position:relative;background:rgba(255,255,255,.12);border-radius:8px;overflow:hidden;flex:1;max-width:390px;min-width:275px}
-.mode-toggle .mt-btn{position:relative;z-index:1;padding:8px 6px;border:none;background:transparent;font-size:12px;font-weight:700;cursor:pointer;text-align:center;color:rgba(255,255,255,.55);transition:color .2s;letter-spacing:.01em;-webkit-tap-highlight-color:transparent}
+.mode-toggle .mt-btn{position:relative;z-index:1;padding:8px 6px;border:none;background:transparent;font-size:12px;font-weight:700;cursor:pointer;text-align:center;color:rgba(255,255,255,.55);transition:color .2s;letter-spacing:.01em;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;justify-content:center;gap:5px}
 .mode-toggle .mt-btn.active{color:#fff}
+.ui-icon{width:16px;height:16px;display:inline-block;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.refresh-icon{transition:transform .25s ease}.is-refreshing .refresh-icon{animation:refresh-spin .8s linear infinite}@keyframes refresh-spin{to{transform:rotate(360deg)}}
 .mode-toggle .mt-thumb{position:absolute;top:3px;bottom:3px;left:3px;width:calc(33.333% - 3px);border-radius:6px;transition:transform .25s ease,background .25s ease;z-index:0;background:var(--scan)}
 .mode-toggle.card-active .mt-thumb{transform:translateX(calc(100% + 0px));background:var(--card)}
 .mode-toggle.map-active .mt-thumb{transform:translateX(calc(200% + 0px));background:#0f766e}
@@ -139,8 +141,9 @@ tr:hover td{background:#fafafa}
 .mode-guide-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .mode-guide-card{border:2px solid var(--bd);border-radius:12px;background:#fff;padding:17px 12px;cursor:pointer;text-align:left;transition:transform .15s,border-color .15s,box-shadow .15s}
 .mode-guide-card:hover{transform:translateY(-2px);border-color:var(--scan);box-shadow:0 5px 15px rgba(15,23,42,.12)}
-.mode-guide-icon{display:block;font-size:30px;line-height:1;margin-bottom:10px}.mode-guide-card strong{display:block;font-size:14px;color:var(--navy);margin-bottom:5px}.mode-guide-card span:last-child{display:block;font-size:11px;line-height:1.4;color:var(--mu)}
+.mode-guide-icon{display:flex;width:46px;height:46px;align-items:center;justify-content:center;margin-bottom:11px;border-radius:12px;background:var(--scan-light);color:var(--scan-dark)}.mode-guide-icon .ui-icon{width:27px;height:27px;stroke-width:1.65}.mode-guide-card strong{display:block;font-size:14px;color:var(--navy);margin-bottom:5px}.mode-guide-card span:last-child{display:block;font-size:11px;line-height:1.4;color:var(--mu)}
 .mode-guide-card.card-choice{border-color:#e5b98c}.mode-guide-card.map-choice{border-color:#99d5ce}
+.mode-guide-card.card-choice .mode-guide-icon{background:var(--card-light);color:var(--card-dark)}.mode-guide-card.map-choice .mode-guide-icon{background:#e6f5f3;color:#0f766e}
 @media(max-width:560px){.brand-copy small{display:none}.brand-logo{width:36px}.mode-toggle{order:3;min-width:100%;max-width:none}.mode-guide-grid{grid-template-columns:1fr}.guide-brand img{width:92px}.guide-md{max-height:94dvh!important}}
 
 /* CARD STYLES */
@@ -223,15 +226,15 @@ tr:hover td{background:#fafafa}
   </button>
   <div class="mode-toggle" id="modeToggle">
     <div class="mt-thumb"></div>
-    <button class="mt-btn active" data-mode="scan" onclick="setWorkflowMode('scan')">📍 Checkpoint</button>
-    <button class="mt-btn" data-mode="card" onclick="setWorkflowMode('card')">🪪 Custom Card</button>
-    <button class="mt-btn" data-mode="map" onclick="setWorkflowMode('map')">🗺 Map</button>
+    <button class="mt-btn active" data-mode="scan" onclick="setWorkflowMode('scan')"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21v-9m14 9v-9M3 12h18M6 8h12l2 4H4z"/><path d="M9 12v4m6-4v4"/></svg><span>Checkpoint</span></button>
+    <button class="mt-btn" data-mode="card" onclick="setWorkflowMode('card')"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8" cy="11" r="2"/><path d="M5.5 16c.7-1.6 4.3-1.6 5 0M13 10h5m-5 4h5"/></svg><span>Custom Card</span></button>
+    <button class="mt-btn" data-mode="map" onclick="setWorkflowMode('map')"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3zM9 3v15m6-12v15"/></svg><span>Map</span></button>
   </div>
   <div class="hdr-right">
     <div class="hs" id="stats" style="display:none"><span>P:<strong id="pc">0</strong></span><span>A:<strong id="ac">0</strong></span></div>
     <span class="ob" id="opb"></span>
     <button class="b" id="signOutBtn" type="button" onclick="signOutOfArcGIS()" style="display:none">Sign out</button>
-    <button class="b" id="refreshBtn" type="button" onclick="refreshAll()" title="Refresh zones, map, addresses, parcels, and activity">↻ Refresh</button>
+    <button class="b" id="refreshBtn" type="button" onclick="refreshAll()" title="Refresh zones, map, addresses, parcels, and activity"><svg class="ui-icon refresh-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.8-3L3 11m0 0V5m0 6h6M4 13a8 8 0 0 0 14.8 3L21 13m0 0v6m0-6h-6"/></svg><span class="refresh-label">Refresh</span></button>
     <button class="b" id="csv" disabled onclick="doExport()">CSV</button>
   </div>
 </header>
@@ -278,9 +281,9 @@ tr:hover td{background:#fafafa}
  <div class="md guide-md">
   <div class="mh"><div class="guide-brand"><img id="guideLogo" alt="La Plata County logo"/><div><h2>La Plata County EZcard</h2><p>Evacuation Zone Card</p></div></div><button class="mx" onclick="closeModeGuide()">×</button></div>
   <div class="mode-guide-grid">
-    <button class="mode-guide-card" type="button" onclick="chooseMode('scan')"><span class="mode-guide-icon">📍</span><strong>Checkpoint mode</strong><span>Scan a driver license or EZcard, verify the address, and record IN or OUT.</span></button>
-    <button class="mode-guide-card card-choice" type="button" onclick="chooseMode('card')"><span class="mode-guide-icon">🪪</span><strong>Custom Card mode</strong><span>Create, print, update, or reprint an EZcard for an authorized cardholder.</span></button>
-    <button class="mode-guide-card map-choice" type="button" onclick="chooseMode('map')"><span class="mode-guide-icon">🗺️</span><strong>Map &amp; activity mode</strong><span>Review evacuation zones and see who is currently recorded inside a selected zone.</span></button>
+    <button class="mode-guide-card" type="button" onclick="chooseMode('scan')"><span class="mode-guide-icon"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21v-9m14 9v-9M3 12h18M6 8h12l2 4H4z"/><path d="M9 12v4m6-4v4"/></svg></span><strong>Checkpoint mode</strong><span>Scan a driver license or EZcard, verify the address, and record IN or OUT.</span></button>
+    <button class="mode-guide-card card-choice" type="button" onclick="chooseMode('card')"><span class="mode-guide-icon"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8" cy="11" r="2"/><path d="M5.5 16c.7-1.6 4.3-1.6 5 0M13 10h5m-5 4h5"/></svg></span><strong>Custom Card mode</strong><span>Create, print, update, or reprint an EZcard for an authorized cardholder.</span></button>
+    <button class="mode-guide-card map-choice" type="button" onclick="chooseMode('map')"><span class="mode-guide-icon"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3zM9 3v15m6-12v15"/></svg></span><strong>Map &amp; activity mode</strong><span>Review evacuation zones and see who is currently recorded inside a selected zone.</span></button>
   </div>
  </div>
 </div>
@@ -290,7 +293,6 @@ tr:hover td{background:#fafafa}
  <div class="md" style="max-width:380px">
   <div class="mh"><h2>Checkpoint Login</h2></div>
   <div class="af"><label>Operator name</label><input type="text" id="opIn" placeholder="Your name" autocomplete="name"/></div>
-  <div class="print-hint">Continue to ArcGIS Online to authenticate the shared account. The EZcard page never receives or stores the ArcGIS password.</div>
   <div class="privacy-note"><strong>Privacy:</strong> Driver-license barcodes are processed temporarily in this browser. EZcard does not retain or transmit the license number, date of birth, or license image. Name, address, phone number, and checkpoint activity may be stored in the County's secured ArcGIS Online records.</div>
   <button class="privacy-link" type="button" onclick="openPrivacyModal()">Privacy &amp; Data Use</button>
   <div class="ss" id="loginStatus"></div>
@@ -753,9 +755,16 @@ function refreshZoneLayer(){
   evacLayer.refresh();
 }
 
+function setRefreshButton(label,{busy=false,success=false}={}){
+  const btn=document.getElementById('refreshBtn');
+  btn.querySelector('.refresh-label').textContent=label;
+  btn.classList.toggle('is-refreshing',busy);
+  btn.classList.toggle('is-success',success);
+}
+
 async function refreshAll(){
   if(refreshInFlight)return;
-  refreshInFlight=true;const btn=document.getElementById('refreshBtn');btn.disabled=true;btn.textContent='↻ Refreshing…';setLoading(true);
+  refreshInFlight=true;const btn=document.getElementById('refreshBtn');btn.disabled=true;setRefreshButton('Refreshing…',{busy:true});setLoading(true);
   let succeeded=false;
   try{
     refreshZoneLayer();
@@ -766,8 +775,8 @@ async function refreshAll(){
   }catch(e){console.error('Refresh failed:',e);alert('Refresh failed: '+e.message)}
   finally{
     refreshInFlight=false;btn.disabled=false;setLoading(false);
-    if(succeeded){btn.textContent='✓ Refreshed';setTimeout(()=>{if(!refreshInFlight)btn.textContent='↻ Refresh'},1400)}
-    else btn.textContent='↻ Refresh';
+    if(succeeded){setRefreshButton('Refreshed',{success:true});setTimeout(()=>{if(!refreshInFlight)setRefreshButton('Refresh')},1400)}
+    else setRefreshButton('Refresh');
   }
 }
 
@@ -1579,7 +1588,7 @@ async function checkInLastCard(){
     const r=await fetch(`${LOG_URL}/applyEdits`,{method:'POST',body:p});const j=await r.json();
     if(!j.addResults?.[0]?.success)throw new Error(j.addResults?.[0]?.error?.description||'The check-in record was not saved.');
     status.className='card-checkin-status ok';status.textContent=`Address matched ${zone.name}. Checked IN at ${new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}.`;
-    btn.textContent='✓ Checked in';
+    btn.textContent='Checked in';
     if(selZone&&String(selZone.id)===String(zone.id))await fetchLog();
   }catch(e){
     console.error('Custom-card check-in failed:',e);status.className='card-checkin-status error';status.textContent=e.message||'Check-in failed.';
