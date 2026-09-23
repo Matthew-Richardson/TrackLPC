@@ -190,6 +190,10 @@ tr:hover td{background:#fafafa}
 .btn-outline{padding:13px;border:2px solid var(--bd);border-radius:10px;font-size:14px;font-weight:600;background:var(--sf);color:var(--tx);cursor:pointer}
 .btn-outline:hover{border-color:var(--ac);color:var(--ac)}
 .next-scan-action{width:100%;margin-top:8px;border-color:#93c5fd;color:var(--scan-dark);background:#eff6ff}
+.scan-resolution-actions{display:grid;gap:7px;margin-top:10px}
+.scan-resolution-actions .cb,.scan-resolution-actions .next-scan-action{margin:0}
+.override-zone-btn{background:var(--am)!important;color:#422006!important}
+.override-zone-btn:hover{background:#d97706!important;color:#fff!important}
 #cardModal .cb{background:var(--card)}
 #cardModal .cb:hover{background:var(--card-dark)}
 #cardModal .btn-outline:hover{border-color:var(--card);color:var(--card-dark)}
@@ -361,6 +365,10 @@ tr:hover td{background:#fafafa}
     <input type="hidden" id="s1phone"/>
     <div class="af"><label>Address</label><input type="text" id="ai" placeholder="Type an address to check automatically"/></div>
     <div class="res" id="s1res"><div class="vd" id="s1rv"></div><div class="dt" id="s1rd"></div><div class="ae" id="s1ra"></div></div>
+    <div class="scan-resolution-actions" id="s1ResolutionActions" style="display:none">
+      <button class="cb override-zone-btn" id="zoneOverrideBtn" type="button" style="display:none" onclick="overrideZoneCheck()">Override zone check and continue</button>
+      <button class="btn-outline next-scan-action" type="button" onclick="startNextCheckpointScan()">Scan another person</button>
+    </div>
   </div>
 
   <!-- STEP 2: phone + direction + save -->
@@ -911,6 +919,8 @@ function resetModal({resumeScanner=true,statusText=''}={}){
   document.getElementById('s1phone').value='';document.getElementById('ss').textContent=statusText;
   document.getElementById('pf').style.display='none';document.getElementById('pf').replaceChildren();
   document.getElementById('s1res').style.display='none';
+  document.getElementById('s1ResolutionActions').style.display='none';
+  document.getElementById('zoneOverrideBtn').style.display='none';
   document.getElementById('s1dv').style.display='';
   document.getElementById('s2phone').value='';document.getElementById('s2notes').value='';
   document.getElementById('s2res').style.display='none';document.getElementById('s2save').disabled=true;document.getElementById('s2save').textContent='Save record';
@@ -936,32 +946,51 @@ async function doCheck({autoAdvance=true}={}){
     const p=new URLSearchParams({SingleLine:addr,f:'json',outFields:'Match_addr,Score',maxLocations:1,location:'-107.88,37.28',distance:80000});
     const r=await fetch(`${GEOCODE_URL}?${p}`);const j=await r.json();
     if(requestId!==addressCheckSequence||document.getElementById('ai').value.trim()!==addr)return;
-    if(!j.candidates?.length){showS1('re','Could not geocode','Edit the address and it will check again automatically.',addr);document.getElementById('ss').textContent='Address not found';return false}
+    if(!j.candidates?.length){showS1('re','Could not geocode','Edit the address and it will check again automatically.',addr);showS1ResolutionActions();document.getElementById('ss').textContent='Address not found';return false}
     const c=j.candidates[0],lng=c.location.x,lat=c.location.y,ma=c.attributes?.Match_addr||addr,sc=c.attributes?.Score||0;
     if(scanMarker)map.removeLayer(scanMarker);
     scanMarker=L.circleMarker([lat,lng],{radius:8,color:'#ef4444',fillColor:'#ef4444',fillOpacity:.9,weight:2}).addTo(map);
     const inside=pip([lng,lat],selGeom);
     lastCheck={inside,addr:ma,lat,lng,score:sc};
-    if(sc<70){showS1('re','Low confidence',`Score: ${sc}/100. Edit the address to retry.`,ma);document.getElementById('ss').textContent='Address needs review';return false}
+    if(sc<70){showS1('re','Low confidence',`Score: ${sc}/100. Edit the address to retry.`,ma);showS1ResolutionActions();document.getElementById('ss').textContent='Address needs review';return false}
     if(inside){
+      hideS1ResolutionActions();
       showS1('ri','INSIDE ZONE','Address verified. Opening check-in details…',ma);
       document.getElementById('ss').textContent='Address verified inside '+(selZone?.name||'zone');
       if(autoAdvance)goStep2();
       return true;
     }
-    showS1('ro','OUTSIDE ZONE','Edit the address to check again.',ma);document.getElementById('ss').textContent='Address is outside '+(selZone?.name||'the selected zone');return false;
+    showS1('ro','OUTSIDE ZONE','Edit the address, override the zone check, or scan another person.',ma);showS1ResolutionActions({allowOverride:true});document.getElementById('ss').textContent='Address is outside '+(selZone?.name||'the selected zone');return false;
   }catch(e){
     if(requestId!==addressCheckSequence)return false;
-    console.error(e);showS1('re','Geocode failed','Network error. Edit the address to retry.',addr);document.getElementById('ss').textContent='Address check failed';return false;
+    console.error(e);showS1('re','Geocode failed','Network error. Edit the address to retry.',addr);showS1ResolutionActions();document.getElementById('ss').textContent='Address check failed';return false;
   }
 }
 function showS1(cls,v,d,a){const r=document.getElementById('s1res');r.style.display='block';r.className='res '+cls;
   document.getElementById('s1rv').textContent=v;document.getElementById('s1rd').textContent=d;document.getElementById('s1ra').textContent=a}
+function showS1ResolutionActions({allowOverride=false}={}){
+  document.getElementById('s1ResolutionActions').style.display='grid';
+  document.getElementById('zoneOverrideBtn').style.display=allowOverride?'':'none';
+}
+function hideS1ResolutionActions(){
+  document.getElementById('s1ResolutionActions').style.display='none';
+  document.getElementById('zoneOverrideBtn').style.display='none';
+}
+function overrideZoneCheck(){
+  if(!lastCheck||lastCheck.inside||lastCheck.score<70)return;
+  const zoneName=selZone?.name||'the selected zone';
+  if(!confirm(`Override the address check and continue even though this address is outside ${zoneName}?\n\nThe activity record will be marked as a zone override.`))return;
+  lastCheck.override=true;
+  hideS1ResolutionActions();
+  document.getElementById('ss').textContent='Zone check overridden by '+(operatorName||'operator');
+  goStep2();
+}
 
 const manualAddressInput=document.getElementById('ai');
 manualAddressInput.addEventListener('input',()=>{
   clearTimeout(manualAddressTimer);addressCheckSequence++;lastCheck=null;
   document.getElementById('s1res').style.display='none';
+  hideS1ResolutionActions();
   const value=manualAddressInput.value.trim();
   if(value.length>=6&&document.getElementById('s1').style.display!=='none'){
     manualAddressTimer=setTimeout(()=>doCheck({autoAdvance:true}),900);
@@ -980,7 +1009,7 @@ manualAddressInput.addEventListener('blur',()=>{
 
 // ---- STEP 2 ----
 function goStep2(){
-  if(!lastCheck?.inside||lastCheck.score<70)return;
+  if(!lastCheck||lastCheck.score<70||(!lastCheck.inside&&!lastCheck.override))return;
   window.LPCLiveScanner?.pause();
   const firstName=document.getElementById('s1fn').value.trim();
   const lastName=document.getElementById('s1ln').value.trim();
@@ -989,20 +1018,24 @@ function goStep2(){
   else{parsedDL.firstName=firstName||parsedDL.firstName||'';parsedDL.lastName=lastName||parsedDL.lastName||''}
   document.getElementById('s1').style.display='none';document.getElementById('s2').style.display='';
   const info=document.getElementById('s2info');
-  const details=[{l:'Zone check',v:'INSIDE '+(selZone?.name||'ZONE')},{l:'Address',v:lastCheck.addr}];
+  const zoneStatus=lastCheck.override?'OVERRIDE — OUTSIDE '+(selZone?.name||'ZONE'):'INSIDE '+(selZone?.name||'ZONE');
+  const details=[{l:'Zone check',v:zoneStatus},{l:'Address',v:lastCheck.addr}];
+  if(lastCheck.override)details.push({l:'Override by',v:operatorName||'Operator'});
   if(parsedDL){
     const n=[parsedDL.firstName,parsedDL.lastName].filter(Boolean).map(titleCase).join(' ');
     if(n)details.push({l:'Name',v:n});
     if(parsedDL.cardId)details.push({l:'Card ID',v:parsedDL.cardId});
   }
   renderKeyValueRows(info,details);
-  info.querySelector('.pv').style.cssText='color:var(--gd);font-weight:700';
+  info.querySelector('.pv').style.cssText=lastCheck.override?'color:#92400e;font-weight:700':'color:var(--gd);font-weight:700';
   document.getElementById('s2phone').value=enteredPhone||(parsedDL?.scanType==='Card'?(parsedDL.phone||''):'');
 }
 function pickDir(dir,el){selectedDir=dir;document.querySelectorAll('.dbtn').forEach(b=>b.classList.remove('sel'));el.classList.add('sel');document.getElementById('s2save').disabled=false}
 async function saveRecord(){
   const btn=document.getElementById('s2save');btn.disabled=true;btn.textContent='Saving…';
   const dl=parsedDL||{};
+  const enteredNotes=document.getElementById('s2notes').value.trim();
+  const notes=[lastCheck.override?'ZONE OVERRIDE: Address outside '+(selZone?.name||'selected zone'):'',enteredNotes].filter(Boolean).join(' | ');
   const feat={geometry:{x:lastCheck.lng,y:lastCheck.lat,spatialReference:{wkid:4326}},
     attributes:{name:[dl.firstName,dl.lastName].filter(Boolean).map(titleCase).join(' ')||'Manual',
       address:lastCheck.addr,phone:document.getElementById('s2phone').value.trim(),
@@ -1010,7 +1043,7 @@ async function saveRecord(){
       // Driver-license numbers are intentionally discarded after parsing.
       license_num:dl.scanType==='Card'?(dl.cardId||''):'',zone_name:selZone?.name||'',incident:selZone?.incident||'',
       direction:selectedDir,check_time:Date.now(),operator_name:operatorName,
-      card_type:dl.scanType||'Manual',notes:document.getElementById('s2notes').value.trim()}};
+      card_type:dl.scanType||'Manual',notes}};
   try{
     const token=await getAgolToken(LOG_URL);
     const p=new URLSearchParams({adds:JSON.stringify([feat]),f:'json'});
