@@ -8,6 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/esri-leaflet/3.0.12/esri-leaflet.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script src="https://unpkg.com/@esri/arcgis-rest-request@4/dist/bundled/request.umd.js"></script>
 <style>
 :root{--bg:#f4f5f7;--sf:#fff;--bd:#d4d4d8;--tx:#1a1a2e;--mu:#6b7280;--navy:#17324d;--scan:#1769aa;--scan-dark:#0f548c;--scan-light:#e8f2fb;--card:#b65d0a;--card-dark:#934807;--card-light:#fff1df;--ac:#1769aa;--ac2:#0f548c;--al:#e8f2fb;--gn:#10b981;--gb:#d1fae5;--gd:#065f46;--rd:#ef4444;--rb2:#fee2e2;--rdd:#991b1b;--am:#f59e0b;--ab:#fef3c7}
 *{margin:0;padding:0;box-sizing:border-box}
@@ -218,6 +219,7 @@ tr:hover td{background:#fafafa}
   <div class="hdr-right">
     <div class="hs" id="stats" style="display:none"><span>P:<strong id="pc">0</strong></span><span>A:<strong id="ac">0</strong></span></div>
     <span class="ob" id="opb"></span>
+    <button class="b" id="signOutBtn" type="button" onclick="signOutOfArcGIS()" style="display:none">Sign out</button>
     <button class="b" id="refreshBtn" type="button" onclick="refreshAll()" title="Refresh zones, map, addresses, parcels, and activity">↻ Refresh</button>
     <button class="b" id="csv" disabled onclick="doExport()">CSV</button>
   </div>
@@ -276,11 +278,10 @@ tr:hover td{background:#fafafa}
 <div class="mo open" id="loginModal">
  <div class="md" style="max-width:380px">
   <div class="mh"><h2>Checkpoint Login</h2></div>
-  <div class="af"><label>Operator name</label><input type="text" id="opIn" placeholder="Your name"/></div>
-  <div class="af"><label>ArcGIS Online username</label><input type="text" id="agUser" placeholder="username"/></div>
-  <div class="af"><label>ArcGIS Online password</label><input type="password" id="agPass" placeholder="password"/></div>
+  <div class="af"><label>Operator name</label><input type="text" id="opIn" placeholder="Your name" autocomplete="name"/></div>
+  <div class="print-hint">Continue to ArcGIS Online to authenticate the shared account. The EZcard page never receives or stores the ArcGIS password.</div>
   <div class="ss" id="loginStatus"></div>
-  <button class="cb" id="loginBtn" onclick="doLogin()">Sign in & start</button>
+  <button class="cb" id="loginBtn" onclick="doLogin()">Sign in with ArcGIS Online</button>
  </div>
 </div>
 
@@ -410,6 +411,10 @@ tr:hover td{background:#fafafa}
 <iframe id="printFrame"></iframe>
 
 <script>
+const AGOL_CLIENT_ID='c1VEzHRz6PpUyto0';
+const AGOL_PORTAL='https://www.arcgis.com/sharing/rest';
+const AGOL_REDIRECT_URI='https://matthew-richardson.github.io/TrackLPC/callback.html';
+const AGOL_OAUTH_OPTIONS={clientId:AGOL_CLIENT_ID,redirectUri:AGOL_REDIRECT_URI,portal:AGOL_PORTAL,popup:true,pkce:true,expiration:480};
 const EVAC_URL='https://services2.arcgis.com/ilLrLpXfElYxSy9y/ArcGIS/rest/services/LPC_Evac_Zones_View/FeatureServer/0';
 const PARCEL_URL='https://gis.lpcgov.org/arcgis/rest/services/JS_website/MapLayersCitizenserve/MapServer/1';
 const ADDR_URL='https://gis.lpcgov.org/arcgis/rest/services/JS_website/MapLayersCitizenserve/MapServer/0';
@@ -424,7 +429,7 @@ let map,evacLayer,selLayer,zoneLabelLayer,scanMarker;
 let zones=[],selGeom=null,selZoneId=null,selZone=null;
 let pData=[],aData=[],logData=[],activeTab='parcels';
 let activityFilter='current',currentInsideRows=[];
-let operatorName='',agolToken='';
+let operatorName='',agolToken='',oauthManager=null;
 let lastCheck=null,parsedDL=null,selectedDir=null;
 let cardRegistry=[],editingCard=null;
 let refreshInFlight=false;
@@ -432,24 +437,43 @@ let refreshInFlight=false;
 // ---- AGOL LOGIN ----
 async function doLogin(){
   const op=document.getElementById('opIn').value.trim();
-  const user=document.getElementById('agUser').value.trim();
-  const pass=document.getElementById('agPass').value;
   const st=document.getElementById('loginStatus');
   if(!op){st.textContent='Enter your name';return}
-  if(!user||!pass){st.textContent='Enter AGOL credentials';return}
   document.getElementById('loginBtn').disabled=true;
-  st.textContent='Signing in…';
+  st.textContent='Opening ArcGIS Online sign-in…';
   try{
-    const p=new URLSearchParams({username:user,password:pass,client:'referer',referer:location.href,expiration:1440,f:'json'});
-    const r=await fetch('https://www.arcgis.com/sharing/rest/generateToken',{method:'POST',body:p});
-    const j=await r.json();
-    if(j.error){st.textContent=j.error.message||'Login failed';document.getElementById('loginBtn').disabled=false;return}
-    agolToken=j.token;
+    if(!window.arcgisRest?.ArcGISIdentityManager)throw new Error('ArcGIS authentication library did not load.');
+    oauthManager=await arcgisRest.ArcGISIdentityManager.beginOAuth2(AGOL_OAUTH_OPTIONS);
+    agolToken=await oauthManager.getToken(AGOL_PORTAL);
     operatorName=op;
     document.getElementById('opb').textContent=op;
+    document.getElementById('signOutBtn').style.display='';
     document.getElementById('loginModal').classList.remove('open');
     openModeGuide();
-  }catch(e){st.textContent='Network error';document.getElementById('loginBtn').disabled=false}
+  }catch(e){
+    console.error('ArcGIS OAuth sign-in failed:',e);
+    oauthManager=null;agolToken='';
+    st.textContent=e?.name==='ArcGISAccessDeniedError'?'Sign-in was cancelled.':(e?.message||'ArcGIS Online sign-in failed.');
+    document.getElementById('loginBtn').disabled=false;
+  }
+}
+
+async function getAgolToken(resourceUrl=AGOL_PORTAL){
+  if(!oauthManager)throw new Error('ArcGIS session is not active. Sign in again.');
+  try{
+    agolToken=await oauthManager.getToken(resourceUrl);
+    return agolToken;
+  }catch(e){
+    agolToken='';
+    throw new Error('ArcGIS session expired. Sign out and sign in again.');
+  }
+}
+
+async function signOutOfArcGIS(){
+  document.getElementById('signOutBtn').disabled=true;
+  try{if(oauthManager)await oauthManager.signOut()}catch(e){console.warn('ArcGIS token revocation was unavailable:',e)}
+  oauthManager=null;agolToken='';operatorName='';
+  location.reload();
 }
 
 // ---- MAP ----
@@ -652,10 +676,11 @@ async function refreshAll(){
 let logTimer=null;
 async function fetchLog(){if(!selZone)return;
   try{
+    const token=await getAgolToken(LOG_URL);
     const rows=[];let offset=0;
     while(true){
       const p=new URLSearchParams({where:`zone_name='${(selZone.name||'').replace(/'/g,"''")}'`,outFields:'*',orderByFields:'check_time DESC',resultOffset:String(offset),resultRecordCount:'2000',returnGeometry:'false',f:'json'});
-      if(agolToken)p.append('token',agolToken);
+      p.append('token',token);
       const r=await fetch(`${LOG_URL}/query`,{method:'POST',body:p});const j=await r.json();
       if(j.error)throw new Error(j.error.message||'Activity query failed');
       const batch=j.features||[];rows.push(...batch.map(f=>f.attributes||{}));
@@ -820,8 +845,9 @@ async function saveRecord(){
       direction:selectedDir,check_time:Date.now(),operator_name:operatorName,
       card_type:dl.scanType||'Manual',notes:document.getElementById('s2notes').value.trim()}};
   try{
+    const token=await getAgolToken(LOG_URL);
     const p=new URLSearchParams({adds:JSON.stringify([feat]),f:'json'});
-    if(agolToken)p.append('token',agolToken);
+    p.append('token',token);
     const r=await fetch(`${LOG_URL}/applyEdits`,{method:'POST',body:p});const j=await r.json();
     if(j.addResults?.[0]?.success){
       const saved=`Saved ${selectedDir} — ${feat.attributes.name}`;
@@ -1093,14 +1119,15 @@ function addressesLikelySame(scanned,saved){
 
 async function lookupPreviousPhone(firstName,lastName,scannedAddress){
   const name=normalizePersonName(firstName,lastName);
-  if(!name||!scannedAddress||!agolToken)return'';
+  if(!name||!scannedAddress||!oauthManager)return'';
   const escaped=name.replace(/'/g,"''");
-  const p=new URLSearchParams({
-    where:`name='${escaped}' AND phone IS NOT NULL AND phone<>''`,
-    outFields:'address,phone,check_time',orderByFields:'check_time DESC',
-    resultRecordCount:'25',returnGeometry:'false',f:'json',token:agolToken
-  });
   try{
+    const token=await getAgolToken(LOG_URL);
+    const p=new URLSearchParams({
+      where:`name='${escaped}' AND phone IS NOT NULL AND phone<>''`,
+      outFields:'address,phone,check_time',orderByFields:'check_time DESC',
+      resultRecordCount:'25',returnGeometry:'false',f:'json',token
+    });
     const r=await fetch(`${LOG_URL}/query`,{method:'POST',body:p});
     const j=await r.json();
     if(j.error)throw new Error(j.error.message||'Prior checkpoint lookup failed');
@@ -1159,11 +1186,12 @@ function createCardId(){
 async function getApprovedCard(qd){
   const cardId=String(qd?.id||qd?.card_id||'').trim();
   if(qd?.t!=='card'||!cardId)throw new Error('QR code does not contain an LPC card ID.');
-  if(!agolToken)throw new Error('ArcGIS session expired. Refresh and sign in again.');
+  if(!oauthManager)throw new Error('ArcGIS session expired. Refresh and sign in again.');
+  const token=await getAgolToken(CARD_URL);
   const escaped=cardId.replace(/'/g,"''");
   const p=new URLSearchParams({
     where:`card_id='${escaped}'`,outFields:'*',returnGeometry:'false',
-    resultRecordCount:'2',f:'json',token:agolToken
+    resultRecordCount:'2',f:'json',token
   });
   const r=await fetch(`${CARD_URL}/query`,{method:'POST',body:p});
   const j=await r.json();
@@ -1483,7 +1511,8 @@ async function checkInLastCard(){
       zone_name:zone.name||'',incident:zone.incident||'',direction:'IN',check_time:Date.now(),operator_name:operatorName,
       card_type:'Card',notes:'Checked in from Custom Card mode'
     }};
-    const p=new URLSearchParams({adds:JSON.stringify([feature]),f:'json'});if(agolToken)p.append('token',agolToken);
+    const token=await getAgolToken(LOG_URL);
+    const p=new URLSearchParams({adds:JSON.stringify([feature]),f:'json'});p.append('token',token);
     const r=await fetch(`${LOG_URL}/applyEdits`,{method:'POST',body:p});const j=await r.json();
     if(!j.addResults?.[0]?.success)throw new Error(j.addResults?.[0]?.error?.description||'The check-in record was not saved.');
     status.className='card-checkin-status ok';status.textContent=`Address matched ${zone.name}. Checked IN at ${new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}.`;
@@ -1556,11 +1585,12 @@ async function loadCardRegistry(){
   const list=document.getElementById('cardRegistryList');
   status.textContent='Loading cards…';list.replaceChildren();
   try{
-    if(!agolToken)throw new Error('ArcGIS session expired. Refresh and sign in again.');
+    if(!oauthManager)throw new Error('ArcGIS session expired. Refresh and sign in again.');
+    const token=await getAgolToken(CARD_URL);
     const rows=[];let offset=0;
     while(true){
       const p=new URLSearchParams({where:'1=1',outFields:'*',returnGeometry:'false',
-        resultOffset:String(offset),resultRecordCount:'1000',f:'json',token:agolToken});
+        resultOffset:String(offset),resultRecordCount:'1000',f:'json',token});
       const r=await fetch(`${CARD_URL}/query`,{method:'POST',body:p});
       const j=await r.json();if(j.error)throw new Error(j.error.message||'Card registry query failed.');
       const batch=j.features||[];rows.push(...batch.map(f=>cardFromAttributes(f.attributes||{})));
@@ -1623,7 +1653,8 @@ function cancelCardEdit(){resetCardModal();switchCardView('create')}
 async function updateCardIdentity(card,fn,ln,phone){
   if(card.objectId==null)throw new Error('Card record ID is missing. Reload the registry and try again.');
   const feature={attributes:{OBJECTID:card.objectId,first_name:fn,last_name:ln,phone}};
-  const p=new URLSearchParams({features:JSON.stringify([feature]),rollbackOnFailure:'true',f:'json',token:agolToken});
+  const token=await getAgolToken(CARD_URL);
+  const p=new URLSearchParams({features:JSON.stringify([feature]),rollbackOnFailure:'true',f:'json',token});
   const r=await fetch(`${CARD_URL}/updateFeatures`,{method:'POST',body:p});const j=await r.json();
   if(j.error)throw new Error(j.error.message||'ArcGIS rejected the update.');
   const result=j.updateResults?.[0];if(!result?.success)throw new Error(result?.error?.description||'Card update failed.');
@@ -1633,7 +1664,8 @@ async function deleteRegistryCard(card){
   if(card.objectId==null){alert('Card record ID is missing. Reload the registry and try again.');return}
   if(!confirm(`Delete ${card.fn} ${card.ln} (${card.cardId})?\n\nThe printed card will immediately fail approval checks.`))return;
   try{
-    const p=new URLSearchParams({objectIds:String(card.objectId),rollbackOnFailure:'true',f:'json',token:agolToken});
+    const token=await getAgolToken(CARD_URL);
+    const p=new URLSearchParams({objectIds:String(card.objectId),rollbackOnFailure:'true',f:'json',token});
     const r=await fetch(`${CARD_URL}/deleteFeatures`,{method:'POST',body:p});const j=await r.json();
     if(j.error)throw new Error(j.error.message||'ArcGIS rejected the deletion.');
     const result=j.deleteResults?.[0];if(!result?.success)throw new Error(result?.error?.description||'Card deletion failed.');
@@ -1652,7 +1684,8 @@ document.getElementById('appLogo').src=LPC_LOGO_FIXED;
 document.getElementById('guideLogo').src=LPC_LOGO_FIXED;
 
 async function saveCustomCard(card){
-  if(!agolToken)throw new Error('Your ArcGIS Online session is not active. Refresh the page and sign in again.');
+  if(!oauthManager)throw new Error('Your ArcGIS Online session is not active. Refresh the page and sign in again.');
+  const token=await getAgolToken(CARD_URL);
   const feature={attributes:{
     card_id:card.cardId,
     first_name:card.fn,
@@ -1673,7 +1706,7 @@ async function saveCustomCard(card){
     features:JSON.stringify([feature]),
     rollbackOnFailure:'true',
     f:'json',
-    token:agolToken
+    token
   });
   const r=await fetch(`${CARD_URL}/addFeatures`,{method:'POST',body:p});
   const j=await r.json();
