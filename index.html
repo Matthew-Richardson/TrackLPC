@@ -454,8 +454,10 @@ tr:hover td{background:#fafafa}
 <script>
 const AGOL_CLIENT_ID='c1VEzHRz6PpUyto0';
 const AGOL_PORTAL='https://www.arcgis.com/sharing/rest';
-const AGOL_REDIRECT_URI='https://matthew-richardson.github.io/TrackLPC/callback.html';
-const AGOL_OAUTH_OPTIONS={clientId:AGOL_CLIENT_ID,redirectUri:AGOL_REDIRECT_URI,portal:AGOL_PORTAL,popup:true,pkce:true,expiration:480};
+const AGOL_REDIRECT_URI='https://matthew-richardson.github.io/TrackLPC/index.html';
+const AGOL_OAUTH_OPTIONS={clientId:AGOL_CLIENT_ID,redirectUri:AGOL_REDIRECT_URI,portal:AGOL_PORTAL,pkce:true,expiration:480};
+const OAUTH_MODE_KEY='ezcard_oauth_mode';
+const OAUTH_OPERATOR_KEY='ezcard_pending_operator';
 const EVAC_URL='https://services2.arcgis.com/ilLrLpXfElYxSy9y/ArcGIS/rest/services/LPC_Evac_Zones_View/FeatureServer/0';
 const PARCEL_URL='https://gis.lpcgov.org/arcgis/rest/services/JS_website/MapLayersCitizenserve/MapServer/1';
 const ADDR_URL='https://gis.lpcgov.org/arcgis/rest/services/JS_website/MapLayersCitizenserve/MapServer/0';
@@ -515,6 +517,49 @@ function csvCell(value){
 }
 
 // ---- AGOL LOGIN ----
+function useRedirectOAuth(){return matchMedia('(pointer:coarse)').matches||innerWidth<700}
+function rememberOAuthStart(mode,operator){
+  try{localStorage.setItem(OAUTH_MODE_KEY,mode)}catch(e){console.warn('OAuth mode could not be saved:',e)}
+  if(mode==='redirect')try{sessionStorage.setItem(OAUTH_OPERATOR_KEY,operator)}catch(e){console.warn('Operator name could not be retained for redirect:',e)}
+}
+function oauthReturnMode(){
+  try{return localStorage.getItem(OAUTH_MODE_KEY)||(window.opener?'popup':'redirect')}
+  catch(e){return window.opener?'popup':'redirect'}
+}
+function clearOAuthStart(){
+  try{localStorage.removeItem(OAUTH_MODE_KEY)}catch(e){}
+}
+async function activateArcGISSession(manager,operator){
+  oauthManager=manager;
+  agolToken=await oauthManager.getToken(AGOL_PORTAL);
+  operatorName=operator;
+  document.getElementById('opb').textContent=operatorName;
+  document.getElementById('signOutBtn').style.display='';
+  document.getElementById('loginModal').classList.remove('open');
+  openModeGuide();
+}
+async function completeRedirectedOAuth(){
+  const params=new URLSearchParams(location.search);
+  if(!params.has('code')&&!params.has('error'))return;
+  const mode=oauthReturnMode();
+  const popup=mode!=='redirect';
+  try{
+    if(!window.arcgisRest?.ArcGISIdentityManager)throw new Error('ArcGIS authentication library did not load.');
+    const manager=await arcgisRest.ArcGISIdentityManager.completeOAuth2({...AGOL_OAUTH_OPTIONS,popup});
+    clearOAuthStart();
+    if(popup||!manager)return;
+    let pendingOperator='';
+    try{pendingOperator=sessionStorage.getItem(OAUTH_OPERATOR_KEY)||'';sessionStorage.removeItem(OAUTH_OPERATOR_KEY)}catch(e){}
+    if(!pendingOperator)throw new Error('Operator name was not retained. Enter it and sign in again.');
+    await activateArcGISSession(manager,pendingOperator);
+  }catch(e){
+    clearOAuthStart();
+    console.error('ArcGIS OAuth return failed:',e);
+    const st=document.getElementById('loginStatus');
+    st.textContent=e?.name==='ArcGISAccessDeniedError'?'Sign-in was cancelled.':(e?.message||'ArcGIS Online sign-in could not be completed.');
+    document.getElementById('loginBtn').disabled=false;
+  }
+}
 async function doLogin(){
   const op=document.getElementById('opIn').value.trim();
   const st=document.getElementById('loginStatus');
@@ -523,20 +568,23 @@ async function doLogin(){
   st.textContent='Opening ArcGIS Online sign-in…';
   try{
     if(!window.arcgisRest?.ArcGISIdentityManager)throw new Error('ArcGIS authentication library did not load.');
-    oauthManager=await arcgisRest.ArcGISIdentityManager.beginOAuth2(AGOL_OAUTH_OPTIONS);
-    agolToken=await oauthManager.getToken(AGOL_PORTAL);
-    operatorName=op;
-    document.getElementById('opb').textContent=op;
-    document.getElementById('signOutBtn').style.display='';
-    document.getElementById('loginModal').classList.remove('open');
-    openModeGuide();
+    const redirect=useRedirectOAuth();
+    const popup=!redirect;
+    rememberOAuthStart(redirect?'redirect':'popup',op);
+    const manager=await arcgisRest.ArcGISIdentityManager.beginOAuth2({...AGOL_OAUTH_OPTIONS,popup});
+    if(redirect)return;
+    clearOAuthStart();
+    await activateArcGISSession(manager,op);
   }catch(e){
+    clearOAuthStart();
     console.error('ArcGIS OAuth sign-in failed:',e);
     oauthManager=null;agolToken='';
     st.textContent=e?.name==='ArcGISAccessDeniedError'?'Sign-in was cancelled.':(e?.message||'ArcGIS Online sign-in failed.');
     document.getElementById('loginBtn').disabled=false;
   }
 }
+
+completeRedirectedOAuth();
 
 async function getAgolToken(resourceUrl=AGOL_PORTAL){
   if(!oauthManager)throw new Error('ArcGIS session is not active. Sign in again.');
