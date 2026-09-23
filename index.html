@@ -309,9 +309,7 @@ tr:hover td{background:#fafafa}
     </div>
     <div class="live-scanner-actions">
       <button class="b ba" id="liveCameraBtn" type="button" onclick="window.LPCLiveScanner?.toggle()">Start camera</button>
-      <button class="b" id="sBtn" type="button" onclick="document.getElementById('pi').click()">Take barcode photo</button>
     </div>
-    <input type="file" accept="image/*" capture="environment" id="pi"/>
     <div class="ss" id="ss"></div>
     <div class="pf" id="pf"></div>
     <div class="dv" id="s1dv"><span>check-in details</span></div>
@@ -364,9 +362,7 @@ tr:hover td{background:#fafafa}
     </div>
     <div class="live-scanner-actions">
       <button class="b ba" id="cardLiveCameraBtn" type="button" onclick="window.LPCCardLiveScanner?.toggle()">Start camera</button>
-      <button class="b" id="cardCamBtn" type="button" onclick="document.getElementById('cardCamInput').click()">Take barcode photo</button>
     </div>
-    <input type="file" accept="image/*" capture="environment" id="cardCamInput" style="display:none"/>
     <div class="card-parsed" id="cardParsedInfo" style="display:none"></div>
   </div>
 
@@ -760,8 +756,6 @@ function resetModal({resumeScanner=true,statusText=''}={}){
   document.getElementById('s1phone').value='';document.getElementById('ss').textContent=statusText;
   document.getElementById('pf').style.display='none';document.getElementById('pf').innerHTML='';
   document.getElementById('s1res').style.display='none';
-  document.getElementById('sBtn').disabled=false;document.getElementById('sBtn').textContent='Take barcode photo';
-  document.getElementById('sBtn').style.display='';
   document.getElementById('s1dv').style.display='';
   document.getElementById('s2phone').value='';document.getElementById('s2notes').value='';
   document.getElementById('s2res').style.display='none';document.getElementById('s2save').disabled=true;document.getElementById('s2save').textContent='Save record';
@@ -2041,47 +2035,10 @@ async function initScanner(){
     console.error(e);
     scannerInitError=e?.message||'Barcode decoder could not be loaded';
     document.getElementById('ss').textContent='Phone scanner unavailable: '+scannerInitError;
-    document.getElementById('sBtn').disabled=true;
-    const cardBtn=document.getElementById('cardCamBtn');
-    if(cardBtn)cardBtn.disabled=true;
   }
 }
 
 const scannerReady=initScanner();
-
-function preprocess(img,contrast=1.5){
-  // Keep enough detail for the narrow bars in PDF417 while limiting memory use.
-  const MAX=2400,canvas=document.createElement('canvas'),ctx=canvas.getContext('2d',{willReadFrequently:true});
-  let w=img.width,h=img.height;
-  const largest=Math.max(w,h);
-  if(largest>MAX){const s=MAX/largest;w=Math.round(w*s);h=Math.round(h*s)}
-  canvas.width=w;canvas.height=h;ctx.drawImage(img,0,0,w,h);
-  const id=ctx.getImageData(0,0,w,h),d=id.data;
-  for(let i=0;i<d.length;i+=4){let g=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];g=((g-128)*contrast)+128;g=Math.max(0,Math.min(255,g));d[i]=d[i+1]=d[i+2]=g}
-  ctx.putImageData(id,0,0);return canvas;
-}
-
-async function processBarcodeImage(file,targetContext){
-  await scannerReady;
-  if(!detector)throw new Error(scannerInitError||'Phone scanner is unavailable');
-  let img;
-  try{img=await createImageBitmap(file,{imageOrientation:'from-image'})}
-  catch(e){img=await createImageBitmap(file)}
-  let results=[];
-
-  // Preserve the original color/detail first, then try grayscale and
-  // progressively stronger contrast for difficult PDF417 photographs.
-  try{results=await detector.detect(img)}catch(e){}
-  for(const c of [1.0,1.4,1.8,2.2]){
-    if(results.length&&results[0]?.rawValue?.length>10)break;
-    const canvas=preprocess(img,c);
-    try{results=await detector.detect(canvas)}catch(e){}
-  }
-  img.close();
-
-  if(!results.length||!(results[0]?.rawValue?.length>10))return null;
-  return results[0];
-}
 
 // ---- CHECKPOINT CAMERA SCAN ----
 async function handleCheckpointBarcodeResult(result){
@@ -2111,17 +2068,6 @@ async function handleCheckpointBarcodeResult(result){
   window.LPCLiveScanner?.pause();
   return true;
 }
-
-document.getElementById('pi').addEventListener('change',async function(){
-  const file=this.files[0];if(!file)return;
-  const sb=document.getElementById('sBtn'),ss=document.getElementById('ss');
-  sb.disabled=true;sb.textContent='Reading…';ss.textContent='Processing…';
-  try{
-    const result=await processBarcodeImage(file,'checkpoint');
-    if(!await handleCheckpointBarcodeResult(result))ss.textContent='No barcode found — try again or enter details manually.';
-  }catch(e){console.error(e);ss.textContent='Scan failed: '+(e?.message||'try again')}
-  finally{sb.disabled=false;sb.textContent='Take barcode photo';this.value=''}
-});
 
 // Continuous on-page scanner for QR and PDF417 barcodes.
 window.LPCLiveScanner=(()=>{
@@ -2173,7 +2119,7 @@ window.LPCLiveScanner=(()=>{
       video.srcObject=stream;await video.play();
       running=true;paused=false;lastValue='';
       setUI('Live scanner ready — hold a QR code or DL barcode in the frame',true);schedule(80);
-    }catch(e){console.warn('Live camera unavailable:',e);setUI(userInitiated?'Camera unavailable — allow permission or use Take barcode photo':'Tap Start camera to allow live scanning')}
+    }catch(e){console.warn('Live camera unavailable:',e);setUI(userInitiated?'Camera unavailable — allow permission or use the USB scanner':'Tap Start camera to allow live scanning')}
   }
   function pause(){if(!running)return;paused=true;clearTimeout(timer);setUI('Address captured — complete phone and IN/OUT below',true)}
   function stop(){running=false;paused=false;busy=false;clearTimeout(timer);if(stream){stream.getTracks().forEach(track=>track.stop());stream=null}video.srcObject=null;setUI('Camera stopped')}
@@ -2218,22 +2164,6 @@ async function handleCardBarcodeResult(result){
   advanceCardAfterScan(scannedType);
   return true;
 }
-
-document.getElementById('cardCamInput').addEventListener('change',async function(){
-  const file=this.files[0];if(!file)return;
-  const ws=document.getElementById('wedgeStatusCard');
-  ws.className='wedge-status listening';ws.textContent='Processing image…';
-  try{
-    const result=await processBarcodeImage(file,'card');
-    if(!await handleCardBarcodeResult(result)){
-      ws.className='wedge-status listening';ws.textContent='No barcode found — try again or enter manually';
-    }
-  }catch(e){
-    console.error(e);
-    ws.className='wedge-status listening';ws.textContent='Scan failed: '+(e?.message||'try again');
-  }
-  this.value='';
-});
 
 // Continuous phone scanner in Custom Card mode. It recognizes both LPC QR
 // cards and PDF417 driver licenses and uses the same validated handlers above.
@@ -2286,7 +2216,7 @@ window.LPCCardLiveScanner=(()=>{
       video.srcObject=stream;await video.play();
       running=true;paused=false;lastValue='';
       setUI('Live scanner ready — hold a QR code or DL barcode in the frame',true);schedule(80);
-    }catch(e){console.warn('Custom-card live camera unavailable:',e);setUI(userInitiated?'Camera unavailable — allow permission or use Take barcode photo':'Tap Start camera to allow live scanning')}
+    }catch(e){console.warn('Custom-card live camera unavailable:',e);setUI(userInitiated?'Camera unavailable — allow permission or use the USB scanner':'Tap Start camera to allow live scanning')}
   }
   function pause(){if(!running)return;paused=true;clearTimeout(timer);label.textContent='Scan captured — use the form or tap Resume camera';button.textContent='Resume camera'}
   function stop(){running=false;paused=false;busy=false;clearTimeout(timer);if(stream){stream.getTracks().forEach(track=>track.stop());stream=null}video.srcObject=null;setUI('Camera stopped')}
