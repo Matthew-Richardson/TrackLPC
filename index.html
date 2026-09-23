@@ -1623,7 +1623,6 @@ function beginIncomingCardScan(){
 
 function advanceCardAfterScan(scanType){
   window.LPCCardLiveScanner?.pause();
-  document.getElementById('cardScanSection').style.display='none';
   document.getElementById('cardDetailsLabel').textContent=scanType==='DL'?'Complete card details':'Review card details';
   const next=scanType==='DL'?document.getElementById('caddr'):document.getElementById('cphone');
   requestAnimationFrame(()=>{
@@ -1716,7 +1715,6 @@ function beginEditCard(card){
   document.getElementById('creason').value=card.reason;
   document.getElementById('caddr').readOnly=true;document.getElementById('creason').readOnly=true;
   document.getElementById('cardScanSection').style.display='none';document.getElementById('cardEditNote').style.display='block';
-  window.LPCCardLiveScanner?.stop();
   document.getElementById('generateCardBtn').textContent='Save changes';document.getElementById('cfn').focus();
 }
 function editLastCard(){if(window._lastCard)beginEditCard(window._lastCard)}
@@ -1792,7 +1790,6 @@ async function showCardPreview(card){
   const qrData=card.qrData||JSON.stringify({t:'card',id:card.cardId,v:2});
   card.qrData=qrData;
   window._lastCard=card;
-  window.LPCCardLiveScanner?.stop();
   const rendered=await renderCardCanvas(card);
   const preview=document.getElementById('cardPrintPreview');
   preview.width=rendered.width;preview.height=rendered.height;
@@ -2178,7 +2175,8 @@ window.LPCLiveScanner=(()=>{
   const button=document.getElementById('liveCameraBtn');
   const frame=document.createElement('canvas');
   const frameCtx=frame.getContext('2d',{willReadFrequently:true});
-  let stream=null,running=false,paused=false,busy=false,timer=null,lastFingerprint='',lastReadAt=0;
+  let stream=null,running=false,paused=false,busy=false,timer=null,lastFingerprint='',clearFrames=0;
+  const CLEAR_FRAMES_REQUIRED=8;
 
   function setUI(message,isRunning=false){label.textContent=message;button.textContent=isRunning?'Stop camera':'Start camera'}
   function schedule(delay=260){clearTimeout(timer);if(running&&!paused)timer=setTimeout(scanFrame,delay)}
@@ -2195,10 +2193,11 @@ window.LPCLiveScanner=(()=>{
       let results=[];try{results=await detector.detect(frame)}catch(e){}
       const result=results.find(r=>r?.rawValue?.length>10);
       if(result){
-        const now=Date.now(),fingerprint=await scanFingerprint(result.rawValue),same=fingerprint===lastFingerprint&&now-lastReadAt<2500;
+        clearFrames=0;
+        const fingerprint=await scanFingerprint(result.rawValue),same=fingerprint===lastFingerprint;
         if(!same){
-          lastFingerprint=fingerprint;lastReadAt=now;setUI('Barcode found — checking…',true);
-          try{if(await handleCheckpointBarcodeResult(result)){pause();return}}
+          lastFingerprint=fingerprint;setUI('Barcode found — checking…',true);
+          try{if(await handleCheckpointBarcodeResult(result))setUI('Scan captured — ready for another barcode',true)}
           catch(e){
             console.error(e);
             const ws=document.getElementById('wedgeStatusCP');
@@ -2206,6 +2205,9 @@ window.LPCLiveScanner=(()=>{
             setUI('Not accepted — keep the barcode in view or enter details manually',true);
           }
         }
+      }else if(lastFingerprint&&++clearFrames>=CLEAR_FRAMES_REQUIRED){
+        lastFingerprint='';clearFrames=0;
+        setUI('Live scanner ready — hold a QR code or DL barcode in the frame',true);
       }
     }finally{busy=false;schedule()}
   }
@@ -2219,11 +2221,11 @@ window.LPCLiveScanner=(()=>{
       await scannerReady;if(!detector)throw new Error(scannerInitError||'Barcode decoder is unavailable');
       stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});
       video.srcObject=stream;await video.play();
-      running=true;paused=false;lastFingerprint='';
+      running=true;paused=false;lastFingerprint='';clearFrames=0;
       setUI('Live scanner ready — hold a QR code or DL barcode in the frame',true);schedule(80);
     }catch(e){console.warn('Live camera unavailable:',e);setUI(userInitiated?'Camera unavailable — allow permission or use the USB scanner':'Tap Start camera to allow live scanning')}
   }
-  function pause(){if(!running)return;paused=true;clearTimeout(timer);setUI('Address captured — complete phone and IN/OUT below',true)}
+  function pause(){if(!running)return;paused=false;setUI('Scan captured — camera remains ready for another barcode',true);schedule(80)}
   function stop(){running=false;paused=false;busy=false;clearTimeout(timer);if(stream){stream.getTracks().forEach(track=>track.stop());stream=null}video.srcObject=null;setUI('Camera stopped')}
   function toggle(){if(running)stop();else start(true)}
   return{start,pause,stop,toggle};
@@ -2275,7 +2277,8 @@ window.LPCCardLiveScanner=(()=>{
   const button=document.getElementById('cardLiveCameraBtn');
   const frame=document.createElement('canvas');
   const frameCtx=frame.getContext('2d',{willReadFrequently:true});
-  let stream=null,running=false,paused=false,busy=false,timer=null,lastFingerprint='',lastReadAt=0;
+  let stream=null,running=false,paused=false,busy=false,timer=null,lastFingerprint='',clearFrames=0;
+  const CLEAR_FRAMES_REQUIRED=8;
 
   function setUI(message,isRunning=false){label.textContent=message;button.textContent=isRunning?'Stop camera':'Start camera'}
   function schedule(delay=260){clearTimeout(timer);if(running&&!paused)timer=setTimeout(scanFrame,delay)}
@@ -2292,10 +2295,11 @@ window.LPCCardLiveScanner=(()=>{
       let results=[];try{results=await detector.detect(frame)}catch(e){}
       const result=results.find(r=>r?.rawValue?.length>10);
       if(result){
-        const now=Date.now(),fingerprint=await scanFingerprint(result.rawValue),same=fingerprint===lastFingerprint&&now-lastReadAt<2500;
+        clearFrames=0;
+        const fingerprint=await scanFingerprint(result.rawValue),same=fingerprint===lastFingerprint;
         if(!same){
-          lastFingerprint=fingerprint;lastReadAt=now;setUI('Barcode found — loading details…',true);
-          try{if(await handleCardBarcodeResult(result)){pause();return}}
+          lastFingerprint=fingerprint;setUI('Barcode found — loading details…',true);
+          try{if(await handleCardBarcodeResult(result))setUI('Scan captured — ready for another barcode',true)}
           catch(e){
             console.error(e);
             const ws=document.getElementById('wedgeStatusCard');
@@ -2303,6 +2307,9 @@ window.LPCCardLiveScanner=(()=>{
             setUI('Not accepted — reposition the barcode or enter details manually',true);
           }
         }
+      }else if(lastFingerprint&&++clearFrames>=CLEAR_FRAMES_REQUIRED){
+        lastFingerprint='';clearFrames=0;
+        setUI('Live scanner ready — hold a QR code or DL barcode in the frame',true);
       }
     }finally{busy=false;schedule()}
   }
@@ -2316,11 +2323,11 @@ window.LPCCardLiveScanner=(()=>{
       await scannerReady;if(!detector)throw new Error(scannerInitError||'Barcode decoder is unavailable');
       stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});
       video.srcObject=stream;await video.play();
-      running=true;paused=false;lastFingerprint='';
+      running=true;paused=false;lastFingerprint='';clearFrames=0;
       setUI('Live scanner ready — hold a QR code or DL barcode in the frame',true);schedule(80);
     }catch(e){console.warn('Custom-card live camera unavailable:',e);setUI(userInitiated?'Camera unavailable — allow permission or use the USB scanner':'Tap Start camera to allow live scanning')}
   }
-  function pause(){if(!running)return;paused=true;clearTimeout(timer);label.textContent='Scan captured — use the form or tap Resume camera';button.textContent='Resume camera'}
+  function pause(){if(!running)return;paused=false;setUI('Scan captured — camera remains ready for another barcode',true);schedule(80)}
   function stop(){running=false;paused=false;busy=false;clearTimeout(timer);if(stream){stream.getTracks().forEach(track=>track.stop());stream=null}video.srcObject=null;setUI('Camera stopped')}
   function toggle(){if(running&&paused)start(true);else if(running)stop();else start(true)}
   return{start,pause,stop,toggle};
