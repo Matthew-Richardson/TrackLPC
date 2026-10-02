@@ -220,6 +220,27 @@ tr:hover td{background:#fafafa}
 #printFrame{position:fixed;left:-9999px;top:-9999px;width:0;height:0;border:none}
 .zone-label{font-size:10px;font-weight:700;color:#1e3a5f;text-shadow:1px 1px 2px #fff,-1px -1px 2px #fff,1px -1px 2px #fff,-1px 1px 2px #fff;white-space:nowrap;pointer-events:none}
 #zoneBanner{display:none;position:absolute;top:8px;left:50%;transform:translateX(-50%);z-index:1001;background:rgba(245,158,11,.92);color:#1a1a2e;padding:5px 14px;border-radius:6px;font-size:13px;font-weight:700;white-space:nowrap;pointer-events:none;box-shadow:0 2px 6px rgba(0,0,0,.2);letter-spacing:.02em}
+/* Clear zone selection and full-screen card database */
+.zone-bar{background:#eff6ff;border-bottom:2px solid #1769aa;padding:10px 14px}
+.zone-bar-label{color:#17324d;font-size:12px;font-weight:800}
+.zone-bar-select select{background:#fff;color:#17324d;border:2px solid #1769aa;font-weight:700;padding:10px 30px 10px 12px}
+.zone-bar-select::after{color:#1769aa;font-size:15px}.zone-bar-hint{color:#475569}
+.zone-bar.has-zone .zone-bar-select select{background:#f0fdf4;color:#065f46}
+#zonePreviewMap{height:190px;width:100%;border:1px solid #cbd5e1;border-radius:8px;margin:9px 0}
+#zonePreviewInfo{font-size:12px;line-height:1.45;color:#475569;margin:7px 0}
+#zoneConfirmBtn{margin-bottom:0}#zoneConfirmBtn:disabled{opacity:.45;cursor:not-allowed}
+.zone-confirmed{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 10px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;font-size:12px;color:#065f46;margin-bottom:12px}
+body[data-workflow="card"] #zoneBar,body[data-workflow="card"] #mc,body[data-workflow="card"] .ts,body[data-workflow="card"] #stats,body[data-workflow="card"] #csv{display:none!important}
+#cardManageView{display:none;flex:1;min-height:0;flex-direction:column;background:#f8fafc;overflow:hidden}
+body[data-workflow="card"] #cardManageView{display:flex}
+.registry-toolbar{padding:16px;background:#fff;border-bottom:1px solid var(--bd);flex-shrink:0}
+.registry-heading{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.registry-heading h2{font-size:18px;color:var(--navy)}.registry-tools{display:flex;gap:7px;flex-wrap:wrap}
+.registry-filters{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}.registry-filters label{font-size:11px;font-weight:600;color:#475569;display:flex;flex-direction:column;gap:4px}
+.registry-filters select{padding:7px;border:1px solid var(--bd);border-radius:6px;background:#fff;color:var(--tx);max-width:220px}
+#cardRegistryStatus{text-align:left;margin:9px 0 0}#cardRegistryList{overflow:auto;padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;align-content:start;flex:1;min-height:0}
+.registry-item{min-width:0}.registry-detail{overflow-wrap:anywhere}
+@media(max-width:520px){.zone-bar-select{min-width:100%}.registry-toolbar{padding:12px}#cardRegistryList{grid-template-columns:1fr;padding:10px}.registry-filters label{flex:1}.registry-filters select{max-width:100%;width:100%}}
 </style>
 </head>
 <body>
@@ -281,6 +302,25 @@ tr:hover td{background:#fafafa}
   </div>
 </div>
 
+<section id="cardManageView" aria-label="Custom card database">
+  <div class="registry-toolbar">
+    <div class="registry-heading"><h2>Custom Card Database</h2><div class="registry-tools">
+      <button class="b ba" type="button" onclick="openCardModal()">Create card</button>
+      <button class="b" type="button" onclick="loadCardRegistry()">Refresh cards</button>
+      <button class="b" id="registryExportBtn" type="button" disabled onclick="exportCardRegistry()">Export filtered CSV</button>
+    </div></div>
+    <input class="registry-search" id="cardRegistrySearch" type="search" aria-label="Search custom cards" placeholder="Search name, address, phone, card ID, or reason" oninput="filterCardRegistry()"/>
+    <div class="registry-filters">
+      <label>Status<select id="registryStatusFilter" onchange="filterCardRegistry()"><option value="">All statuses</option></select></label>
+      <label>Reason<select id="registryReasonFilter" onchange="filterCardRegistry()"><option value="">All reasons</option></select></label>
+      <label>Sort<select id="registrySort" onchange="filterCardRegistry()"><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="name">Name A–Z</option><option value="address">Address A–Z</option></select></label>
+      <button class="b" type="button" onclick="clearRegistryFilters()">Clear filters</button>
+    </div>
+    <div class="registry-status" id="cardRegistryStatus" role="status">Open custom card mode to load cards.</div>
+  </div>
+  <div class="registry-list" id="cardRegistryList"></div>
+</section>
+
 <!-- EZTAG MODE GUIDE -->
 <div class="mo" id="modeGuide">
  <div class="md guide-md">
@@ -341,9 +381,15 @@ tr:hover td{background:#fafafa}
   <div class="mh"><h2>Checkpoint Scan</h2><button class="mx" onclick="closeModal()">×</button></div>
   <div class="modal-zone" id="scanZoneWrap">
     <label for="scanZoneSel">Evacuation zone</label>
-    <div class="mz-wrap"><select id="scanZoneSel" onchange="if(this.value)selectZone(parseInt(this.value))"><option value="">Select zone…</option></select></div>
-    <div class="mz-hint">Choose a zone to begin scanning</div>
+    <div class="mz-wrap"><select id="scanZoneSel" onchange="previewCheckpointZone(this.value)"><option value="">Select zone…</option></select></div>
+    <div class="mz-hint">Review the zone on the map, then confirm to begin scanning.</div>
+    <div id="zonePreviewPanel">
+      <div id="zonePreviewMap" aria-label="Selected checkpoint zone map"></div>
+      <div id="zonePreviewInfo" role="status">Select an evacuation zone to preview its boundary.</div>
+      <button class="cb" id="zoneConfirmBtn" type="button" disabled onclick="confirmCheckpointZone()">Confirm zone and begin scanning</button>
+    </div>
   </div>
+  <div class="zone-confirmed" id="zoneConfirmedBar" style="display:none"><strong id="zoneConfirmedName"></strong><button class="b" type="button" onclick="changeCheckpointZone()">Change zone</button></div>
   <div id="scanBody">
   <div class="wedge-status" id="wedgeStatusCP">Scanner ready — scan a DL or re-entry card</div>
 
@@ -453,11 +499,7 @@ tr:hover td{background:#fafafa}
   </div>
   </div>
 
-  <div id="cardManageView" style="display:none">
-    <input class="registry-search" id="cardRegistrySearch" type="search" placeholder="Search name, address, phone, or card ID" oninput="filterCardRegistry()"/>
-    <div class="registry-status" id="cardRegistryStatus">Open the registry to load cards.</div>
-    <div class="registry-list" id="cardRegistryList"></div>
-  </div>
+
  </div>
 </div>
 
@@ -482,6 +524,8 @@ const PF=['APN','SITE_ADDR','NAME','ACRES','SITE_CITY','SITE_ZIP'],PH=['Parcel #
 const AFlds=['PROPERTY_A','NAME','APN','ADDR_HN','SITE_ST','City','ZIP'],AHdr=['Address','Name','Parcel #','House #','Street','City','ZIP'];
 
 let map,evacLayer,selLayer,zoneLabelLayer,scanMarker;
+let workflowMode='scan',zonePreviewMap=null,zonePreviewLayer=null,pendingZoneId=null,checkpointZoneConfirmed=false;
+let filteredRegistryCards=[],registryLoadSequence=0;
 let zones=[],selGeom=null,selZoneId=null,selZone=null;
 let pData=[],aData=[],logData=[],activeTab='parcels';
 let activityFilter='current',currentInsideRows=[];
@@ -627,7 +671,7 @@ selLayer=L.geoJSON(null,{style:{color:'#f59e0b',weight:3,fillColor:'#f59e0b',fil
 zoneLabelLayer=L.layerGroup().addTo(map);
 evacLayer=L.esri.featureLayer({url:EVAC_URL,
   style:()=>({color:'rgba(37,99,235,.6)',weight:1.5,fillColor:'rgba(37,99,235,.12)',fillOpacity:1}),
-  onEachFeature(f,l){const p=f.properties;l.bindTooltip(escapeHTML(p.zonename||p.incident||'Zone '+p.OBJECTID),{sticky:true});l.on('click',()=>selectZone(p.OBJECTID))}
+  onEachFeature(f,l){const p=f.properties;l.bindTooltip(escapeHTML(p.zonename||p.incident||'Zone '+p.OBJECTID),{sticky:true});l.on('click',()=>requestZoneSelection(p.OBJECTID))}
 }).addTo(map);
 
 function rebuildZoneCatalog({fit=false}={}){
@@ -653,25 +697,73 @@ function rebuildZoneCatalog({fit=false}={}){
     const refreshed=zones.find(z=>String(z.id)===String(selZoneId));
     if(refreshed){
       selZone=refreshed;selGeom=refreshed.feature.geometry;
-      allSelects.slice(0,2).forEach(sel=>sel.value=String(selZoneId));
+      document.getElementById('zs').value=String(selZoneId);
+      if(checkpointZoneConfirmed)document.getElementById('scanZoneSel').value=String(selZoneId);
       selLayer.clearLayers();selLayer.addData(refreshed.feature);
       const banner=document.getElementById('zoneBanner');banner.textContent=[refreshed.name,refreshed.incident].filter(Boolean).join(' — ');banner.style.display='block';
     }else{
       selZoneId=null;selZone=null;selGeom=null;selLayer.clearLayers();
       document.getElementById('zoneBanner').style.display='none';
       document.getElementById('zoneBar').classList.remove('has-zone');
+      checkpointZoneConfirmed=false;window.LPCLiveScanner?.stop();wedge.setTarget(null);
     }
+  }
+  if(document.getElementById('modal').classList.contains('open')){
+    if(!checkpointZoneConfirmed)previewCheckpointZone(pendingZoneId);
+    else document.getElementById('zoneConfirmedName').textContent='Checkpoint: '+selZone.name;
   }
 }
 
 evacLayer.once('load',()=>rebuildZoneCatalog({fit:true}));
-document.getElementById('zs').addEventListener('change',function(){if(this.value)selectZone(parseInt(this.value))});
+document.getElementById('zs').addEventListener('change',function(){requestZoneSelection(this.value)});
 
+function requestZoneSelection(oid){
+  if(workflowMode==='scan'){
+    if(!document.getElementById('modal').classList.contains('open'))openModal();
+    previewCheckpointZone(oid);
+  }else if(oid)selectZone(Number(oid));
+}
+function previewCheckpointZone(oid){
+  checkpointZoneConfirmed=false;pendingZoneId=oid?Number(oid):null;
+  window.LPCLiveScanner?.stop();wedge.setTarget(null);
+  resetModal({resumeScanner:false});
+  document.getElementById('scanBody').style.display='none';
+  document.getElementById('scanZoneWrap').style.display='';
+  document.getElementById('zoneConfirmedBar').style.display='none';
+  document.getElementById('scanZoneSel').value=oid||'';
+  if(!zonePreviewMap){
+    zonePreviewMap=L.map('zonePreviewMap',{scrollWheelZoom:false}).setView([37.28,-107.88],10);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap contributors',maxZoom:19}).addTo(zonePreviewMap);
+    zonePreviewLayer=L.geoJSON(null,{style:{color:'#1769aa',weight:3,fillColor:'#1769aa',fillOpacity:.22}}).addTo(zonePreviewMap);
+  }
+  const zone=zones.find(z=>String(z.id)===String(oid));
+  zonePreviewLayer.clearLayers();
+  document.getElementById('zoneConfirmBtn').disabled=!zone?.feature?.geometry;
+  document.getElementById('scanZoneWrap').classList.toggle('has-zone',!!zone);
+  document.getElementById('zonePreviewInfo').textContent=zone?[zone.name,zone.incident,zone.status].filter(Boolean).join(' — '):'Select an evacuation zone to preview its boundary.';
+  if(zone?.feature?.geometry)zonePreviewLayer.addData(zone.feature);
+  requestAnimationFrame(()=>{
+    zonePreviewMap.invalidateSize();
+    const bounds=zonePreviewLayer.getBounds();
+    if(bounds.isValid())zonePreviewMap.fitBounds(bounds,{padding:[16,16],maxZoom:15});
+  });
+}
+function confirmCheckpointZone(){
+  const zone=zones.find(z=>String(z.id)===String(pendingZoneId));
+  if(!zone?.feature?.geometry)return;
+  checkpointZoneConfirmed=true;
+  document.getElementById('scanZoneWrap').style.display='none';
+  document.getElementById('zoneConfirmedName').textContent='Checkpoint: '+zone.name;
+  document.getElementById('zoneConfirmedBar').style.display='flex';
+  selectZone(zone.id);
+}
+function changeCheckpointZone(){previewCheckpointZone(selZoneId)}
 async function selectZone(oid,{fit=true}={}){
   // Sync checkpoint selectors. Custom-card assignment remains independent.
+  const zone=zones.find(z=>String(z.id)===String(oid));if(!zone)return;
   document.getElementById('zs').value=oid;
-  document.getElementById('scanZoneSel').value=oid;
-  selZoneId=oid;selZone=zones.find(z=>z.id===oid);if(!selZone)return;
+  if(checkpointZoneConfirmed)document.getElementById('scanZoneSel').value=oid;
+  selZoneId=zone.id;selZone=zone;
   logData=[];currentInsideRows=[];document.getElementById('tlc').textContent='0';document.getElementById('currentInCount').textContent='0';
   if(activeTab==='log')renderLog();
   selGeom=selZone.feature.geometry;var _zb=document.getElementById('zoneBanner');_zb.textContent=[selZone.name,selZone.incident].filter(Boolean).join(' \u2014 ');_zb.style.display='block';selLayer.clearLayers();selLayer.addData(selZone.feature);
@@ -680,7 +772,7 @@ async function selectZone(oid,{fit=true}={}){
   document.getElementById('zoneBar').classList.add('has-zone');
   document.getElementById('scanZoneWrap').classList.add('has-zone');
   // If checkpoint modal is already open, activate scan body
-  if(document.getElementById('modal').classList.contains('open')){
+  if(checkpointZoneConfirmed&&document.getElementById('modal').classList.contains('open')){
     document.getElementById('scanBody').style.display='';
     wedge.setTarget('checkpoint');
     requestAnimationFrame(()=>window.LPCLiveScanner?.start());
@@ -824,6 +916,7 @@ function setRefreshButton(label,{busy=false,success=false}={}){
 }
 
 async function refreshAll(){
+  if(workflowMode==='card'){await loadCardRegistry();return}
   if(refreshInFlight)return;
   refreshInFlight=true;const btn=document.getElementById('refreshBtn');btn.disabled=true;setRefreshButton('Refreshing…',{busy:true});setLoading(true);
   let succeeded=false;
@@ -876,13 +969,15 @@ function setWorkflowMode(mode){
   window.LPCLiveScanner?.stop();
   window.LPCCardLiveScanner?.stop();
   closeModeGuide();
+  workflowMode=mode;document.body.dataset.workflow=mode;
   syncWorkflowButtons(mode);
+  if(mode!=='card')requestAnimationFrame(()=>map.invalidateSize());
   if(mode==='scan'){
     document.getElementById('cardModal').classList.remove('open');
     openModal();
   }else if(mode==='card'){
     document.getElementById('modal').classList.remove('open');
-    openCardModal();
+    closeCardModal();wedge.setTarget(null);loadCardRegistry();
   }else{
     document.getElementById('modal').classList.remove('open');
     document.getElementById('cardModal').classList.remove('open');
@@ -894,20 +989,10 @@ function openModeGuide(){document.getElementById('modeGuide').classList.add('ope
 function closeModeGuide(){document.getElementById('modeGuide').classList.remove('open')}
 function chooseMode(mode){closeModeGuide();setWorkflowMode(mode)}
 function openModal(){
-  if(selZone){
-    document.getElementById('scanZoneWrap').classList.add('has-zone');
-    document.getElementById('scanBody').style.display='';
-  }else{
-    document.getElementById('scanZoneWrap').classList.remove('has-zone');
-    document.getElementById('scanBody').style.display='none';
-  }
-  document.getElementById('scanZoneSel').value=selZoneId||'';
-  resetModal();document.getElementById('modal').classList.add('open');
-  syncWorkflowButtons('scan');
-  if(selZone){
-    wedge.setTarget('checkpoint');
-    requestAnimationFrame(()=>window.LPCLiveScanner?.start());
-  }
+  workflowMode='scan';document.body.dataset.workflow='scan';
+  document.getElementById('cardModal').classList.remove('open');window.LPCCardLiveScanner?.stop();
+  document.getElementById('modal').classList.add('open');
+  syncWorkflowButtons('scan');previewCheckpointZone(selZoneId);
 }
 function closeModal(){document.getElementById('modal').classList.remove('open');wedge.setTarget(null);window.LPCLiveScanner?.stop()}
 let manualAddressTimer=null,addressCheckSequence=0;
@@ -927,7 +1012,7 @@ function resetModal({resumeScanner=true,statusText=''}={}){
   document.querySelectorAll('.dbtn').forEach(b=>b.classList.remove('sel'));
   const ws=document.getElementById('wedgeStatusCP');
   ws.className='wedge-status listening';ws.textContent=statusText?statusText+' — scan the next DL or card':'Scanner ready — scan a DL or re-entry card';
-  if(resumeScanner&&selZone&&document.getElementById('modal').classList.contains('open'))window.LPCLiveScanner?.start();
+  if(resumeScanner&&checkpointZoneConfirmed&&selZone&&document.getElementById('modal').classList.contains('open'))window.LPCLiveScanner?.start();
 }
 
 function startNextCheckpointScan(){
@@ -1650,7 +1735,7 @@ const wedge=(function(){
 
 
 // ---- CUSTOM CARD MODAL ----
-function openCardModal(){resetCardModal();document.getElementById('cardModal').classList.add('open');syncWorkflowButtons('card');switchCardView('create')}
+function openCardModal(){workflowMode='card';document.body.dataset.workflow='card';document.getElementById('modal').classList.remove('open');window.LPCLiveScanner?.stop();resetCardModal({resumeScanner:false});document.getElementById('cardModal').classList.add('open');syncWorkflowButtons('card');switchCardView('create')}
 function closeCardModal(){document.getElementById('cardModal').classList.remove('open');wedge.setTarget(null);window.LPCCardLiveScanner?.stop()}
 function nextCustomCard(){resetCardModal({resumeScanner:false});wedge.setTarget('card');window.LPCCardLiveScanner?.stop();document.getElementById('cfn').focus()}
 function startNextCardScan(){
@@ -1735,12 +1820,12 @@ function advanceCardAfterScan(scanType){
 
 function switchCardView(view){
   const create=view==='create';
-  document.getElementById('cardCreateView').style.display=create?'':'none';
-  document.getElementById('cardManageView').style.display=create?'none':'';
+  document.getElementById('cardCreateView').style.display='';
   document.querySelectorAll('[data-card-view]').forEach(b=>b.classList.toggle('on',b.dataset.cardView===view));
-  wedge.setTarget(create?'card':null);
-  if(create){requestAnimationFrame(()=>window.LPCCardLiveScanner?.start())}
-  else{window.LPCCardLiveScanner?.stop();loadCardRegistry()}
+  if(create){
+    document.getElementById('cardModal').classList.add('open');
+    wedge.setTarget('card');requestAnimationFrame(()=>window.LPCCardLiveScanner?.start());
+  }else{closeCardModal();loadCardRegistry()}
 }
 
 function cardFromAttributes(a){
@@ -1754,6 +1839,7 @@ function cardFromAttributes(a){
 }
 
 async function loadCardRegistry(){
+  const sequence=++registryLoadSequence;document.getElementById('registryExportBtn').disabled=true;
   const status=document.getElementById('cardRegistryStatus');
   const list=document.getElementById('cardRegistryList');
   status.textContent='Loading cards…';list.replaceChildren();
@@ -1770,16 +1856,39 @@ async function loadCardRegistry(){
       if(!j.exceededTransferLimit&&batch.length<1000)break;
       if(!batch.length)break;offset+=batch.length;
     }
+    if(sequence!==registryLoadSequence)return;
     cardRegistry=rows.sort((a,b)=>Number(b.issuedAt||0)-Number(a.issuedAt||0));
-    filterCardRegistry();
-  }catch(e){status.textContent='Could not load cards: '+e.message;list.replaceChildren()}
+    updateRegistryFilterOptions();filterCardRegistry();
+    document.getElementById('registryExportBtn').disabled=false;
+  }catch(e){if(sequence!==registryLoadSequence)return;cardRegistry=[];filteredRegistryCards=[];status.textContent='Could not load cards: '+e.message;list.replaceChildren()}
 }
 
+function updateRegistryFilterOptions(){
+  [['registryStatusFilter','status','All statuses'],['registryReasonFilter','reason','All reasons']].forEach(([id,key,label])=>{
+    const select=document.getElementById(id),value=select.value;
+    select.replaceChildren(new Option(label,''));
+    [...new Set(cardRegistry.map(c=>c[key]).filter(Boolean))].sort().forEach(v=>select.add(new Option(v,v)));
+    select.value=[...select.options].some(o=>o.value===value)?value:'';
+  });
+}
 function filterCardRegistry(){
   const q=document.getElementById('cardRegistrySearch').value.trim().toLowerCase();
-  const filtered=!q?cardRegistry:cardRegistry.filter(c=>
-    [c.fn,c.ln,c.addr,c.phone,c.cardId,c.reason].some(v=>String(v).toLowerCase().includes(q)));
-  renderCardRegistry(filtered);
+  const status=document.getElementById('registryStatusFilter').value,reason=document.getElementById('registryReasonFilter').value;
+  const sort=document.getElementById('registrySort').value;
+  filteredRegistryCards=cardRegistry.filter(c=>(!status||c.status===status)&&(!reason||c.reason===reason)&&
+    (!q||[c.fn+' '+c.ln,c.addr,c.phone,c.cardId,c.reason,c.status].some(v=>String(v).toLowerCase().includes(q))));
+  filteredRegistryCards.sort((a,b)=>sort==='name'?`${a.ln} ${a.fn}`.localeCompare(`${b.ln} ${b.fn}`):sort==='address'?a.addr.localeCompare(b.addr):sort==='oldest'?Number(a.issuedAt||0)-Number(b.issuedAt||0):Number(b.issuedAt||0)-Number(a.issuedAt||0));
+  renderCardRegistry(filteredRegistryCards);
+}
+function clearRegistryFilters(){
+  ['cardRegistrySearch','registryStatusFilter','registryReasonFilter'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('registrySort').value='newest';filterCardRegistry();
+}
+function exportCardRegistry(){
+  const fields=['cardId','fn','ln','addr','phone','reason','status','issuedAt','expiresAt','printCount'];
+  const rows=[['Card ID','First name','Last name','Address','Phone','Reason','Status','Issued','Expires','Print count'],...filteredRegistryCards.map(c=>fields.map(k=>((k==='issuedAt'||k==='expiresAt')&&c[k])?new Date(c[k]).toISOString():c[k]))];
+  const blob=new Blob(['\ufeff'+rows.map(r=>r.map(csvCell).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='LPC_Custom_Cards_'+new Date().toISOString().slice(0,10)+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 
 function renderCardRegistry(cards){
@@ -1936,14 +2045,14 @@ async function generateCard(){
       document.getElementById('caddr').readOnly=false;document.getElementById('creason').readOnly=false;
       document.getElementById('cardScanSection').style.display='';document.getElementById('cardEditNote').style.display='none';
       await showCardPreview(card);
-      const i=cardRegistry.findIndex(c=>c.objectId===card.objectId);if(i>=0)cardRegistry[i]=card;
+      const i=cardRegistry.findIndex(c=>c.objectId===card.objectId);if(i>=0)cardRegistry[i]=card;updateRegistryFilterOptions();filterCardRegistry();
     }else{
       const cardId=createCardId();
       // The QR carries only an opaque card ID. Cardholder details are retrieved
       // from the private registry after every scan.
       const card={fn,ln,addr,phone,reason,cardId};
       const result=await saveCustomCard(card);card.objectId=result.objectId;
-      await showCardPreview(card);cardRegistry.unshift(card);
+      await showCardPreview(card);cardRegistry.unshift(card);updateRegistryFilterOptions();filterCardRegistry();
     }
   }catch(e){console.error('Card save error:',e);alert('Card was not saved: '+e.message)}
   finally{btn.disabled=false;btn.textContent='Generate card'}
@@ -2158,6 +2267,27 @@ async function printCard(){
     body{position:fixed;top:0;left:0}
     img{position:fixed;top:0;left:0;width:53.70mm;height:85.30mm;object-fit:contain;transform-origin:0 0;transform:translateX(85.30mm) rotate(90deg);break-inside:avoid;page-break-inside:avoid}
   }
+/* Clear zone selection and full-screen card database */
+.zone-bar{background:#eff6ff;border-bottom:2px solid #1769aa;padding:10px 14px}
+.zone-bar-label{color:#17324d;font-size:12px;font-weight:800}
+.zone-bar-select select{background:#fff;color:#17324d;border:2px solid #1769aa;font-weight:700;padding:10px 30px 10px 12px}
+.zone-bar-select::after{color:#1769aa;font-size:15px}.zone-bar-hint{color:#475569}
+.zone-bar.has-zone .zone-bar-select select{background:#f0fdf4;color:#065f46}
+#zonePreviewMap{height:190px;width:100%;border:1px solid #cbd5e1;border-radius:8px;margin:9px 0}
+#zonePreviewInfo{font-size:12px;line-height:1.45;color:#475569;margin:7px 0}
+#zoneConfirmBtn{margin-bottom:0}#zoneConfirmBtn:disabled{opacity:.45;cursor:not-allowed}
+.zone-confirmed{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 10px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;font-size:12px;color:#065f46;margin-bottom:12px}
+body[data-workflow="card"] #zoneBar,body[data-workflow="card"] #mc,body[data-workflow="card"] .ts,body[data-workflow="card"] #stats,body[data-workflow="card"] #csv{display:none!important}
+#cardManageView{display:none;flex:1;min-height:0;flex-direction:column;background:#f8fafc;overflow:hidden}
+body[data-workflow="card"] #cardManageView{display:flex}
+.registry-toolbar{padding:16px;background:#fff;border-bottom:1px solid var(--bd);flex-shrink:0}
+.registry-heading{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.registry-heading h2{font-size:18px;color:var(--navy)}.registry-tools{display:flex;gap:7px;flex-wrap:wrap}
+.registry-filters{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}.registry-filters label{font-size:11px;font-weight:600;color:#475569;display:flex;flex-direction:column;gap:4px}
+.registry-filters select{padding:7px;border:1px solid var(--bd);border-radius:6px;background:#fff;color:var(--tx);max-width:220px}
+#cardRegistryStatus{text-align:left;margin:9px 0 0}#cardRegistryList{overflow:auto;padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;align-content:start;flex:1;min-height:0}
+.registry-item{min-width:0}.registry-detail{overflow-wrap:anywhere}
+@media(max-width:520px){.zone-bar-select{min-width:100%}.registry-toolbar{padding:12px}#cardRegistryList{grid-template-columns:1fr;padding:10px}.registry-filters label{flex:1}.registry-filters select{max-width:100%;width:100%}}
 </style>
 </head><body>
 <img src="${dataUrl}"/>
@@ -2312,6 +2442,7 @@ window.LPCLiveScanner=(()=>{
     }finally{busy=false;schedule()}
   }
   async function start(userInitiated=false){
+    if(!video.closest('.mo')?.classList.contains('open')||video.closest('#scanBody')?.style.display==='none')return;
     if(running){paused=false;setUI('Live scanner ready — hold a QR code or DL barcode in the frame',true);schedule(50);return}
     if(!navigator.mediaDevices?.getUserMedia){setUI('Live camera is not supported in this browser');return}
     const mobileLike=matchMedia('(pointer:coarse)').matches||innerWidth<700;
@@ -2409,6 +2540,7 @@ window.LPCCardLiveScanner=(()=>{
     }finally{busy=false;schedule()}
   }
   async function start(userInitiated=false){
+    if(!video.closest('.mo')?.classList.contains('open')||video.closest('#scanBody')?.style.display==='none')return;
     if(running){paused=false;setUI('Live scanner ready — hold a QR code or DL barcode in the frame',true);schedule(50);return}
     if(!navigator.mediaDevices?.getUserMedia){setUI('Live camera is not supported in this browser');return}
     const mobileLike=matchMedia('(pointer:coarse)').matches||innerWidth<700;
