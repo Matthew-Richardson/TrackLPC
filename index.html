@@ -286,7 +286,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
     <div class="li"><div class="ls" style="background:rgba(37,99,235,.15);border-color:rgba(37,99,235,.6)"></div>Zones</div>
     <div class="li"><div class="ls" style="background:rgba(245,158,11,.25);border-color:#f59e0b"></div>Selected</div>
     <div class="li">County roads, parcels &amp; addresses</div>
-    <div class="li">Zoom in for parcel/address detail</div>
+    <div class="li">Address numbers appear at close zoom</div>
   </div>
 </div>
 
@@ -392,7 +392,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
     <div class="mz-hint">Review the zone on the map, then confirm to begin scanning.</div>
     <div id="zonePreviewPanel">
       <div id="zonePreviewMap" aria-label="Selected checkpoint zone map"></div>
-      <div class="county-layer-hint">Roads, parcels, and address numbers are enabled. Zoom in for parcel and address detail; use Layers to toggle overlays.</div>
+      <div class="county-layer-hint">Roads and parcels are enabled. Address numbers appear only when zoomed in close; use Layers to toggle overlays.</div>
       <div id="zonePreviewInfo" role="status">Select an evacuation zone to preview its boundary.</div>
       <button class="cb" id="zoneConfirmBtn" type="button" disabled onclick="confirmCheckpointZone()">Confirm zone and begin scanning</button>
     </div>
@@ -680,7 +680,7 @@ function addCountyReferenceLayers(targetMap){
   const pane=targetMap.createPane('countyReferences');pane.style.zIndex=450;pane.style.pointerEvents='none';
   const overlays={};
   [[2,'Roads'],[37,'Parcel Boundaries'],[0,'Address Numbers']].forEach(([id,name])=>{
-    overlays[name]=L.esri.dynamicMapLayer({url:COUNTY_REFERENCE_URL,layers:[id],
+    overlays[name]=L.esri.dynamicMapLayer({url:COUNTY_REFERENCE_URL,layers:[id],minZoom:id===0?17:0,
       transparent:true,format:'png32',opacity:1,pane:'countyReferences',
       attribution:'La Plata County GIS'}).addTo(targetMap);
   });
