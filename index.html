@@ -260,7 +260,9 @@ body[data-workflow="card"] #cardManageView{display:flex}
   #refreshBtn .refresh-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .hdr-meta{grid-column:1 / -1;grid-row:3;justify-content:flex-end;font-size:10px;gap:8px}.hdr-meta .ob{max-width:150px;padding:1px 5px}
   .mode-toggle{grid-column:1 / -1;grid-row:2;width:100%;min-width:0;max-width:none;order:initial}
-  .oem-contacts{display:block;padding:6px 10px}.oem-contacts>strong{display:block;font-size:10px;margin-bottom:3px}.oem-contacts .oem-contact-list{display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:10px}.oem-contacts .oem-contact-list span{align-items:flex-start;flex-direction:column;gap:1px}
+  .oem-contacts{display:flex;padding:6px 8px;gap:0}.oem-contacts>strong{display:none}
+  .oem-contacts .oem-contact-list,.modal-contacts .oem-contact-list{display:flex;flex-direction:row;flex-wrap:nowrap;gap:10px;font-size:clamp(9px,2.5vw,11px);max-width:100%;min-width:0;overflow-x:auto}
+  .oem-contacts .oem-contact-list span,.modal-contacts .oem-contact-list span{align-items:center;flex-direction:row;flex-shrink:0;gap:4px;white-space:nowrap}
 }
 </style>
 </head>
@@ -348,7 +350,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
   <div class="registry-list" id="cardRegistryList"></div>
 </section>
 
-<footer class="oem-contacts"><strong>OEM contacts</strong><div class="oem-contact-list"><span>Rob Farino <a href="tel:+19707599274">970-759-9274</a></span><span>Matthew Richardson <a href="tel:+19707495273">970-749-5273</a></span></div></footer>
+<footer class="oem-contacts" aria-label="OEM contacts"><strong>OEM contacts</strong><div class="oem-contact-list"><span>Rob Farino <a href="tel:+19707599274">970-759-9274</a></span><span>Matthew Richardson <a href="tel:+19707495273">970-749-5273</a></span></div></footer>
 
 <!-- EZTAG MODE GUIDE -->
 <div class="mo" id="modeGuide">
