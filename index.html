@@ -223,7 +223,7 @@ tr:hover td{background:#fafafa}
 /* Hidden print iframe */
 #printFrame{position:fixed;left:-9999px;top:-9999px;width:0;height:0;border:none}
 .zone-label{font-size:10px;font-weight:700;color:#1e3a5f;text-shadow:1px 1px 2px #fff,-1px -1px 2px #fff,1px -1px 2px #fff,-1px 1px 2px #fff;white-space:nowrap;pointer-events:none}
-#zoneBanner{display:none;position:absolute;top:8px;left:50%;transform:translateX(-50%);z-index:1001;background:rgba(245,158,11,.92);color:#1a1a2e;padding:5px 14px;border-radius:6px;font-size:13px;font-weight:700;white-space:nowrap;pointer-events:none;box-shadow:0 2px 6px rgba(0,0,0,.2);letter-spacing:.02em}
+#zoneBanner{display:none;position:absolute;top:8px;left:50%;transform:translateX(-50%);z-index:1001;background:rgba(37,99,235,.92);color:#fff;padding:5px 14px;border-radius:6px;font-size:13px;font-weight:700;white-space:nowrap;pointer-events:none;box-shadow:0 2px 6px rgba(0,0,0,.2);letter-spacing:.02em}
 .county-layer-hint{font-size:10px;line-height:1.4;color:#64748b;margin:5px 0 8px}
 /* Clear zone selection and full-screen card database */
 .zone-bar{background:#eff6ff;border-bottom:2px solid #1769aa;padding:10px 14px}
@@ -246,6 +246,22 @@ body[data-workflow="card"] #cardManageView{display:flex}
 #cardRegistryStatus{text-align:left;margin:9px 0 0}#cardRegistryList{overflow:auto;padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;align-content:start;flex:1;min-height:0}
 .registry-item{min-width:0}.registry-detail{overflow-wrap:anywhere}
 @media(max-width:520px){.zone-bar-select{min-width:100%}.registry-toolbar{padding:12px}#cardRegistryList{grid-template-columns:1fr;padding:10px}.registry-filters label{flex:1}.registry-filters select{max-width:100%;width:100%}}
+/* Header actions stay together; mobile keeps them beside the brand. */
+.hdr-meta,.header-actions{display:flex;align-items:center;gap:6px}.header-actions{flex-wrap:nowrap;flex-shrink:0}
+.oem-contacts{display:flex;align-items:center;justify-content:center;gap:14px;padding:8px 12px;background:#fff;border-top:1px solid var(--bd);flex-shrink:0;color:#475569;font-size:11px}
+.oem-contacts>strong{color:var(--navy);white-space:nowrap}.oem-contact-list{display:flex;gap:16px;flex-wrap:wrap}.oem-contact-list span{display:flex;gap:6px;align-items:center}.oem-contact-list a{color:var(--scan-dark);font-weight:700;text-decoration:underline;text-underline-offset:2px;white-space:nowrap}
+.modal-contacts{margin:0 0 12px;font-size:11px;color:#475569}.modal-contacts summary{cursor:pointer;color:var(--scan-dark);font-weight:600}.modal-contacts .oem-contact-list{gap:7px;margin-top:7px;flex-direction:column}
+@media(max-width:560px){
+  header{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px 6px;padding:6px 10px}
+  .brand{grid-column:1;grid-row:1;min-width:0;gap:5px}.brand-logo{width:30px;flex-shrink:0}.brand-copy{min-width:0}.brand-title{font-size:11px;white-space:normal;line-height:1.15}
+  .hdr-right{display:contents}.header-actions{grid-column:2;grid-row:1;gap:4px}
+  #signOutBtn,#refreshBtn,#csv{width:56px;flex:0 0 56px;height:30px;padding:0 3px;font-size:10px}
+  #refreshBtn .refresh-icon{display:none}
+  #refreshBtn .refresh-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hdr-meta{grid-column:1 / -1;grid-row:3;justify-content:flex-end;font-size:10px;gap:8px}.hdr-meta .ob{max-width:150px;padding:1px 5px}
+  .mode-toggle{grid-column:1 / -1;grid-row:2;width:100%;min-width:0;max-width:none;order:initial}
+  .oem-contacts{display:block;padding:6px 10px}.oem-contacts>strong{display:block;font-size:10px;margin-bottom:3px}.oem-contacts .oem-contact-list{display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:10px}.oem-contacts .oem-contact-list span{align-items:flex-start;flex-direction:column;gap:1px}
+}
 </style>
 </head>
 <body>
@@ -262,11 +278,15 @@ body[data-workflow="card"] #cardManageView{display:flex}
     <button class="mt-btn" data-mode="map" onclick="setWorkflowMode('map')"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3zM9 3v15m6-12v15"/></svg><span>Map</span></button>
   </div>
   <div class="hdr-right">
+    <div class="hdr-meta">
     <div class="hs" id="stats" style="display:none"><span>P:<strong id="pc">0</strong></span><span>A:<strong id="ac">0</strong></span></div>
     <span class="ob" id="opb"></span>
+    </div>
+    <div class="header-actions">
     <button class="b" id="signOutBtn" type="button" onclick="signOutOfArcGIS()" style="display:none">Sign out</button>
     <button class="b" id="refreshBtn" type="button" onclick="refreshAll()" title="Refresh zones, map, addresses, parcels, and activity"><svg class="ui-icon refresh-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.8-3L3 11m0 0V5m0 6h6M4 13a8 8 0 0 0 14.8 3L21 13m0 0v6m0-6h-6"/></svg><span class="refresh-label">Refresh</span></button>
     <button class="b" id="csv" disabled onclick="doExport()">CSV</button>
+    </div>
   </div>
 </header>
 
@@ -283,8 +303,8 @@ body[data-workflow="card"] #cardManageView{display:flex}
   <div id="map"></div>
   <div id="zoneBanner"></div>
   <div class="leg" id="leg" style="display:none">
-    <div class="li"><div class="ls" style="background:rgba(37,99,235,.15);border-color:rgba(37,99,235,.6)"></div>Zones</div>
-    <div class="li"><div class="ls" style="background:rgba(245,158,11,.25);border-color:#f59e0b"></div>Selected</div>
+    <div class="li"><div class="ls" style="background:rgba(37,99,235,.08);border-color:rgba(37,99,235,.6)"></div>Zones</div>
+    <div class="li"><div class="ls" style="background:transparent;border-color:#2563eb"></div>Selected</div>
     <div class="li">County roads, parcels &amp; addresses</div>
     <div class="li">Address numbers appear at close zoom</div>
   </div>
@@ -327,6 +347,8 @@ body[data-workflow="card"] #cardManageView{display:flex}
   </div>
   <div class="registry-list" id="cardRegistryList"></div>
 </section>
+
+<footer class="oem-contacts"><strong>OEM contacts</strong><div class="oem-contact-list"><span>Rob Farino <a href="tel:+19707599274">970-759-9274</a></span><span>Matthew Richardson <a href="tel:+19707495273">970-749-5273</a></span></div></footer>
 
 <!-- EZTAG MODE GUIDE -->
 <div class="mo" id="modeGuide">
@@ -386,6 +408,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
 <div class="mo" id="modal">
  <div class="md">
   <div class="mh"><h2>Checkpoint Scan</h2><button class="mx" onclick="closeModal()">×</button></div>
+  <details class="modal-contacts"><summary>OEM contacts</summary><div class="oem-contact-list"><span>Rob Farino <a href="tel:+19707599274">970-759-9274</a></span><span>Matthew Richardson <a href="tel:+19707495273">970-749-5273</a></span></div></details>
   <div class="modal-zone" id="scanZoneWrap">
     <label for="scanZoneSel">Evacuation zone</label>
     <div class="mz-wrap"><select id="scanZoneSel" onchange="previewCheckpointZone(this.value)"><option value="">Select zone…</option></select></div>
@@ -448,6 +471,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
 <div class="mo" id="cardModal">
  <div class="md">
   <div class="mh"><h2>Custom Cards</h2><button class="mx" onclick="closeCardModal()">×</button></div>
+  <details class="modal-contacts"><summary>OEM contacts</summary><div class="oem-contact-list"><span>Rob Farino <a href="tel:+19707599274">970-759-9274</a></span><span>Matthew Richardson <a href="tel:+19707495273">970-749-5273</a></span></div></details>
   <div class="card-tabs" aria-label="Custom card view">
     <button class="card-tab on" data-card-view="create" onclick="switchCardView('create')">Create Card</button>
     <button class="card-tab" data-card-view="manage" onclick="switchCardView('manage')">Card Registry</button>
@@ -690,10 +714,10 @@ function addCountyReferenceLayers(targetMap){
 map=L.map('map',{zoomControl:true}).setView([37.28,-107.88],10);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',maxZoom:19}).addTo(map);
 addCountyReferenceLayers(map);
-selLayer=L.geoJSON(null,{style:{color:'#f59e0b',weight:3,fillColor:'#f59e0b',fillOpacity:.25}}).addTo(map);
+selLayer=L.geoJSON(null,{style:{color:'#2563eb',weight:3,fillColor:'#2563eb',fillOpacity:0}}).addTo(map);
 zoneLabelLayer=L.layerGroup().addTo(map);
 evacLayer=L.esri.featureLayer({url:EVAC_URL,
-  style:()=>({color:'rgba(37,99,235,.6)',weight:1.5,fillColor:'rgba(37,99,235,.12)',fillOpacity:1}),
+  style:()=>({color:'rgba(37,99,235,.6)',weight:1.5,fillColor:'#2563eb',fillOpacity:.08}),
   onEachFeature(f,l){const p=f.properties;l.bindTooltip(escapeHTML(p.zonename||p.incident||'Zone '+p.OBJECTID),{sticky:true});l.on('click',()=>requestZoneSelection(p.OBJECTID))}
 }).addTo(map);
 
@@ -758,7 +782,7 @@ function previewCheckpointZone(oid){
     zonePreviewMap=L.map('zonePreviewMap',{scrollWheelZoom:false}).setView([37.28,-107.88],10);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap contributors',maxZoom:19}).addTo(zonePreviewMap);
     addCountyReferenceLayers(zonePreviewMap);
-    zonePreviewLayer=L.geoJSON(null,{style:{color:'#1769aa',weight:3,fillColor:'#1769aa',fillOpacity:.22}}).addTo(zonePreviewMap);
+    zonePreviewLayer=L.geoJSON(null,{style:{color:'#2563eb',weight:3,fillColor:'#2563eb',fillOpacity:.08}}).addTo(zonePreviewMap);
   }
   const zone=zones.find(z=>String(z.id)===String(oid));
   zonePreviewLayer.clearLayers();
