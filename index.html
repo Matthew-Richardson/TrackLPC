@@ -139,6 +139,8 @@ tr:hover td{background:#fafafa}
 .checkin-card-btn{background:var(--gn)!important}.checkin-card-btn:hover{background:#059669!important}
 .card-checkin-status{display:none;margin:-2px 0 10px;padding:9px 10px;border-radius:8px;font-size:11px;text-align:center}.card-checkin-status.ok{display:block;background:var(--gb);border:1px solid var(--gn);color:var(--gd)}.card-checkin-status.error{display:block;background:var(--rb2);border:1px solid var(--rd);color:var(--rdd)}
 
+#s1res{padding:10px 12px;text-align:left}#s1res .vd{font-size:16px}#s1res.ri{background:var(--scan-light);border-color:#93c5fd}#s1res.ri .vd,#s1res.ri .dt{color:var(--scan-dark)}
+
 /* START / MODE GUIDE */
 .guide-md{max-width:620px!important;padding:20px!important}
 .guide-brand{display:flex;align-items:center;gap:12px;margin-bottom:15px}.guide-brand img{width:118px;height:44px;object-fit:contain}.guide-brand h2{font-size:20px;color:var(--navy)}.guide-brand p{font-size:11px;color:var(--mu);margin-top:3px}
@@ -157,7 +159,7 @@ tr:hover td{background:#fafafa}
 /* Wedge scanner indicator */
 .wedge-status{font-size:10px;padding:4px 8px;border-radius:4px;text-align:center;margin-bottom:8px;display:none}
 .wedge-status.listening{display:block;background:#eff6ff;color:var(--ac);border:1px solid #bfdbfe}
-.wedge-status.captured{display:block;background:var(--gb);color:var(--gd);border:1px solid var(--gn)}
+.wedge-status.captured{display:block;background:var(--scan-light);color:var(--scan-dark);border:1px solid #93c5fd}
 .wedge-status.invalid{display:block;background:var(--rb2);color:var(--rdd);border:1px solid var(--rd)}
 .privacy-note{margin:8px 0 12px;padding:9px 10px;border:1px solid #cbd5e1;border-radius:7px;background:#f8fafc;color:#475569;font-size:10px;line-height:1.45;text-align:left}
 .privacy-note strong{color:var(--navy)}
@@ -250,7 +252,6 @@ body[data-workflow="card"] #cardManageView{display:flex}
 .hdr-meta,.header-actions{display:flex;align-items:center;gap:6px}.header-actions{flex-wrap:nowrap;flex-shrink:0}
 .oem-contacts{display:flex;align-items:center;justify-content:center;gap:14px;padding:8px 12px;background:#fff;border-top:1px solid var(--bd);flex-shrink:0;color:#475569;font-size:11px}
 .oem-contacts>strong{color:var(--navy);white-space:nowrap}.oem-contact-list{display:flex;gap:16px;flex-wrap:wrap}.oem-contact-list span{display:flex;gap:6px;align-items:center}.oem-contact-list a{color:var(--scan-dark);font-weight:700;text-decoration:underline;text-underline-offset:2px;white-space:nowrap}
-.modal-contacts{margin:0 0 12px;font-size:11px;color:#475569}.modal-contacts summary{cursor:pointer;color:var(--scan-dark);font-weight:600}.modal-contacts .oem-contact-list{gap:7px;margin-top:7px;flex-direction:column}
 @media(max-width:560px){
   header{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px 6px;padding:6px 10px}
   .brand{grid-column:1;grid-row:1;min-width:0;gap:5px}.brand-logo{width:30px;flex-shrink:0}.brand-copy{min-width:0}.brand-title{font-size:11px;white-space:normal;line-height:1.15}
@@ -261,8 +262,8 @@ body[data-workflow="card"] #cardManageView{display:flex}
   .hdr-meta{grid-column:1 / -1;grid-row:3;justify-content:flex-end;font-size:10px;gap:8px}.hdr-meta .ob{max-width:150px;padding:1px 5px}
   .mode-toggle{grid-column:1 / -1;grid-row:2;width:100%;min-width:0;max-width:none;order:initial}
   .oem-contacts{display:flex;padding:6px 8px;gap:0}.oem-contacts>strong{display:none}
-  .oem-contacts .oem-contact-list,.modal-contacts .oem-contact-list{display:flex;flex-direction:row;flex-wrap:nowrap;gap:10px;font-size:clamp(9px,2.5vw,11px);max-width:100%;min-width:0;overflow-x:auto}
-  .oem-contacts .oem-contact-list span,.modal-contacts .oem-contact-list span{align-items:center;flex-direction:row;flex-shrink:0;gap:4px;white-space:nowrap}
+  .oem-contacts .oem-contact-list{display:flex;flex-direction:row;flex-wrap:nowrap;gap:10px;font-size:clamp(9px,2.5vw,11px);max-width:100%;min-width:0;overflow-x:auto}
+  .oem-contacts .oem-contact-list span{align-items:center;flex-direction:row;flex-shrink:0;gap:4px;white-space:nowrap}
 }
 </style>
 </head>
@@ -410,7 +411,6 @@ body[data-workflow="card"] #cardManageView{display:flex}
 <div class="mo" id="modal">
  <div class="md">
   <div class="mh"><h2>Checkpoint Scan</h2><button class="mx" onclick="closeModal()">×</button></div>
-  <details class="modal-contacts"><summary>OEM contacts</summary><div class="oem-contact-list"><span>Rob Farino <a href="tel:+19707599274">970-759-9274</a></span><span>Matthew Richardson <a href="tel:+19707495273">970-749-5273</a></span></div></details>
   <div class="modal-zone" id="scanZoneWrap">
     <label for="scanZoneSel">Evacuation zone</label>
     <div class="mz-wrap"><select id="scanZoneSel" onchange="previewCheckpointZone(this.value)"><option value="">Select zone…</option></select></div>
@@ -425,6 +425,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
   <div class="zone-confirmed" id="zoneConfirmedBar" style="display:none"><strong id="zoneConfirmedName"></strong><button class="b" type="button" onclick="changeCheckpointZone()">Change zone</button></div>
   <div id="scanBody">
   <div class="wedge-status" id="wedgeStatusCP">Scanner ready — scan a DL or re-entry card</div>
+    <div class="res" id="s1res"><div class="vd" id="s1rv"></div><div class="dt" id="s1rd"></div><div class="ae" id="s1ra"></div></div>
 
   <!-- STEP 1: scan + check -->
   <div id="s1">
@@ -443,7 +444,6 @@ body[data-workflow="card"] #cardManageView{display:flex}
     <div class="af"><label>Last name</label><input type="text" id="s1ln" placeholder="Doe"/></div>
     <input type="hidden" id="s1phone"/>
     <div class="af"><label>Address</label><input type="text" id="ai" placeholder="Type an address to check automatically"/></div>
-    <div class="res" id="s1res"><div class="vd" id="s1rv"></div><div class="dt" id="s1rd"></div><div class="ae" id="s1ra"></div></div>
     <div class="scan-resolution-actions" id="s1ResolutionActions" style="display:none">
       <button class="cb override-zone-btn" id="zoneOverrideBtn" type="button" style="display:none" onclick="overrideZoneCheck()">Override zone check and continue</button>
       <button class="btn-outline next-scan-action" type="button" onclick="startNextCheckpointScan()">Scan another person</button>
@@ -473,7 +473,6 @@ body[data-workflow="card"] #cardManageView{display:flex}
 <div class="mo" id="cardModal">
  <div class="md">
   <div class="mh"><h2>Custom Cards</h2><button class="mx" onclick="closeCardModal()">×</button></div>
-  <details class="modal-contacts"><summary>OEM contacts</summary><div class="oem-contact-list"><span>Rob Farino <a href="tel:+19707599274">970-759-9274</a></span><span>Matthew Richardson <a href="tel:+19707495273">970-749-5273</a></span></div></details>
   <div class="card-tabs" aria-label="Custom card view">
     <button class="card-tab on" data-card-view="create" onclick="switchCardView('create')">Create Card</button>
     <button class="card-tab" data-card-view="manage" onclick="switchCardView('manage')">Card Registry</button>
@@ -503,7 +502,6 @@ body[data-workflow="card"] #cardManageView{display:flex}
     Editing an existing card. Only name and phone can be changed.
   </div>
 
-  <button class="btn-outline next-scan-action" id="cardNextScanBtn" type="button" style="display:none" onclick="startNextCardScan()">Scan another license or EZcard</button>
 
   <div class="dv"><span id="cardDetailsLabel">Card details</span></div>
 
@@ -513,6 +511,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
   <div class="af"><label>Phone</label><input type="tel" id="cphone" placeholder="(970) 555-1234"/></div>
   <div class="af"><label>Reason</label><input type="text" id="creason" placeholder="2nd homeowner, renter, student, etc."/></div>
   <button class="cb" id="generateCardBtn" onclick="generateCard()">Generate card</button>
+  <button class="btn-outline next-scan-action" id="cardNextScanBtn" type="button" style="display:none" onclick="startNextCardScan()">Scan another license or EZcard</button>
   </div>
 
   <div id="cardResult" style="display:none">
@@ -1091,7 +1090,7 @@ async function doCheck({autoAdvance=true}={}){
     if(sc<70){showS1('re','Low confidence',`Score: ${sc}/100. Edit the address to retry.`,ma);showS1ResolutionActions();document.getElementById('ss').textContent='Address needs review';return false}
     if(inside){
       hideS1ResolutionActions();
-      showS1('ri','INSIDE ZONE','Address verified. Opening check-in details…',ma);
+      showS1('ri','INSIDE ZONE','Address verified for '+(selZone?.name||'the selected zone')+'.',ma);
       document.getElementById('ss').textContent='Address verified inside '+(selZone?.name||'zone');
       if(autoAdvance)goStep2();
       return true;
@@ -1154,8 +1153,7 @@ function goStep2(){
   else{parsedDL.firstName=firstName||parsedDL.firstName||'';parsedDL.lastName=lastName||parsedDL.lastName||''}
   document.getElementById('s1').style.display='none';document.getElementById('s2').style.display='';
   const info=document.getElementById('s2info');
-  const zoneStatus=lastCheck.override?'OVERRIDE — OUTSIDE '+(selZone?.name||'ZONE'):'INSIDE '+(selZone?.name||'ZONE');
-  const details=[{l:'Zone check',v:zoneStatus},{l:'Address',v:lastCheck.addr}];
+  const details=[{l:'Address',v:lastCheck.addr}];
   if(lastCheck.override)details.push({l:'Override by',v:operatorName||'Operator'});
   if(parsedDL){
     const n=[parsedDL.firstName,parsedDL.lastName].filter(Boolean).map(titleCase).join(' ');
@@ -1163,7 +1161,6 @@ function goStep2(){
     if(parsedDL.cardId)details.push({l:'Card ID',v:parsedDL.cardId});
   }
   renderKeyValueRows(info,details);
-  info.querySelector('.pv').style.cssText=lastCheck.override?'color:#92400e;font-weight:700':'color:var(--gd);font-weight:700';
   document.getElementById('s2phone').value=enteredPhone||(parsedDL?.scanType==='Card'?(parsedDL.phone||''):'');
 }
 function pickDir(dir,el){selectedDir=dir;document.querySelectorAll('.dbtn').forEach(b=>b.classList.remove('sel'));el.classList.add('sel');document.getElementById('s2save').disabled=false}
