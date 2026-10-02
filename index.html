@@ -220,6 +220,7 @@ tr:hover td{background:#fafafa}
 #printFrame{position:fixed;left:-9999px;top:-9999px;width:0;height:0;border:none}
 .zone-label{font-size:10px;font-weight:700;color:#1e3a5f;text-shadow:1px 1px 2px #fff,-1px -1px 2px #fff,1px -1px 2px #fff,-1px 1px 2px #fff;white-space:nowrap;pointer-events:none}
 #zoneBanner{display:none;position:absolute;top:8px;left:50%;transform:translateX(-50%);z-index:1001;background:rgba(245,158,11,.92);color:#1a1a2e;padding:5px 14px;border-radius:6px;font-size:13px;font-weight:700;white-space:nowrap;pointer-events:none;box-shadow:0 2px 6px rgba(0,0,0,.2);letter-spacing:.02em}
+.county-layer-hint{font-size:10px;line-height:1.4;color:#64748b;margin:5px 0 8px}
 /* Clear zone selection and full-screen card database */
 .zone-bar{background:#eff6ff;border-bottom:2px solid #1769aa;padding:10px 14px}
 .zone-bar-label{color:#17324d;font-size:12px;font-weight:800}
@@ -280,6 +281,8 @@ body[data-workflow="card"] #cardManageView{display:flex}
   <div class="leg" id="leg" style="display:none">
     <div class="li"><div class="ls" style="background:rgba(37,99,235,.15);border-color:rgba(37,99,235,.6)"></div>Zones</div>
     <div class="li"><div class="ls" style="background:rgba(245,158,11,.25);border-color:#f59e0b"></div>Selected</div>
+    <div class="li">County roads, parcels &amp; addresses</div>
+    <div class="li">Zoom in for parcel/address detail</div>
   </div>
 </div>
 
@@ -385,6 +388,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
     <div class="mz-hint">Review the zone on the map, then confirm to begin scanning.</div>
     <div id="zonePreviewPanel">
       <div id="zonePreviewMap" aria-label="Selected checkpoint zone map"></div>
+      <div class="county-layer-hint">Roads, parcels, and address numbers are enabled. Zoom in for parcel and address detail; use Layers to toggle overlays.</div>
       <div id="zonePreviewInfo" role="status">Select an evacuation zone to preview its boundary.</div>
       <button class="cb" id="zoneConfirmBtn" type="button" disabled onclick="confirmCheckpointZone()">Confirm zone and begin scanning</button>
     </div>
@@ -665,8 +669,23 @@ function openPrivacyModal(){document.getElementById('privacyModal').classList.ad
 function closePrivacyModal(){document.getElementById('privacyModal').classList.remove('open')}
 
 // ---- MAP ----
+const COUNTY_REFERENCE_URL='https://gis.lpcgov.org/arcgis/rest/services/JS_website/MapLayersCitizenserve/MapServer';
+const countyReferenceMaps=[];
+function addCountyReferenceLayers(targetMap){
+  // Server-rendered overlays retain County symbology, labels, and scale limits.
+  const pane=targetMap.createPane('countyReferences');pane.style.zIndex=350;pane.style.pointerEvents='none';
+  const overlays={};
+  [[2,'Roads'],[1,'Parcel Boundaries'],[0,'Address Numbers']].forEach(([id,name])=>{
+    overlays[name]=L.esri.dynamicMapLayer({url:COUNTY_REFERENCE_URL,layers:[id],
+      transparent:true,format:'png32',opacity:1,pane:'countyReferences',
+      attribution:'La Plata County GIS'}).addTo(targetMap);
+  });
+  L.control.layers(null,overlays,{position:'topright',collapsed:true}).addTo(targetMap);
+  countyReferenceMaps.push(overlays);
+}
 map=L.map('map',{zoomControl:true}).setView([37.28,-107.88],10);
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',maxZoom:19}).addTo(map);
+addCountyReferenceLayers(map);
 selLayer=L.geoJSON(null,{style:{color:'#f59e0b',weight:3,fillColor:'#f59e0b',fillOpacity:.25}}).addTo(map);
 zoneLabelLayer=L.layerGroup().addTo(map);
 evacLayer=L.esri.featureLayer({url:EVAC_URL,
@@ -734,6 +753,7 @@ function previewCheckpointZone(oid){
   if(!zonePreviewMap){
     zonePreviewMap=L.map('zonePreviewMap',{scrollWheelZoom:false}).setView([37.28,-107.88],10);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap contributors',maxZoom:19}).addTo(zonePreviewMap);
+    addCountyReferenceLayers(zonePreviewMap);
     zonePreviewLayer=L.geoJSON(null,{style:{color:'#1769aa',weight:3,fillColor:'#1769aa',fillOpacity:.22}}).addTo(zonePreviewMap);
   }
   const zone=zones.find(z=>String(z.id)===String(oid));
@@ -904,6 +924,7 @@ function doExport(){
 function setLoading(on){document.getElementById('lb').classList.toggle('on',on)}
 
 function refreshZoneLayer(){
+  countyReferenceMaps.forEach(overlays=>Object.values(overlays).forEach(layer=>layer.redraw()));
   evacLayer.once('load',()=>rebuildZoneCatalog());
   evacLayer.refresh();
 }
