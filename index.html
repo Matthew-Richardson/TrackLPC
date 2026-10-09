@@ -522,7 +522,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
       <button class="cb" onclick="printCard()">Print to ZC300</button>
       <button class="btn-outline" onclick="savePNG()">Save PNG</button>
     </div>
-    <div class="print-hint"><strong>ZC300 print settings:</strong> CR‑80 card · Landscape · Actual size/100% · Margins None · Headers and footers Off · One copy. The app rotates the portrait badge onto one physical card.</div>
+    <div class="print-hint"><strong>ZC300 print settings:</strong> CR‑80 card · Landscape · Actual size/100% · Margins None · Headers and footers Off · One copy. Solid black text and vector QR · In Zebra driver settings, enable Black Extraction for text, graphics, and bitmaps when using a color ribbon with a K panel. The app rotates the portrait badge onto one physical card.</div>
     <button class="cb checkin-card-btn" id="cardCheckinBtn" onclick="checkInLastCard()">Check in this cardholder</button>
     <div class="card-checkin-status" id="cardCheckinStatus" role="status"></div>
     <button class="rst" onclick="editLastCard()">Edit name or phone</button>
@@ -2107,15 +2107,65 @@ async function generateCard(){
 }
 
 // ============================================================
-//  ZC300 CARD PRINTING — CR-80 at 300 DPI via hidden iframe
+//  ZC300 CARD PRINTING — vector text/QR; 300 DPI canvas preview and PNG
 // ============================================================
-function renderCardCanvas(c){
+// Both outputs share the same layout, font measurements, and QR payload.
+function renderCardCanvas(c){return renderCardArtwork(c)}
+function renderCardSVG(c){return renderCardArtwork(c,true)}
+
+// Record the drawing primitives as SVG for printing. Text stays text and QR
+// modules stay rectangles, instead of being baked into a scaled PNG.
+function createCardSVGContext(canvas){
+  const ns='http://www.w3.org/2000/svg';
+  const svg=document.createElementNS(ns,'svg');
+  svg.setAttribute('xmlns',ns);
+  svg.setAttribute('viewBox',`0 0 ${canvas.height} ${canvas.width}`);
+  svg.setAttribute('width','85.30mm');svg.setAttribute('height','53.70mm');
+  const group=document.createElementNS(ns,'g');
+  group.setAttribute('transform',`translate(${canvas.height} 0) rotate(90)`);
+  svg.appendChild(group);
+  const measure=canvas.getContext('2d');
+  let path='';
+  function add(tag,attrs,text){
+    const node=document.createElementNS(ns,tag);
+    Object.entries(attrs).forEach(([key,value])=>node.setAttribute(key,String(value)));
+    if(text!==undefined)node.textContent=String(text);
+    group.appendChild(node);
+    return node;
+  }
+  const ctx={
+    fillStyle:'#000',strokeStyle:'#000',lineWidth:1,textAlign:'start',font:'10px sans-serif',
+    measureText(text){measure.font=this.font;return measure.measureText(text)},
+    fillRect(x,y,width,height){add('rect',{x,y,width,height,fill:this.fillStyle})},
+    strokeRect(x,y,width,height){add('rect',{x,y,width,height,fill:'none',stroke:this.strokeStyle,'stroke-width':this.lineWidth})},
+    beginPath(){path=''},
+    moveTo(x,y){path+=`M ${x} ${y} `},
+    lineTo(x,y){path+=`L ${x} ${y} `},
+    stroke(){add('path',{d:path,fill:'none',stroke:this.strokeStyle,'stroke-width':this.lineWidth})},
+    drawImage(img,x,y,width,height){
+      const node=add('image',{href:img.src,x,y,width,height,preserveAspectRatio:'none'});
+      node.setAttributeNS('http://www.w3.org/1999/xlink','xlink:href',img.src);
+    },
+    fillText(text,x,y){
+      const match=this.font.match(/^(?:(bold|italic|normal)\s+)?([\d.]+)px\s+(.+)$/);
+      if(!match)throw new Error('Unsupported card font: '+this.font);
+      add('text',{x,y,fill:this.fillStyle,'font-size':match[2],
+        'font-family':match[3],'font-weight':match[1]==='bold'?'bold':'normal',
+        'font-style':match[1]==='italic'?'italic':'normal',
+        'text-anchor':this.textAlign==='center'?'middle':this.textAlign==='right'?'end':'start'},text);
+    },
+    serialize(){return new XMLSerializer().serializeToString(svg)}
+  };
+  return ctx;
+}
+
+function renderCardArtwork(c,vector=false){
   return new Promise((resolve,reject)=>{
     // Standard CR-80 (2.125 x 3.375 in) rounded to whole pixels at 300 dpi.
     const W=638,H=1013;
     const canvas=document.createElement('canvas');
     canvas.width=W;canvas.height=H;
-    const ctx=canvas.getContext('2d');
+    const ctx=vector?createCardSVGContext(canvas):canvas.getContext('2d');
 
     ctx.fillStyle='#fff';
     ctx.fillRect(0,0,W,H);
@@ -2134,7 +2184,7 @@ function renderCardCanvas(c){
       }
 
       // --- TITLE ---
-      ctx.fillStyle='#1a1a2e';
+      ctx.fillStyle='#000';
       ctx.textAlign='center';
       ctx.font='bold 26px -apple-system, sans-serif';
       ctx.fillText('OFFICE OF EMERGENCY MANAGEMENT',W/2,238);
@@ -2144,7 +2194,7 @@ function renderCardCanvas(c){
       ctx.beginPath();ctx.moveTo(34,257);ctx.lineTo(W-34,257);ctx.stroke();
 
       // --- CARD TYPE ---
-      ctx.fillStyle='#2563eb';
+      ctx.fillStyle='#000';
       ctx.font='bold 28px -apple-system, sans-serif';
       ctx.fillText('EVACUATION ZONE RE-ENTRY CARD',W/2,296);
 
@@ -2153,12 +2203,12 @@ function renderCardCanvas(c){
       ctx.beginPath();ctx.moveTo(34,317);ctx.lineTo(W-34,317);ctx.stroke();
 
       // --- NAME ---
-      ctx.fillStyle='#111';
+      ctx.fillStyle='#000';
       setCanvasFontToFit(ctx,`${c.fn} ${c.ln}`,58,36,W-54,'bold');
       ctx.fillText(`${c.fn} ${c.ln}`,W/2,385);
 
       // --- ADDRESS (word wrap for long addresses) ---
-      ctx.fillStyle='#444';
+      ctx.fillStyle='#000';
       ctx.font='30px -apple-system, sans-serif';
       const addrLines=wrapText(ctx,c.addr,W-66).slice(0,3);
       let addrY=435;
@@ -2169,7 +2219,7 @@ function renderCardCanvas(c){
 
       // --- PHONE ---
       if(c.phone){
-        ctx.fillStyle='#666';
+        ctx.fillStyle='#000';
         ctx.font='28px -apple-system, sans-serif';
         ctx.fillText(c.phone,W/2,addrY+12);
       }
@@ -2177,7 +2227,7 @@ function renderCardCanvas(c){
       // --- REASON ---
       if(c.reason){
         const reasonY=c.phone?addrY+54:addrY+24;
-        ctx.fillStyle='#555';
+        ctx.fillStyle='#000';
         setCanvasFontToFit(ctx,c.reason,25,17,W-78,'italic');
         ctx.fillText(c.reason,W/2,reasonY);
       }
@@ -2202,7 +2252,7 @@ function renderCardCanvas(c){
       }
 
       // --- CARD ID ---
-      ctx.fillStyle='#888';
+      ctx.fillStyle='#000';
       ctx.font='18px monospace';
       ctx.fillText(c.cardId,W/2,qrY+qrSize+25);
 
@@ -2216,18 +2266,18 @@ function renderCardCanvas(c){
       ctx.strokeRect(footerX,footerY,footerW,footerH);
       ctx.beginPath();ctx.moveTo(W/2,footerY);ctx.lineTo(W/2,footerY+footerH);ctx.stroke();
 
-      ctx.fillStyle='#17324d';
+      ctx.fillStyle='#000';
       ctx.textAlign='center';
       ctx.font='bold 13px -apple-system, sans-serif';
       ctx.fillText('GENERAL QUESTIONS / LPC OEM',footerX+cellW/2,footerY+21);
       ctx.fillText('EMERGENCY CALL CENTER',footerX+cellW+cellW/2,footerY+21);
 
-      ctx.fillStyle='#111827';
+      ctx.fillStyle='#000';
       ctx.font='bold 30px -apple-system, sans-serif';
       ctx.fillText('970-382-6275',footerX+cellW/2,footerY+57);
       ctx.fillText('970-385-8700',footerX+cellW+cellW/2,footerY+57);
 
-      resolve(canvas);
+      resolve(vector?ctx.serialize():canvas);
     }
 
     logo.onload=function(){draw(true)};
@@ -2266,107 +2316,47 @@ function wrapText(ctx,text,maxWidth){
   return lines;
 }
 
+// Wait for fonts and the embedded logo in either print window. SVG text and
+// QR rectangles do not need an image decode or a rasterizing CSS transform.
+async function prepareCardPrint(doc){
+  if(doc.fonts)await doc.fonts.ready;
+  await Promise.all(Array.from(doc.querySelectorAll('svg image')).map(node=>new Promise(resolve=>{
+    const image=new Image();image.onload=resolve;image.onerror=resolve;
+    image.src=node.getAttribute('href');
+    if(image.complete)resolve();
+  })));
+  await new Promise(resolve=>doc.defaultView.requestAnimationFrame(()=>doc.defaultView.requestAnimationFrame(resolve)));
+}
+
 async function printCard(){
   const c=window._lastCard;if(!c)return;
-
   try{
-    const canvas=await renderCardCanvas(c);
-    const dataUrl=canvas.toDataURL('image/png');
-
-    // Print via hidden iframe — avoids popup blockers entirely
-    const frame=document.getElementById('printFrame');
-    const doc=frame.contentDocument||frame.contentWindow.document;
-
-    doc.open();
-    doc.write(`<!DOCTYPE html>
+    const artwork=await renderCardSVG(c);
+    // Landscape CR-80 sheet. Rotate coordinates inside SVG so the browser
+    // can send vector artwork to the driver without resampling a bitmap.
+    const printHTML=`<!DOCTYPE html>
 <html><head><title>LPC Re-entry Card</title>
 <style>
-  /* The ZC300 transports a CR-80 card as one landscape sheet.  Keep the
-     print document landscape, then rotate the portrait badge inside it. */
-  @page{
-    size:85.60mm 53.98mm;
-    margin:0;
-  }
+  @page{size:85.60mm 53.98mm;margin:0}
   *{margin:0;padding:0;box-sizing:border-box}
-  html,body{
-    width:85.60mm;
-    height:53.98mm;
-    overflow:hidden;
-    background:#fff;
-  }
-  body{position:fixed;top:0;left:0}
-  img{
-    position:fixed;
-    top:0;
-    left:0;
-    width:53.70mm;
-    height:85.30mm;
-    display:block;
-    object-fit:contain;
-    transform-origin:0 0;
-    transform:translateX(85.30mm) rotate(90deg);
-    -webkit-print-color-adjust:exact;
-    print-color-adjust:exact;
-    break-inside:avoid;
-    page-break-inside:avoid;
-  }
-  @media print{
-    html,body{width:85.60mm;height:53.98mm;overflow:hidden}
-    body{position:fixed;top:0;left:0}
-    img{position:fixed;top:0;left:0;width:53.70mm;height:85.30mm;object-fit:contain;transform-origin:0 0;transform:translateX(85.30mm) rotate(90deg);break-inside:avoid;page-break-inside:avoid}
-  }
-/* Clear zone selection and full-screen card database */
-.zone-bar{background:#eff6ff;border-bottom:2px solid #1769aa;padding:10px 14px}
-.zone-bar-label{color:#17324d;font-size:12px;font-weight:800}
-.zone-bar-select select{background:#fff;color:#17324d;border:2px solid #1769aa;font-weight:700;padding:10px 30px 10px 12px}
-.zone-bar-select::after{color:#1769aa;font-size:15px}.zone-bar-hint{color:#475569}
-.zone-bar.has-zone .zone-bar-select select{background:#f0fdf4;color:#065f46}
-#zonePreviewMap{height:190px;width:100%;border:1px solid #cbd5e1;border-radius:8px;margin:9px 0}
-#zonePreviewInfo{font-size:12px;line-height:1.45;color:#475569;margin:7px 0}
-#zoneConfirmBtn{margin-bottom:0}#zoneConfirmBtn:disabled{opacity:.45;cursor:not-allowed}
-.zone-confirmed{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 10px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;font-size:12px;color:#065f46;margin-bottom:12px}
-body[data-workflow="card"] #zoneBar,body[data-workflow="card"] #mc,body[data-workflow="card"] .ts,body[data-workflow="card"] #stats,body[data-workflow="card"] #csv{display:none!important}
-#cardManageView{display:none;flex:1;min-height:0;flex-direction:column;background:#f8fafc;overflow:hidden}
-body[data-workflow="card"] #cardManageView{display:flex}
-.registry-toolbar{padding:16px;background:#fff;border-bottom:1px solid var(--bd);flex-shrink:0}
-.registry-heading{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
-.registry-heading h2{font-size:18px;color:var(--navy)}.registry-tools{display:flex;gap:7px;flex-wrap:wrap}
-.registry-filters{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}.registry-filters label{font-size:11px;font-weight:600;color:#475569;display:flex;flex-direction:column;gap:4px}
-.registry-filters select{padding:7px;border:1px solid var(--bd);border-radius:6px;background:#fff;color:var(--tx);max-width:220px}
-#cardRegistryStatus{text-align:left;margin:9px 0 0}#cardRegistryList{overflow:auto;padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;align-content:start;flex:1;min-height:0}
-.registry-item{min-width:0}.registry-detail{overflow-wrap:anywhere}
-@media(max-width:520px){.zone-bar-select{min-width:100%}.registry-toolbar{padding:12px}#cardRegistryList{grid-template-columns:1fr;padding:10px}.registry-filters label{flex:1}.registry-filters select{max-width:100%;width:100%}}
-</style>
-</head><body>
-<img src="${dataUrl}"/>
-</body></html>`);
-    doc.close();
-
-    // Wait for the image to render in the iframe, then print
-    const img=doc.querySelector('img');
-    const doPrint=()=>{
-      try{
-        frame.contentWindow.focus();
-        frame.contentWindow.print();
-      }catch(e){
-        // Fallback: open in new tab if iframe print fails
-        console.warn('Iframe print failed, opening in new tab:',e);
-        const w=window.open('','_blank');
-        if(w){
-          w.document.write(doc.documentElement.outerHTML);
-          w.document.close();
-          setTimeout(()=>{w.focus();w.print()},400);
-        }else{
-          alert('Popup blocked — use "Save PNG" and print from your image viewer');
-        }
-      }
-    };
-
-    if(img.complete){
-      setTimeout(doPrint,200);
-    }else{
-      img.onload=()=>setTimeout(doPrint,200);
-      img.onerror=()=>alert('Card image failed to render — use "Save PNG" instead');
+  html,body{width:85.60mm;height:53.98mm;overflow:hidden;background:#fff}
+  body{position:relative}
+  svg{display:block;position:absolute;left:.15mm;top:.14mm;width:85.30mm;height:53.70mm;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;
+    break-inside:avoid;page-break-inside:avoid}
+</style></head><body>${artwork}</body></html>`;
+    const frame=document.getElementById('printFrame');
+    const doc=frame.contentDocument||frame.contentWindow.document;
+    doc.open();doc.write(printHTML);doc.close();
+    await prepareCardPrint(doc);
+    try{
+      frame.contentWindow.focus();frame.contentWindow.print();
+    }catch(e){
+      console.warn('Iframe print failed, opening in new tab:',e);
+      const w=window.open('','_blank');
+      if(!w){alert('Popup blocked — allow popups and try printing again, or use "Save PNG".');return}
+      w.document.open();w.document.write(printHTML);w.document.close();
+      await prepareCardPrint(w.document);w.focus();w.print();
     }
   }catch(e){
     console.error('Print error:',e);
