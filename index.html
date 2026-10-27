@@ -270,7 +270,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
 }
 </style>
 <link rel="stylesheet" href="sar.css"/>
-<link rel="stylesheet" href="app.css?v=resource-next-20261027"/>
+<link rel="stylesheet" href="app.css?v=resource-count-20261027"/>
 </head>
 <body>
 
@@ -283,7 +283,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
   <div class="mode-toggle" id="modeToggle">
     <div class="mt-thumb"></div>
     <button class="mt-btn active" data-mode="scan" onclick="setWorkflowMode('scan')"><span class="checkpoint-symbol" aria-hidden="true">IN/OUT</span><span>Checkpoint</span></button>
-    <button class="mt-btn" data-mode="resource" onclick="setWorkflowMode('resource')"><span>Resource</span></button>
+    <button class="mt-btn" data-mode="resource" onclick="setWorkflowMode('resource')"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 7 9-4 9 4v10l-9 4-9-4zM3 7l9 5 9-5M12 12v9M7.5 5l9 4.5"/></svg><span>Resource</span></button>
     <button class="mt-btn" data-mode="card" onclick="setWorkflowMode('card')"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8" cy="11" r="2"/><path d="M5.5 16c.7-1.6 4.3-1.6 5 0M13 10h5m-5 4h5"/></svg><span>Custom Card</span></button>
   </div>
   <nav class="sar-nav" id="sarModeToggle" aria-label="SAR workspace"><button type="button" data-sar-tab="events" aria-selected="true">IN/OUT Checkpoint</button><button type="button" data-sar-tab="members" aria-selected="false">Member cards</button></nav>
@@ -2706,8 +2706,8 @@ window.LPCCardLiveScanner=(()=>{
 })();
 
 </script>
-<script src="resource-config.js?v=resource-next-20261027"></script>
-<script src="resource.js?v=resource-next-20261027"></script>
+<script src="resource-config.js?v=resource-count-20261027"></script>
+<script src="resource.js?v=resource-count-20261027"></script>
 </body>
 </html>
 
