@@ -196,6 +196,8 @@ No `LICENSE` file is currently included. Contact the maintainer about reuse and 
 
 Select **Checkpoint** or **Resource**, choose an evacuation zone, and review it on the main map. The button above the map opens the scanner: **Check in** for evacuation attendance or **Distribute resources** for aid. The dedicated Map tab and zone confirmation screen have been removed.
 
-Resource accepts DL scans and the same approved Custom Cards used by Checkpoint. Select a common aid preset or Custom resource, adjust type/description/quantity/unit, enter distribution and optional coverage dates, and add notes. Save multiple resource lines for the same person or scan the next recipient. Resource writes to its own nonspatial GIS table and provides zone history and CSV export.
+Before opening the Resource scanner, select one or more common aid presets or Custom resources and set the quantity per person for each. The selections remain ready for subsequent recipients. Resource accepts DL scans and the same approved Custom Cards used by Checkpoint. After scanning, enter distribution and optional coverage dates and notes, then save all items together. Each item is a separate row in the existing Resource table; **the import CSV and GIS schema do not change**.
+
+A successful distribution automatically creates or reuses the person’s shared Custom Card, with View, Print to ZC300, and Save PNG controls. Printing is optional. Batch retries check each item ID and submit only missing rows. Zone history and CSV export retain one row per issued item.
 
 **GIS setup is required before resource saves work.** See [RESOURCE_GIS_SETUP.md](RESOURCE_GIS_SETUP.md), [resource-table-definition.json](resource-table-definition.json), and [resource-config.js](resource-config.js). The hosted table has not been created by this code change. Preset quantities are editable entry defaults, not eligibility or allotment standards.

@@ -16,6 +16,74 @@ const RESOURCE_PRESETS = [
   ['custom','','','','']
 ];
 let resourceSaving=false,resourceRows=[],resourceHistoryVersion=0;
+let resourceDraftItems=[],activeResourceItems=[],resourceDraftSequence=0;
+function newResourceDraft(presetId='water-case'){
+  const preset=RESOURCE_PRESETS.find(p=>p[0]===presetId)||RESOURCE_PRESETS[0];
+  return {key:++resourceDraftSequence,preset:preset[0],type:preset[1],name:preset[2],unit:preset[3],quantity:preset[4]};
+}
+function setupResourceSelection(){
+  const section=document.getElementById('resourceSelection');
+  if(!section.dataset.ready){
+    section.dataset.ready='true';resourceDraftItems=[newResourceDraft()];
+    section.innerHTML=`<strong>Resources to distribute</strong>
+      <p class="resource-help">Choose all items and quantities before scanning. These selections stay ready for the next person.</p>
+      <form id="resourceSelectionForm"><div id="resourceItemRows"></div></form>
+      <button class="b" id="resourceAddItem" type="button">Add another item</button>
+      <p id="resourceSelectionStatus" role="status" aria-live="polite"></p>`;
+    document.getElementById('resourceSelectionForm').onsubmit=e=>{e.preventDefault();openModal()};
+    document.getElementById('resourceAddItem').onclick=()=>{
+      if(resourceDraftItems.length>=50){document.getElementById('resourceSelectionStatus').textContent='Use up to 50 items per person.';return}
+      resourceDraftItems.push(newResourceDraft());renderResourceDraftItems();
+    };
+    renderResourceDraftItems();
+  }
+}
+function renderResourceDraftItems(){
+  const list=document.getElementById('resourceItemRows');list.replaceChildren();
+  resourceDraftItems.forEach((item,index)=>{
+    const prefix='resourceItem'+item.key;
+    const row=document.createElement('div');row.className='resource-item-row';
+    row.innerHTML=`<div class="resource-item-heading"><strong>Item ${index+1}</strong><button class="b" id="${prefix}Remove" type="button" aria-label="Remove item ${index+1}">Remove</button></div>
+      <div class="resource-grid">
+        <div class="af"><label for="${prefix}Preset">Resource</label><select id="${prefix}Preset"></select></div>
+        <div class="af"><label for="${prefix}Quantity">Quantity per person</label><input id="${prefix}Quantity" type="number" min="0.001" step="any" required></div>
+      </div>
+      <details ${item.preset==='custom'?'open':''}><summary>Edit type, description, or unit</summary><div class="resource-grid">
+        <div class="af"><label for="${prefix}Type">Type</label><input id="${prefix}Type" maxlength="80" required></div>
+        <div class="af"><label for="${prefix}Name">Resource / package description</label><input id="${prefix}Name" maxlength="150" required></div>
+        <div class="af"><label for="${prefix}Unit">Unit</label><input id="${prefix}Unit" maxlength="40" required></div>
+      </div></details>`;
+    list.append(row);
+    const select=document.getElementById(prefix+'Preset');
+    RESOURCE_PRESETS.forEach(p=>{const o=document.createElement('option');o.value=p[0];o.textContent=p[0]==='custom'?'Custom resource':p[2];select.append(o)});
+    select.value=item.preset;
+    select.onchange=()=>{const replacement=newResourceDraft(select.value);Object.assign(item,replacement,{key:item.key});renderResourceDraftItems()};
+    ['quantity','type','name','unit'].forEach(field=>{
+      const input=document.getElementById(prefix+field[0].toUpperCase()+field.slice(1));input.value=item[field];
+      input.oninput=()=>{item[field]=input.value};
+    });
+    document.getElementById(prefix+'Remove').onclick=()=>{resourceDraftItems=resourceDraftItems.filter(i=>i.key!==item.key);renderResourceDraftItems()};
+  });
+}
+function validateResourceItems(items){
+  if(!items.length)throw new Error('Add at least one resource before scanning.');
+  if(items.length>50)throw new Error('Use up to 50 items per person.');
+  items.forEach((item,index)=>{
+    if(!String(item.type).trim()||!String(item.name).trim()||!String(item.unit).trim())throw new Error(`Complete type, description, and unit for item ${index+1}.`);
+    if(!Number.isFinite(Number(item.quantity))||Number(item.quantity)<=0)throw new Error(`Enter a quantity greater than zero for item ${index+1}.`);
+  });
+}
+function describeResourceItems(items){return items.map(i=>`${i.quantity} ${i.unit} ${i.name}`).join(' · ')}
+function beginResourceScan(){
+  setupResourceSelection();
+  const status=document.getElementById('resourceSelectionStatus');status.textContent='';
+  try{validateResourceItems(resourceDraftItems)}catch(err){status.textContent=err.message;document.getElementById('resourceSelection').scrollIntoView({block:'nearest'});return false}
+  if(!document.getElementById('resourceSelectionForm').reportValidity())return false;
+  activeResourceItems=resourceDraftItems.map(item=>({...item}));
+  const summary=document.getElementById('resourceScanSummary');summary.hidden=false;
+  summary.textContent='Resources per person: '+describeResourceItems(activeResourceItems);
+  return true;
+}
 function resourceURL(){return String(window.LPC_RESOURCE_CONFIG?.tableUrl||'').trim().replace(/\/$/,'')}
 function resourceLocalDate(date=new Date()){
   return new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,16);
@@ -25,6 +93,9 @@ function updateResourceModeUI(){
   document.querySelector('#modal .mh h2').textContent=on?'Resource — aid distribution':'Checkpoint Scan';
   document.getElementById('resourceManual').hidden=!on;
   document.getElementById('resourcePanel').hidden=true;
+  document.getElementById('resourceSelection').hidden=!on;
+  document.getElementById('resourceScanSummary').hidden=!on;
+  if(on)setupResourceSelection();
   document.getElementById('zoneHint').textContent=on?'Resource mode — choose an evacuation zone to record aid distribution':'Choose a zone to begin checkpoint scanning';
   document.getElementById('zoneScanBtn').textContent=on?'Distribute resources':'Check in';
 }
@@ -34,15 +105,12 @@ function resetResourceForm(){
   resourceRows=[];
   const manual=document.getElementById('resourceManual');if(manual)manual.hidden=workflowMode!=='resource';
 }
-function applyResourcePreset(){
-  const preset=RESOURCE_PRESETS.find(p=>p[0]===document.getElementById('resourcePreset').value);
-  ['resourceType','resourceName','resourceUnit','resourceQuantity'].forEach((id,i)=>document.getElementById(id).value=preset[i+1]);
-}
 async function prepareResourceRecipient(){
   if(workflowMode!=='resource'||!checkpointZoneConfirmed||!selZone)return false;
+  try{validateResourceItems(activeResourceItems)}catch(err){document.getElementById('ss').textContent=err.message;return false}
   const fn=document.getElementById('s1fn').value.trim(),ln=document.getElementById('s1ln').value.trim(),addr=document.getElementById('ai').value.trim();
   if(!fn||!ln||!addr){document.getElementById('ss').textContent='First name, last name, and address are required.';return false}
-  window.LPCLiveScanner?.pause();clearTimeout(manualAddressTimer);addressCheckSequence++;
+  window.LPCLiveScanner?.pause();wedge.setTarget(null);clearTimeout(manualAddressTimer);addressCheckSequence++;
   parsedDL={...parsedDL,firstName:fn,lastName:ln,fullAddress:addr,scanType:parsedDL?.scanType||'Manual'};
   document.getElementById('s1').style.display='none';document.getElementById('s2').style.display='none';
   document.getElementById('resourceManual').hidden=true;
@@ -51,13 +119,8 @@ async function prepareResourceRecipient(){
     <p id="resourcePerson"></p><p class="resource-help">The selected zone identifies this distribution. An address outside the zone does not block aid. The same EZcard works at evacuation checkpoints.</p>
     <p id="resourceSetup" role="status"></p>
     <form id="resourceForm">
-      <div class="af"><label for="resourcePreset">Resource preset</label><select id="resourcePreset"></select></div>
-      <p class="resource-help">Presets fill editable fields. Confirm package size and quantity for the supplies actually issued.</p>
+      <p id="resourceItemSummary"></p>
       <div class="resource-grid">
-        <div class="af"><label for="resourceType">Type</label><input id="resourceType" maxlength="80" required></div>
-        <div class="af"><label for="resourceName">Resource / package description</label><input id="resourceName" maxlength="150" required></div>
-        <div class="af"><label for="resourceQuantity">Quantity distributed</label><input id="resourceQuantity" type="number" min="0.001" step="any" required></div>
-        <div class="af"><label for="resourceUnit">Unit</label><input id="resourceUnit" maxlength="40" required></div>
         <div class="af"><label for="resourceDate">Distributed at (local)</label><input id="resourceDate" type="datetime-local" required></div>
         <div class="af"><label for="resourceThrough">Covers through (local, optional)</label><input id="resourceThrough" type="datetime-local"></div>
       </div>
@@ -66,19 +129,19 @@ async function prepareResourceRecipient(){
       <button class="cb" id="resourceSave" type="submit">Save distribution</button>
       <p id="resourceStatus" role="status" aria-live="polite"></p>
     </form>
-    <button class="b" type="button" onclick="startNextCheckpointScan()">Scan another person</button>
+    <div id="resourceCardResult" hidden></div>
+    <button class="b" id="resourceNextPerson" type="button" onclick="startNextCheckpointScan()">Scan another person</button>
     <details><summary>Distributions for selected zone</summary><button class="b" type="button" id="resourceRefresh">Refresh</button><button class="b" type="button" id="resourceExport">Export CSV</button><p id="resourceHistoryStatus" role="status"></p><div id="resourceHistory"></div></details>`;
   document.getElementById('resourceZone').textContent=selZone.name;
   document.getElementById('resourcePerson').textContent=[fn,ln].join(' ')+' · '+addr;
-  const select=document.getElementById('resourcePreset');
-  RESOURCE_PRESETS.forEach(p=>{const o=document.createElement('option');o.value=p[0];o.textContent=p[0]==='custom'?'Custom resource':p[2];select.append(o)});
-  select.onchange=applyResourcePreset;applyResourcePreset();
+  document.getElementById('resourceItemSummary').textContent='Distributing: '+describeResourceItems(activeResourceItems);
   document.getElementById('resourceDate').value=resourceLocalDate();
   document.getElementById('resourcePhone').value=document.getElementById('s1phone').value||parsedDL.phone||'';
   document.getElementById('resourceForm').onsubmit=saveResourceDistribution;
   document.getElementById('resourceRefresh').onclick=loadResourceHistory;
   document.getElementById('resourceExport').onclick=exportResourceHistory;
   document.getElementById('resourceSave').disabled=!resourceURL();
+  document.getElementById('resourceSave').textContent=`Save ${activeResourceItems.length} item${activeResourceItems.length===1?'':'s'}`;
   document.getElementById('resourceSetup').textContent=resourceURL()?'':'GIS setup required: connect Resource_Distributions in resource-config.js before saving. See RESOURCE_GIS_SETUP.md in GitHub.';
   await loadResourceHistory();return true;
 }
@@ -97,34 +160,71 @@ async function saveResourceDistribution(e){
   e.preventDefault();if(resourceSaving||workflowMode!=='resource'||!checkpointZoneConfirmed||!selZone)return;
   const url=resourceURL();if(!url)return;
   const form=document.getElementById('resourceForm'),btn=document.getElementById('resourceSave'),status=document.getElementById('resourceStatus');
-  if(!form.reportValidity())return;
+  if(form.dataset.saved==='true'||!form.reportValidity())return;
   const read=id=>document.getElementById(id).value.trim();
-  const person={...parsedDL},zone={...selZone};
-  // Preserve one ID across retries after a lost network response.
-  form.dataset.distributionId ||= crypto.randomUUID();
-  const fields=form._pendingResource||{id:form.dataset.distributionId,type:read('resourceType'),name:read('resourceName'),quantity:read('resourceQuantity'),unit:read('resourceUnit'),date:read('resourceDate'),through:read('resourceThrough'),phone:read('resourcePhone'),preset:read('resourcePreset'),notes:read('resourceNotes'),operator:operatorName};
-  form._pendingResource=fields;
+  // Freeze the recipient, zone, and each line's ID for retrying uncertain/partial saves.
+  let pending=form._pendingResource;
+  if(!pending){
+    try{
+      validateResourceItems(activeResourceItems);
+      const common={date:read('resourceDate'),through:read('resourceThrough'),phone:read('resourcePhone'),notes:read('resourceNotes'),operator:operatorName};
+      pending={person:{...parsedDL},zone:{...selZone},items:activeResourceItems.map(item=>({...item,...common,id:crypto.randomUUID()}))};
+      pending.items.forEach(item=>resourceAttributes(pending.person,pending.zone,item,pending.person.cardId||''));
+    }catch(err){status.textContent=err.message;return}
+    form._pendingResource=pending;
+  }
   form.querySelectorAll('input,select,textarea').forEach(el=>el.disabled=true);
-  resourceSaving=true;btn.disabled=true;status.textContent='Saving distribution…';
+  const next=document.getElementById('resourceNextPerson');next.disabled=true;
+  resourceSaving=true;btn.disabled=true;status.textContent=`Saving ${pending.items.length} resource item(s)…`;
   try{
-    const attrs=resourceAttributes(person,zone,fields,person.cardId||'');
     const token=await getAgolToken(url);
-    const existing=await resourceQuery(url,token,{where:`distribution_id='${fields.id}'`,outFields:'distribution_id',returnGeometry:'false'});
-    if(!existing.features?.length){
-      const saved=await ensurePersonCard({fn:person.firstName,ln:person.lastName,addr:person.fullAddress,phone:fields.phone,reason:'',cardId:person.cardId||''});
-      attrs.card_id=saved.card.cardId;
-      if(document.getElementById('resourceForm')===form)parsedDL.cardId=attrs.card_id;
-      const response=await fetch(url+'/applyEdits',{method:'POST',body:new URLSearchParams({f:'json',token,adds:JSON.stringify([{attributes:attrs}])})});
+    const ids=pending.items.map(i=>`'${i.id}'`).join(',');
+    const existing=await resourceQuery(url,token,{where:`distribution_id IN (${ids})`,outFields:'distribution_id',returnGeometry:'false',resultRecordCount:'1000'});
+    if(!Array.isArray(existing.features)||existing.exceededTransferLimit)throw new Error('Could not verify all pending items.');
+    const savedIds=new Set(existing.features.map(f=>f.attributes?.distribution_id));
+    const missing=pending.items.filter(item=>!savedIds.has(item.id));
+    if(missing.length){
+      const person=pending.person;
+      const saved=await ensurePersonCard({fn:person.firstName,ln:person.lastName,addr:person.fullAddress,phone:pending.items[0].phone,reason:'',cardId:person.cardId||''});
+      person.cardId=saved.card.cardId;pending.card=saved.card;pending.cardCreated=saved.created;
+      if(document.getElementById('resourceForm')===form&&parsedDL)parsedDL.cardId=person.cardId;
+      const features=missing.map(item=>({attributes:resourceAttributes(person,pending.zone,item,person.cardId)}));
+      const response=await fetch(url+'/applyEdits',{method:'POST',body:new URLSearchParams({f:'json',token,rollbackOnFailure:'true',adds:JSON.stringify(features)})});
       const result=await response.json();
-      if(!response.ok||result.error||!result.addResults?.[0]?.success)throw new Error(result.error?.message||result.addResults?.[0]?.error?.description||'GIS did not confirm the save.');
+      if(!response.ok||result.error||result.addResults?.length!==features.length||result.addResults.some(r=>!r.success))throw new Error(result.error?.message||result.addResults?.find(r=>r.error)?.error?.description||'GIS did not confirm every item.');
     }
     if(document.getElementById('resourceForm')!==form)return;
-    delete form.dataset.distributionId;delete form._pendingResource;
-    form.querySelectorAll('input,select,textarea').forEach(el=>el.disabled=false);
-    status.textContent=`Saved ${fields.quantity} ${fields.unit} — ${fields.name}. You can add another resource for this person or scan another person.`;
+    delete form._pendingResource;form.dataset.saved='true';
+    btn.textContent='Distribution saved';
+    showResourceCardReady(pending.card,pending.cardCreated);
+    status.textContent=`Saved ${pending.items.length} item${pending.items.length===1?'':'s'} — ${describeResourceItems(pending.items)}. Scan the next person with the same resources selected.`;
     await loadResourceHistory();
-  }catch(err){status.textContent='Distribution not confirmed: '+err.message+' Retry to check whether it was saved.'}
-  finally{resourceSaving=false;if(document.getElementById('resourceForm')===form)btn.disabled=false}
+  }catch(err){status.textContent='Distribution not confirmed: '+err.message+' Retry checks each item and saves only missing items. Keep this screen open to retry.'}
+  finally{
+    resourceSaving=false;
+    if(document.getElementById('resourceForm')===form){btn.disabled=form.dataset.saved==='true';next.disabled=!!form._pendingResource;}
+  }
+}
+function showResourceCardReady(card,created){
+  if(!card?.cardId)return;
+  const result=document.getElementById('resourceCardResult');result.hidden=false;
+  result.innerHTML=`<p id="resourceCardReady" role="status"></p>
+    <button class="b" type="button" id="resourceCardView">View custom card</button>
+    <button class="b" type="button" id="resourceCardPrint">Print to ZC300</button>
+    <button class="b" type="button" id="resourceCardPNG">Save card PNG</button>
+    <canvas id="resourceCardCanvas" hidden aria-label="Custom card preview"></canvas>
+    <p class="resource-help">This card works for both Evac and Resource. Printing is optional.</p>`;
+  document.getElementById('resourceCardReady').textContent=(created?'Custom card created: ':'Existing custom card ready: ')+card.cardId;
+  document.getElementById('resourceCardView').onclick=async()=>{
+    const btn=document.getElementById('resourceCardView');btn.disabled=true;
+    try{
+      const rendered=await renderCardCanvas(card),canvas=document.getElementById('resourceCardCanvas');
+      canvas.width=rendered.width;canvas.height=rendered.height;canvas.getContext('2d').drawImage(rendered,0,0);canvas.hidden=false;
+    }catch(err){document.getElementById('resourceCardReady').textContent='Card is saved, but preview failed: '+err.message}
+    finally{btn.disabled=false}
+  };
+  document.getElementById('resourceCardPrint').onclick=()=>{window._lastCard=card;return printCard()};
+  document.getElementById('resourceCardPNG').onclick=()=>{window._lastCard=card;return savePNG()};
 }
 async function resourceQuery(url,token,params){
   const r=await fetch(url+'/query',{method:'POST',body:new URLSearchParams({f:'json',token,...params})});const j=await r.json();
@@ -143,7 +243,7 @@ async function loadResourceHistory(){
       if(!j.exceededTransferLimit)break;if(!batch.length)throw new Error('GIS returned an incomplete page');offset+=batch.length;
     }
     if(version!==resourceHistoryVersion)return;
-    resourceRows=rows;status.textContent=`${rows.length} distributions in ${zone.name}. Showing latest 100; CSV includes all loaded records.`;
+    resourceRows=rows;status.textContent=`${rows.length} resource item records in ${zone.name}. Showing latest 100; CSV includes all loaded records.`;
     const list=document.getElementById('resourceHistory');
     rows.slice(0,100).forEach(a=>{const row=document.createElement('p');row.textContent=`${new Date(a.distributed_at).toLocaleString()} · ${a.name} · ${a.quantity} ${a.unit} ${a.resource_name}${a.notes?' · '+a.notes:''}`;list.append(row)});
   }catch(err){if(version===resourceHistoryVersion)status.textContent='Could not load distributions: '+err.message}

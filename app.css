@@ -253,3 +253,19 @@ header .mode-toggle{grid-template-columns:repeat(3,minmax(0,1fr));max-width:390p
 #resourcePanel details{margin-top:18px}#resourcePanel summary{cursor:pointer;margin-bottom:10px}
 #resourceManual{margin-bottom:10px}
 @media(max-width:520px){header .mode-toggle .mt-btn{padding:7px 3px;font-size:10px;gap:3px}.resource-grid{grid-template-columns:1fr}}
+
+/* Resource selection precedes the scanner and stays ready across recipients. */
+#resourceSelection{flex:0 0 100%;min-width:0;border-top:1px solid var(--ui-border);padding-top:14px;color:var(--ui-text)}
+#resourceSelection[hidden]{display:none!important}
+#resourceSelectionForm{margin:0}
+.resource-item-row{padding:12px 0;border-bottom:1px solid var(--ui-border);margin-bottom:12px}
+.resource-item-heading{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+#resourceSelection .af select{width:100%;min-height:39px;border:1px solid var(--ui-border);border-radius:7px;padding:9px 10px;background:var(--ui-panel);color:var(--ui-text);font:inherit}
+#resourceSelection .af input{width:100%;background:var(--ui-panel);color:var(--ui-text)}
+#resourceSelection details>summary{font-size:12px;color:var(--ui-muted);cursor:pointer;margin:3px 0 10px}
+#resourceSelectionStatus{font-size:12px;margin-top:10px}
+body[data-system="sar"] #resourceSelection{display:none!important}
+#resourceSelection{max-height:36dvh;overflow-y:auto;padding-right:4px}
+#resourceCardCanvas{display:block;max-width:230px;width:100%;height:auto;margin:12px auto;background:#fff}
+#resourceCardResult{border-top:1px solid var(--ui-border);padding-top:12px;margin:14px 0}
+#resourceManual[hidden],#resourceScanSummary[hidden],#resourceCardResult[hidden],#resourceCardCanvas[hidden]{display:none!important}

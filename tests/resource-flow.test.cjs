@@ -9,7 +9,7 @@ function fixture(){
   constructor(){this.value='';this.textContent='';this.hidden=false;this.disabled=false;this.style={};this.dataset={};this.children=[];this.classes=new Set();this.classList={add:x=>this.classes.add(x),remove:x=>this.classes.delete(x),contains:x=>this.classes.has(x),toggle:(x,on)=>on?this.classes.add(x):this.classes.delete(x)};}
   set innerHTML(s){for(const m of s.matchAll(/id="([^"]+)"/g))elements.set(m[1],new Element())}
   get innerHTML(){return ''} append(x){this.children.push(x);if(!this.value&&x.value)this.value=x.value} replaceChildren(){this.children=[]}
-  querySelectorAll(){return []} reportValidity(){return true} focus(){this.focused=true}
+  querySelectorAll(){return []} reportValidity(){return true} scrollIntoView(){} focus(){this.focused=true}
  }
  const get=id=>{if(!elements.has(id))elements.set(id,new Element());return elements.get(id)};
  const doc={getElementById:get,createElement:()=>new Element(),querySelector:()=>get('heading'),querySelectorAll:()=>[],body:{dataset:{}}};
@@ -31,13 +31,24 @@ test('selecting Resource stays on map; explicit launch starts Resource scanner',
  f.run('openModal()');assert(f.get('modal').classList.contains('open'));assert.equal(f.get('heading').textContent,'Resource — aid distribution');assert(f.calls.includes('scanner'));
  f.run("setWorkflowMode('scan')");assert(!f.get('modal').classList.contains('open'));assert.equal(f.get('zoneScanBtn').textContent,'Check in');
 });
-test('presets, custom fields, and unconfigured save guard',async()=>{
- const f=fixture();f.run("workflowMode='resource';parsedDL={scanType:'Card',cardId:'LPC-TEST'}");
+test('item selection comes before scanning and supports custom items and multiple quantities',async()=>{
+ const f=fixture();f.run("workflowMode='resource';setupResourceSelection()");
+ assert.equal(f.run('resourceDraftItems.length'),1);
+ f.get('resourceAddItem').onclick();assert.equal(f.run('resourceDraftItems.length'),2);
+ const key=f.run('resourceDraftItems[1].key');
+ const preset=f.get('resourceItem'+key+'Preset');preset.value='custom';preset.onchange();
+ for(const [field,value] of [['Type','Shelter'],['Name','Cot'],['Unit','each'],['Quantity','3']]){const input=f.get('resourceItem'+key+field);input.value=value;input.oninput()}
+ assert(f.run('beginResourceScan()'));assert.equal(f.run('activeResourceItems[1].quantity'),'3');assert.match(f.get('resourceScanSummary').textContent,/3 each Cot/);
+ f.run("parsedDL={scanType:'Card',cardId:'LPC-TEST'}");
  for(const [id,val] of [['s1fn','Jane'],['s1ln','Test'],['ai','10 Test St']])f.get(id).value=val;
- // Simulate the first option selected by a browser.
- f.get('resourcePreset').value='water-case';
- await f.run('prepareResourceRecipient()');assert.equal(f.get('resourceQuantity').value,1);assert(f.get('resourceSave').disabled);assert.equal(f.get('resourcePanel').hidden,false);
- f.get('resourcePreset').value='custom';f.run('applyResourcePreset()');assert.equal(f.get('resourceName').value,'');
+ await f.run('prepareResourceRecipient()');assert(f.get('resourceSave').disabled);assert.equal(f.get('resourceSave').textContent,'Save 2 items');
+ f.run('resetResourceForm()');assert.equal(f.run('resourceDraftItems.length'),2);assert.equal(f.run('activeResourceItems.length'),2);
+});
+test('empty, incomplete, and zero-quantity selections block the scanner',()=>{
+ const f=fixture();f.run("setupResourceSelection();resourceDraftItems=[]");assert.equal(f.run('beginResourceScan()'),false);
+ f.run("resourceDraftItems=[newResourceDraft('custom')]");assert.equal(f.run('beginResourceScan()'),false);
+ f.run("resourceDraftItems=[{...newResourceDraft(),quantity:0}]");assert.equal(f.run('beginResourceScan()'),false);
+ assert(!f.calls.includes('scanner'));
 });
 test('GIS payload validates quantity and dates and links the shared card',()=>{
  const f=fixture();f.run(`globalThis.fields={id:'test',type:'Water',name:'Case',quantity:'2',unit:'case',date:'2026-10-27T12:00',through:'',phone:'',preset:'water-case',operator:'Test',notes:''}`);
@@ -46,17 +57,53 @@ test('GIS payload validates quantity and dates and links the shared card',()=>{
  assert.throws(()=>f.run("resourceAttributes({},selZone,{...fields,quantity:'0'},'')"),/greater than zero/);
  assert.throws(()=>f.run("resourceAttributes({},selZone,{...fields,through:'2026-10-26T12:00'},'')"),/after the distribution/);
 });
-test('save uses only Resource endpoint and retry resolves an uncertain response once',async()=>{
- const f=fixture();f.run("window.LPC_RESOURCE_CONFIG.tableUrl='https://example.test/Resource/FeatureServer/0';workflowMode='resource';parsedDL={firstName:'Jane',lastName:'Test',fullAddress:'10 Test St',scanType:'DL'}");
- const input={resourceType:'Water',resourceName:'Water case',resourceQuantity:'2',resourceUnit:'case',resourceDate:'2026-10-27T12:00',resourceThrough:'',resourcePhone:'',resourcePreset:'water-case',resourceNotes:''};
- Object.entries(input).forEach(([id,value])=>f.get(id).value=value);
- let adds=0,saved=false;const urls=[];
- f.context.getAgolToken=async()=> 'test-token';f.context.ensurePersonCard=async()=>({card:{cardId:'LPC-SHARED'}});
- f.context.fetch=async(url,opts)=>{urls.push(url);const body=opts.body;
-  if(url.endsWith('/applyEdits')){adds++;saved=true;throw Error('response lost')}
-  if(body.get('outFields')==='distribution_id')return {ok:true,json:async()=>({features:saved?[{attributes:{distribution_id:'saved'}}]:[]})};
+function preparedSave(){
+ const f=fixture();f.run("window.LPC_RESOURCE_CONFIG.tableUrl='https://example.test/Resource/FeatureServer/0';workflowMode='resource';parsedDL={firstName:'Jane',lastName:'Test',fullAddress:'10 Test St',scanType:'DL'};activeResourceItems=[{...newResourceDraft(),quantity:2},newResourceDraft('food-box')]");
+ Object.entries({resourceDate:'2026-10-27T12:00',resourceThrough:'',resourcePhone:'',resourceNotes:''}).forEach(([id,value])=>f.get(id).value=value);
+ f.context.getAgolToken=async()=> 'test-token';return f;
+}
+test('one scan saves multiple items in a batch and creates one shared custom card',async()=>{
+ const f=preparedSave();let cardCalls=0;const payloads=[];
+ f.context.ensurePersonCard=async input=>{cardCalls++;assert.equal(input.fn,'Jane');return {card:{cardId:'LPC-SHARED',fn:'Jane'},created:true}};
+ f.context.fetch=async(url,opts)=>{
+  assert(url.startsWith('https://example.test/Resource/'));
+  if(url.endsWith('/applyEdits')){
+   assert.equal(opts.body.get('rollbackOnFailure'),'true');const adds=JSON.parse(opts.body.get('adds'));payloads.push(...adds);
+   return {ok:true,json:async()=>({addResults:adds.map(()=>({success:true}))})};
+  }
   return {ok:true,json:async()=>({features:[]})};
  };
- await f.run('saveResourceDistribution({preventDefault(){}})');assert.match(f.get('resourceStatus').textContent,/not confirmed/);
- await f.run('saveResourceDistribution({preventDefault(){}})');assert.match(f.get('resourceStatus').textContent,/Saved 2 case/);assert.equal(adds,1);assert(urls.every(u=>u.startsWith('https://example.test/Resource/')));
+ await f.run('saveResourceDistribution({preventDefault(){}})');
+ assert.equal(cardCalls,1);assert.equal(payloads.length,2);assert.equal(payloads[0].attributes.quantity,2);
+ assert(payloads.every(f=>f.attributes.card_id==='LPC-SHARED'));assert.notEqual(payloads[0].attributes.distribution_id,payloads[1].attributes.distribution_id);
+ const schema=JSON.parse(fs.readFileSync('resource-table-definition.json','utf8')).tables[0].fields.filter(f=>f.name!=='OBJECTID').map(f=>f.name).sort();
+ for(const feature of payloads)assert.deepEqual(Object.keys(feature.attributes).sort(),schema);
+ assert.match(f.get('resourceCardReady').textContent,/Custom card created: LPC-SHARED/);
+ assert.equal(f.get('resourceCardResult').hidden,false);assert(f.get('resourceSave').disabled);assert(!f.get('resourceNextPerson').disabled);
+ await f.run('saveResourceDistribution({preventDefault(){}})');assert.equal(cardCalls,1);assert.equal(payloads.length,2);
+ let printed=false;f.context.printCard=()=>{printed=true};f.get('resourceCardPrint').onclick();assert(printed);assert.equal(f.context.window._lastCard.cardId,'LPC-SHARED');
+});
+test('uncertain partial batch retry saves only missing items and reuses the card',async()=>{
+ const f=preparedSave();let cardCalls=0;const saved=new Set(),batches=[];
+ f.context.ensurePersonCard=async()=>{cardCalls++;return {card:{cardId:'LPC-SHARED'},created:false}};
+ f.context.fetch=async(url,opts)=>{
+  if(url.endsWith('/applyEdits')){
+   const adds=JSON.parse(opts.body.get('adds'));batches.push(adds);
+   if(batches.length===1){saved.add(adds[0].attributes.distribution_id);throw Error('response lost')}
+   adds.forEach(a=>saved.add(a.attributes.distribution_id));return {ok:true,json:async()=>({addResults:adds.map(()=>({success:true}))})};
+  }
+  if(opts.body.get('outFields')==='distribution_id')return {ok:true,json:async()=>({features:[...saved].map(id=>({attributes:{distribution_id:id}}))})};
+  return {ok:true,json:async()=>({features:[]})};
+ };
+ await f.run('saveResourceDistribution({preventDefault(){}})');assert.match(f.get('resourceStatus').textContent,/not confirmed/);assert(f.get('resourceNextPerson').disabled);
+ // Changes while a retry is pending must not change the frozen transaction.
+ f.run("activeResourceItems=[newResourceDraft('blanket')]");
+ await f.run('saveResourceDistribution({preventDefault(){}})');assert.match(f.get('resourceStatus').textContent,/Saved 2 items/);
+ assert.equal(batches.length,2);assert.equal(batches[0].length,2);assert.equal(batches[1].length,1);assert.equal(saved.size,2);
+ assert.equal(batches[1][0].attributes.distribution_id,batches[0][1].attributes.distribution_id);
+ assert.match(f.get('resourceCardReady').textContent,/Existing custom card ready/);assert.equal(cardCalls,2);
+});
+test('invalid dates can be corrected without freezing or saving a card',async()=>{
+ const f=preparedSave();f.get('resourceDate').value='invalid';let called=false;f.context.ensurePersonCard=async()=>{called=true};
+ await f.run('saveResourceDistribution({preventDefault(){}})');assert.match(f.get('resourceStatus').textContent,/valid distribution dates/);assert(!called);assert(!f.get('resourceForm')._pendingResource);
 });

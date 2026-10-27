@@ -306,6 +306,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
   <div class="zone-bar-select">
     <select id="zs"><option value="">Select zone…</option></select>
   </div>
+  <section id="resourceSelection" hidden aria-label="Resources to distribute"></section>
   <button class="b ba" type="button" id="zoneScanBtn" onclick="openModal()" disabled>Check in</button>
   <div class="zone-bar-hint" id="zoneHint">Choose a zone to begin checkpoint scanning</div>
 </div>
@@ -411,6 +412,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
  <div class="md">
   <div class="mh"><h2>Checkpoint Scan</h2><button class="mx" onclick="closeModal()">×</button></div>
   <div class="zone-confirmed"><strong id="zoneConfirmedName"></strong><button class="b" type="button" onclick="closeModal();document.getElementById('zs').focus()">Change zone</button></div>
+  <p id="resourceScanSummary" class="resource-help" hidden></p>
   <div id="scanBody">
   <div class="wedge-status" id="wedgeStatusCP">Scanner ready — scan a DL or re-entry card</div>
     <div class="res" id="s1res"><div class="vd" id="s1rv"></div><div class="dt" id="s1rd"></div><div class="ae" id="s1ra"></div></div>
@@ -994,6 +996,7 @@ function setWorkflowMode(mode){
 }
 function openModal(){
   if(!selZone){document.getElementById('zs').focus();return}
+  if(workflowMode==='resource'&&!beginResourceScan())return;
   workflowMode=workflowMode==='resource'?'resource':'scan';document.body.dataset.workflow=workflowMode;
   updateResourceModeUI();
   document.getElementById('cardModal').classList.remove('open');window.LPCCardLiveScanner?.stop();
@@ -1027,6 +1030,7 @@ function resetModal({resumeScanner=true,statusText=''}={}){
 }
 
 function startNextCheckpointScan(){
+  if(workflowMode==='resource'&&!beginResourceScan())return;
   resetModal({resumeScanner:false});
   wedge.setTarget('checkpoint');
   window.LPCLiveScanner?.start(true);
