@@ -2099,17 +2099,19 @@ async function checkCardDuplicates(){
   const status=document.getElementById('cardDuplicateStatus');
   const input={fn:document.getElementById('cfn').value.trim(),ln:document.getElementById('cln').value.trim(),addr:document.getElementById('caddr').value.trim()};
   status.replaceChildren();
-  if(editingCard||!cardAddressSearchParts(input.addr))return;
+  const lastName=personNameKey(input.ln);
+  if(editingCard||!lastName||!cardAddressSearchParts(input.addr))return;
   status.textContent='Checking existing cardholders…';
   try{
     const rows=await readPersonRegistry();if(revision!==cardDuplicateRevision)return;
     // Suggestions are intentionally broader than the exact identity check used
-    // when saving: typing site number + street is enough to find candidates.
-    const atAddress=existingCardAddressCandidates(rows,input.addr);
+    // when saving: site number + street can be partial, but the last name
+    // must match in full to avoid listing an entire apartment complex.
+    const atAddress=existingCardAddressCandidates(rows.filter(c=>personNameKey(c.ln)===lastName),input.addr);
     const exact=atAddress.filter(c=>sameCardPerson(c,input));
     status.textContent=exact.length?
       (exact.length===1?'Existing card found for this person. Generate card will reuse it.':'Multiple cards match this person. Review the Card Registry before saving.'):
-      atAddress.length?'Possible existing cards — confirm the name and street address below.':'No existing cards match this site number and street so far.';
+      atAddress.length?'Possible existing cards — confirm the name and street address below.':'No existing cards match this last name and site number/street so far.';
     atAddress.forEach(card=>{
       const row=document.createElement('div');row.textContent=`${card.fn} ${card.ln} · ${card.addr} · ${card.cardId} · ${card.status}`;status.appendChild(row);
     });
@@ -2721,4 +2723,5 @@ window.LPCCardLiveScanner=(()=>{
 </script>
 </body>
 </html>
+
 
