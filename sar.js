@@ -83,6 +83,7 @@ function currentMap(rows=state.attendance){
  return latest;
 }
 function render(){
+ stopCamera();
  $('sarEventView').hidden=state.tab!=='events';$('sarMemberView').hidden=state.tab!=='members';
  document.querySelectorAll('[data-sar-tab]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.sarTab===state.tab)));
  $('sarNewEvent').disabled=!enabled()||state.loading;$('sarNewMember').disabled=!enabled()||state.loading;
