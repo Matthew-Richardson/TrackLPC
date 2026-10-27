@@ -84,7 +84,50 @@ function beginResourceScan(){
   summary.textContent='Resources per person: '+describeResourceItems(activeResourceItems);
   return true;
 }
-function resourceURL(){return String(window.LPC_RESOURCE_CONFIG?.tableUrl||'').trim().replace(/\/$/,'')}
+function resourceURL(){return String(window.LPC_RESOURCE_CONFIG?.tableUrl||window.LPC_RESOURCE_CONFIG?.serviceUrl||'').trim().replace(/\/$/,'')}
+let resourceResolvedSource='',resourceResolvedPromise=null;
+async function resourceMetadata(url){
+  const token=await getAgolToken(url);
+  const response=await fetch(url,{method:'POST',body:new URLSearchParams({f:'json',token})});
+  const metadata=await response.json();
+  if(!response.ok||metadata.error)throw new Error(metadata.error?.message||'Resource service metadata could not be read.');
+  return metadata;
+}
+function validateResourceTable(metadata){
+  if(metadata.geometryType)throw new Error('Resource requires a nonspatial table. Publish the CSV with location set to None.');
+  if(metadata.objectIdField!=='OBJECTID')throw new Error('Resource table needs an OBJECTID field.');
+  const text=['distribution_id','card_id','name','address','phone','zone_id','zone_name','incident','resource_type','resource_name','preset_id','unit','operator_name','scan_type','notes'];
+  const types=Object.fromEntries(text.map(name=>[name,'esriFieldTypeString']));
+  Object.assign(types,{quantity:'esriFieldTypeDouble',distributed_at:'esriFieldTypeDate',covers_through:'esriFieldTypeDate',recorded_at:'esriFieldTypeDate'});
+  const fields=new Map((metadata.fields||[]).map(field=>[field.name,field]));
+  const issues=Object.entries(types).filter(([name,type])=>fields.get(name)?.type!==type).map(([name,type])=>`${name} (${type.replace('esriFieldType','')})`);
+  if(issues.length)throw new Error('Check Resource field names/types: '+issues.join(', '));
+  const short=[['address',500],['notes',2000]].filter(([name,length])=>Number(fields.get(name)?.length||0)<length);
+  if(short.length)throw new Error('Increase Resource text lengths: '+short.map(([name,length])=>`${name}: ${length}`).join(', '));
+  const capabilities=new Set(String(metadata.capabilities||'').toLowerCase().split(',').map(c=>c.trim()));
+  if(!capabilities.has('query')||!capabilities.has('create'))throw new Error('Enable Query and Add/Create editing for the Resource table.');
+  if(metadata.advancedQueryCapabilities?.supportsPagination===false)throw new Error('Resource table must support pagination.');
+}
+async function resolveResourceURL(){
+  const source=resourceURL();if(!source)throw new Error('Resource GIS service is not configured.');
+  if(resourceResolvedSource===source&&resourceResolvedPromise)return resourceResolvedPromise;
+  resourceResolvedSource=source;
+  const pending=(async()=>{
+    let url=source;
+    if(/\/FeatureServer$/i.test(source)){
+      const service=await resourceMetadata(source),tables=service.tables||[];
+      const matches=tables.filter(t=>['resource_distributions','lpcoem_resource'].includes(String(t.name).toLowerCase()));
+      const table=matches.length===1?matches[0]:tables.length===1?tables[0]:null;
+      if(!table||!Number.isInteger(table.id))throw new Error(tables.length?'Multiple Resource tables found; set the exact tableUrl in resource-config.js.':'No Resource table found. Publish the CSV as a table with location set to None.');
+      url=source+'/'+table.id;
+    }
+    if(!/\/FeatureServer\/\d+$/i.test(url))throw new Error('Resource URL must end in /FeatureServer or /FeatureServer/<table ID>.');
+    validateResourceTable(await resourceMetadata(url));
+    return url;
+  })();
+  resourceResolvedPromise=pending;
+  try{return await pending}catch(err){if(resourceResolvedPromise===pending)resourceResolvedPromise=null;throw err}
+}
 function resourceLocalDate(date=new Date()){
   return new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,16);
 }
@@ -177,9 +220,10 @@ async function saveResourceDistribution(e){
   const next=document.getElementById('resourceNextPerson');next.disabled=true;
   resourceSaving=true;btn.disabled=true;status.textContent=`Saving ${pending.items.length} resource item(s)…`;
   try{
-    const token=await getAgolToken(url);
+    const tableUrl=await resolveResourceURL();
+    const token=await getAgolToken(tableUrl);
     const ids=pending.items.map(i=>`'${i.id}'`).join(',');
-    const existing=await resourceQuery(url,token,{where:`distribution_id IN (${ids})`,outFields:'distribution_id',returnGeometry:'false',resultRecordCount:'1000'});
+    const existing=await resourceQuery(tableUrl,token,{where:`distribution_id IN (${ids})`,outFields:'distribution_id',returnGeometry:'false',resultRecordCount:'1000'});
     if(!Array.isArray(existing.features)||existing.exceededTransferLimit)throw new Error('Could not verify all pending items.');
     const savedIds=new Set(existing.features.map(f=>f.attributes?.distribution_id));
     const missing=pending.items.filter(item=>!savedIds.has(item.id));
@@ -189,7 +233,7 @@ async function saveResourceDistribution(e){
       person.cardId=saved.card.cardId;pending.card=saved.card;pending.cardCreated=saved.created;
       if(document.getElementById('resourceForm')===form&&parsedDL)parsedDL.cardId=person.cardId;
       const features=missing.map(item=>({attributes:resourceAttributes(person,pending.zone,item,person.cardId)}));
-      const response=await fetch(url+'/applyEdits',{method:'POST',body:new URLSearchParams({f:'json',token,rollbackOnFailure:'true',adds:JSON.stringify(features)})});
+      const response=await fetch(tableUrl+'/applyEdits',{method:'POST',body:new URLSearchParams({f:'json',token,rollbackOnFailure:'true',adds:JSON.stringify(features)})});
       const result=await response.json();
       if(!response.ok||result.error||result.addResults?.length!==features.length||result.addResults.some(r=>!r.success))throw new Error(result.error?.message||result.addResults?.find(r=>r.error)?.error?.description||'GIS did not confirm every item.');
     }
@@ -236,9 +280,10 @@ async function loadResourceHistory(){
   if(!url){status.textContent='Resource GIS table is not connected.';return}
   status.textContent='Loading distributions…';
   try{
-    const token=await getAgolToken(url),rows=[];let offset=0;
+    const tableUrl=await resolveResourceURL();
+    const token=await getAgolToken(tableUrl),rows=[];let offset=0;
     while(true){
-      const j=await resourceQuery(url,token,{where:`zone_id='${String(zone.id).replace(/'/g,"''")}'`,outFields:'*',returnGeometry:'false',orderByFields:'distributed_at DESC,OBJECTID DESC',resultOffset:String(offset),resultRecordCount:'1000'});
+      const j=await resourceQuery(tableUrl,token,{where:`zone_id='${String(zone.id).replace(/'/g,"''")}'`,outFields:'*',returnGeometry:'false',orderByFields:'distributed_at DESC,OBJECTID DESC',resultOffset:String(offset),resultRecordCount:'1000'});
       const batch=j.features||[];rows.push(...batch.map(f=>f.attributes));
       if(!j.exceededTransferLimit)break;if(!batch.length)throw new Error('GIS returned an incomplete page');offset+=batch.length;
     }

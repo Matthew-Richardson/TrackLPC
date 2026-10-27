@@ -60,7 +60,9 @@ test('GIS payload validates quantity and dates and links the shared card',()=>{
 function preparedSave(){
  const f=fixture();f.run("window.LPC_RESOURCE_CONFIG.tableUrl='https://example.test/Resource/FeatureServer/0';workflowMode='resource';parsedDL={firstName:'Jane',lastName:'Test',fullAddress:'10 Test St',scanType:'DL'};activeResourceItems=[{...newResourceDraft(),quantity:2},newResourceDraft('food-box')]");
  Object.entries({resourceDate:'2026-10-27T12:00',resourceThrough:'',resourcePhone:'',resourceNotes:''}).forEach(([id,value])=>f.get(id).value=value);
- f.context.getAgolToken=async()=> 'test-token';return f;
+ f.context.getAgolToken=async()=> 'test-token';
+ f.context.testMetadata=JSON.parse(fs.readFileSync('resource-table-definition.json','utf8')).tables[0];
+ f.run('resourceMetadata=async()=>testMetadata');return f;
 }
 test('one scan saves multiple items in a batch and creates one shared custom card',async()=>{
  const f=preparedSave();let cardCalls=0;const payloads=[];
@@ -106,4 +108,27 @@ test('uncertain partial batch retry saves only missing items and reuses the card
 test('invalid dates can be corrected without freezing or saving a card',async()=>{
  const f=preparedSave();f.get('resourceDate').value='invalid';let called=false;f.context.ensurePersonCard=async()=>{called=true};
  await f.run('saveResourceDistribution({preventDefault(){}})');assert.match(f.get('resourceStatus').textContent,/valid distribution dates/);assert(!called);assert(!f.get('resourceForm')._pendingResource);
+});
+
+function metadataFixture(){return JSON.parse(fs.readFileSync('resource-table-definition.json','utf8')).tables[0]}
+test('private service discovery authenticates and resolves its actual table ID',async()=>{
+ const f=fixture(),base='https://example.test/Resource/FeatureServer',urls=[];
+ f.run(`window.LPC_RESOURCE_CONFIG={serviceUrl:'${base}',tableUrl:''}`);
+ f.context.getAgolToken=async()=> 'private-token';
+ f.context.fetch=async(url,opts)=>{urls.push(url);assert.equal(opts.body.get('token'),'private-token');return {ok:true,json:async()=>url===base?{tables:[{id:3,name:'LPCOEM_Resource'}]}:metadataFixture()}};
+ assert.equal(await f.run('resolveResourceURL()'),base+'/3');
+ assert.equal(await f.run('resolveResourceURL()'),base+'/3');assert.equal(urls.length,2);
+});
+test('schema errors are actionable and metadata failures can be retried',async()=>{
+ const f=fixture(),base='https://example.test/Resource/FeatureServer';let wrong=true;
+ f.run(`window.LPC_RESOURCE_CONFIG={tableUrl:'${base}/5'}`);f.context.getAgolToken=async()=> 'token';
+ f.context.fetch=async()=>({ok:true,json:async()=>{const m=metadataFixture();if(wrong)m.fields.find(x=>x.name==='quantity').type='esriFieldTypeString';return m}});
+ await assert.rejects(f.run('resolveResourceURL()'),/quantity \(Double\)/);
+ wrong=false;assert.equal(await f.run('resolveResourceURL()'),base+'/5');
+});
+test('ambiguous service tables require an explicit URL and never guess a table ID',async()=>{
+ const f=fixture(),base='https://example.test/Resource/FeatureServer';
+ f.run(`window.LPC_RESOURCE_CONFIG={serviceUrl:'${base}'}`);f.context.getAgolToken=async()=> 'token';
+ f.context.fetch=async()=>({ok:true,json:async()=>({tables:[{id:1,name:'A'},{id:2,name:'B'}]})});
+ await assert.rejects(f.run('resolveResourceURL()'),/exact tableUrl/);
 });

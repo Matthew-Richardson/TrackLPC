@@ -4,13 +4,13 @@ Resource is a workflow inside **LPC Evac**, alongside Checkpoint and Custom Card
 
 ## Create the table
 
-The repository includes a table definition; it does not create an ArcGIS Online service automatically.
+The app is configured for the private county `LPCOEM_Resource` FeatureServer. It uses the signed-in ArcGIS session to discover the table and validate its schema before saving. This guide also covers creating or repairing a table.
 
 1. As a GIS administrator, create a **private hosted feature service** for resource distributions in the county organization. Use a **standalone nonspatial table**, named `Resource_Distributions`, with OBJECTID as its object ID field.
 2. Add the table using `resource-table-definition.json` at the new service's administrative **addToDefinition** endpoint, or create the fields below in ArcGIS Pro and publish the table. The JSON's table ID is 0 for an empty service; use an unused ID when adding to an existing service.
 3. Enable **Query and Add/Create**. Support pagination and ordering. Keep the service private and share only with the authorized operations group. Operators need permission to read prior distributions and add records. Editor tracking is recommended.
 4. Create a **unique index on `distribution_id`**. This protects retry attempts and concurrent submissions from duplicate records. Verify the index exists after publishing.
-5. Copy the actual table REST URL (ending in `/FeatureServer/<table ID>`) into `tableUrl` in `resource-config.js`. Do not substitute the checkpoint log URL. No token belongs in the config.
+5. `serviceUrl` in `resource-config.js` currently points to `LPCOEM_Resource`. The app uses the sole table, or an unambiguous table named Resource_Distributions/LPCOEM_Resource. If the service contains multiple tables, set `tableUrl` to the exact table REST URL (ending in `/FeatureServer/<table ID>`). This override takes precedence. Do not substitute the checkpoint log URL. No token belongs in the config.
 6. Use an authorized account to test a DL distribution, rescan its saved custom card, and verify both reference the same `card_id`. Confirm no checkpoint attendance record was added. Test a failed save/retry and CSV export.
 
 ## Fields
