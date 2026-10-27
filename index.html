@@ -361,7 +361,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
   <div class="mh"><div class="guide-brand"><img id="guideLogo" alt="La Plata County logo"/><div><h2>La Plata County EZcard</h2><p>Evacuation Zone Card</p></div></div><button class="mx" onclick="closeModeGuide()">×</button></div>
   <div class="mode-guide-grid">
     <button class="mode-guide-card" type="button" onclick="chooseMode('scan')"><span class="mode-guide-icon checkpoint-guide-symbol">IN/OUT</span><strong>Checkpoint mode</strong><span>Scan a driver license or EZcard, verify the address, and record IN or OUT.</span></button>
-    <button class="mode-guide-card card-choice" type="button" onclick="chooseMode('card')"><span class="mode-guide-icon"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8" cy="11" r="2"/><path d="M5.5 16c.7-1.6 4.3-1.6 5 0M13 10h5m-5 4h5"/></svg></span><strong>Custom Card mode</strong><span>Create, print, update, or reprint an EZcard for an authorized cardholder.</span></button>
+    <button class="mode-guide-card card-choice" type="button" onclick="chooseMode('card')"><span class="mode-guide-icon"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8" cy="11" r="2"/><path d="M5.5 16c.7-1.6 4.3-1.6 5 0M13 10h5m-5 4h5"/></svg></span><strong>Custom Card mode</strong><span>Create, print, update, or reprint an EZcard. First checkpoint use also saves a card automatically; printing is optional.</span></button>
     <button class="mode-guide-card map-choice" type="button" onclick="chooseMode('map')"><span class="mode-guide-icon"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3zM9 3v15m6-12v15"/></svg></span><strong>Map &amp; activity mode</strong><span>Review evacuation zones and see who is currently recorded inside a selected zone.</span></button>
   </div>
  </div>
@@ -510,6 +510,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
   <div class="af"><label>First name</label><input type="text" id="cfn" placeholder="Jane"/></div>
   <div class="af"><label>Last name</label><input type="text" id="cln" placeholder="Doe"/></div>
   <div class="af"><label for="caddr">Authorized property address</label><div class="card-address-entry"><input type="text" id="caddr" placeholder="123 Main St, Durango, CO 81301"/><button class="b" id="clearCardAddressBtn" type="button" onclick="clearCustomCardAddress()" aria-label="Clear authorized property address">Clear</button></div></div>
+  <div id="cardDuplicateStatus" class="registry-status" role="status" aria-live="polite"></div>
   <div class="af"><label>Phone</label><input type="tel" id="cphone" placeholder="(970) 555-1234"/></div>
   <div class="af"><label>Reason</label><input type="text" id="creason" placeholder="2nd homeowner, renter, student, etc."/></div>
   <button class="cb" id="generateCardBtn" onclick="generateCard()">Generate card</button>
@@ -1167,6 +1168,7 @@ function goStep2(){
 }
 function pickDir(dir,el){selectedDir=dir;document.querySelectorAll('.dbtn').forEach(b=>b.classList.remove('sel'));el.classList.add('sel');document.getElementById('s2save').disabled=false}
 async function saveRecord(){
+  if(document.getElementById('s2save').disabled)return;
   const btn=document.getElementById('s2save');btn.disabled=true;btn.textContent='Saving…';
   const dl=parsedDL||{};
   const enteredNotes=document.getElementById('s2notes').value.trim();
@@ -1174,12 +1176,17 @@ async function saveRecord(){
   const feat={geometry:{x:lastCheck.lng,y:lastCheck.lat,spatialReference:{wkid:4326}},
     attributes:{name:[dl.firstName,dl.lastName].filter(Boolean).map(titleCase).join(' ')||'Manual',
       address:lastCheck.addr,phone:document.getElementById('s2phone').value.trim(),
-      // The existing service field stores custom re-entry card IDs only.
+      // Every visit links to the saved person through their opaque EZcard ID.
       // Driver-license numbers are intentionally discarded after parsing.
-      license_num:dl.scanType==='Card'?(dl.cardId||''):'',zone_name:selZone?.name||'',incident:selZone?.incident||'',
+      license_num:dl.cardId||'',zone_name:selZone?.name||'',incident:selZone?.incident||'',
       direction:selectedDir,check_time:Date.now(),operator_name:operatorName,
       card_type:dl.scanType||'Manual',notes}};
   try{
+    const savedCard=await ensurePersonCard({fn:dl.firstName||'',ln:dl.lastName||'',
+      addr:lastCheck.addr,phone:feat.attributes.phone,reason:'',cardId:dl.cardId||''});
+    // Retain the ID if the log save fails, so retry never creates another card.
+    parsedDL={...dl,cardId:savedCard.card.cardId};
+    feat.attributes.license_num=savedCard.card.cardId;
     const token=await getAgolToken(LOG_URL);
     const p=new URLSearchParams({adds:JSON.stringify([feat]),f:'json'});
     p.append('token',token);
@@ -1192,7 +1199,7 @@ async function saveRecord(){
       showS2('re','Save failed',j.addResults?.[0]?.error?.description||'Unknown error');
       btn.disabled=false;btn.textContent='Save record';
     }
-  }catch(e){showS2('re','Network error',e.message);btn.disabled=false;btn.textContent='Save record'}
+  }catch(e){showS2('re','Check-in not saved',e.message);btn.disabled=false;btn.textContent='Save record'}
 }
 function showS2(cls,v,d){const r=document.getElementById('s2res');r.style.display='block';r.className='res '+cls;
   document.getElementById('s2rv').textContent=v;document.getElementById('s2rd').textContent=d}
@@ -1825,6 +1832,8 @@ async function checkInLastCard(){
 }
 function resetCardModal({resumeScanner=true}={}){
   editingCard=null;
+  clearTimeout(cardDuplicateTimer);cardDuplicateRevision++;
+  document.getElementById('cardDuplicateStatus').replaceChildren();
   document.getElementById('cardForm').style.display='';
   document.getElementById('cardResult').style.display='none';
   document.getElementById('cardParsedInfo').style.display='none';
@@ -1855,7 +1864,7 @@ function populateCustomCardFromDL(parsed){
 function clearCustomCardAddress(){
   const input=document.getElementById('caddr');
   if(input.readOnly)return;
-  input.value='';input.focus();
+  input.value='';input.focus();checkCardDuplicates();
 }
 
 function beginIncomingCardScan(){
@@ -1866,6 +1875,7 @@ function beginIncomingCardScan(){
 }
 
 function advanceCardAfterScan(scanType){
+  checkCardDuplicates();
   window.LPCCardLiveScanner?.pause();
   document.getElementById('cardScanSection').style.display='none';
   document.getElementById('cardNextScanBtn').style.display='';
@@ -1952,7 +1962,7 @@ function exportCardRegistry(){
 
 function renderCardRegistry(cards){
   const list=document.getElementById('cardRegistryList');list.replaceChildren();
-  document.getElementById('cardRegistryStatus').textContent=`${cards.length} of ${cardRegistry.length} cards`;
+  document.getElementById('cardRegistryStatus').textContent=`${cards.length} of ${cardRegistry.length} registered cardholders · includes unprinted cards`;
   if(!cards.length){const empty=document.createElement('div');empty.className='registry-empty';empty.textContent='No matching custom cards.';list.appendChild(empty);return}
   cards.forEach(card=>{
     const item=document.createElement('div');item.className='registry-item';
@@ -2025,6 +2035,80 @@ const LPC_LOGO_FIXED='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAARQAAABQCAYA
 
 document.getElementById('appLogo').src=LPC_LOGO_FIXED;
 document.getElementById('guideLogo').src=LPC_LOGO_FIXED;
+
+// Person registry: name + normalized street/unit identifies a returning person.
+// Address-only matches are shown for review, never merged across household members.
+function personNameKey(value){return String(value||'').normalize('NFKC').trim().toUpperCase().replace(/\s+/g,' ')}
+function personAddressKey(value){
+  const aliases={STREET:'ST',ROAD:'RD',AVENUE:'AVE',DRIVE:'DR',LANE:'LN',COURT:'CT',BOULEVARD:'BLVD',HIGHWAY:'HWY',PLACE:'PL',TRAIL:'TRL',CIRCLE:'CIR',NORTH:'N',SOUTH:'S',EAST:'E',WEST:'W',APARTMENT:'UNIT',APT:'UNIT',SUITE:'UNIT',STE:'UNIT'};
+  return String(value||'').split(',')[0].toUpperCase().replace(/COUNTY\s+ROAD/g,'CR').replace(/#/g,' UNIT ').replace(/[^A-Z0-9\s]/g,' ').trim().split(/\s+/).map(t=>aliases[t]||t).join(' ');
+}
+function sameCardPerson(a,b){return personNameKey(a.fn)===personNameKey(b.fn)&&personNameKey(a.ln)===personNameKey(b.ln)&&personAddressKey(a.addr)===personAddressKey(b.addr)}
+let personRegistryCache=null,personRegistryCachedAt=0;
+async function readPersonRegistry({fresh=false}={}){
+  if(!fresh&&personRegistryCache&&Date.now()-personRegistryCachedAt<15000)return personRegistryCache;
+  const token=await getAgolToken(CARD_URL),rows=[];let offset=0;
+  while(true){
+    const p=new URLSearchParams({where:'1=1',outFields:'*',returnGeometry:'false',orderByFields:'OBJECTID ASC',resultOffset:String(offset),resultRecordCount:'1000',f:'json',token});
+    const r=await fetch(`${CARD_URL}/query`,{method:'POST',body:p});const j=await r.json();
+    if(!r.ok||j.error||!Array.isArray(j.features))throw new Error(j.error?.message||'Could not check existing cards. Try again before saving.');
+    const batch=j.features;rows.push(...batch.map(f=>cardFromAttributes(f.attributes||{})));
+    if(!j.exceededTransferLimit&&batch.length<1000)break;
+    if(!batch.length)throw new Error('Card lookup was incomplete. Try again.');
+    offset+=batch.length;
+  }
+  personRegistryCache=rows;personRegistryCachedAt=Date.now();return rows;
+}
+function requireUsablePersonCard(card){
+  if(!card.cardId)throw new Error('Existing person record has no card ID. Review the Card Registry.');
+  const expiry=typeof card.expiresAt==='number'?card.expiresAt:Date.parse(card.expiresAt);
+  if(String(card.status).toLowerCase()!=='active'||(Number.isFinite(expiry)&&expiry<Date.now()))throw new Error('An existing card for this person is inactive or expired. Review the Card Registry before proceeding.');
+  return card;
+}
+let personCardSaveQueue=Promise.resolve();
+async function ensurePersonCard(input){
+  const work=async()=>{
+    if(!input.fn.trim()||!input.ln.trim()||!input.addr.trim())throw new Error('First name, last name, and address are required to register a unique person.');
+    const rows=await readPersonRegistry({fresh:true});
+    const matches=input.cardId?rows.filter(c=>c.cardId===input.cardId):rows.filter(c=>sameCardPerson(c,input));
+    if(matches.length>1)throw new Error('Multiple existing cards match this person. Review the Card Registry before proceeding.');
+    if(matches.length)return {card:requireUsablePersonCard(matches[0]),created:false};
+    if(input.cardId)throw new Error('This card is no longer in the registry. Reload and verify the cardholder.');
+    const card={...input,fn:titleCase(input.fn),ln:titleCase(input.ln),cardId:createCardId(),status:'Active',issuedAt:Date.now(),printCount:0};
+    const result=await saveCustomCard(card);card.objectId=result.objectId;
+    personRegistryCache=null;
+    if(!cardRegistry.some(c=>c.cardId===card.cardId))cardRegistry.unshift(card);
+    return {card,created:true};
+  };
+  // Serialize tabs on this origin where Web Locks is available, plus local calls.
+  const run=()=>navigator.locks?navigator.locks.request('eztrack-person-card',work):work();
+  const pending=personCardSaveQueue.then(run,run);personCardSaveQueue=pending.catch(()=>{});return pending;
+}
+let cardDuplicateTimer,cardDuplicateRevision=0;
+async function checkCardDuplicates(){
+  const revision=++cardDuplicateRevision;
+  const status=document.getElementById('cardDuplicateStatus');
+  const input={fn:document.getElementById('cfn').value.trim(),ln:document.getElementById('cln').value.trim(),addr:document.getElementById('caddr').value.trim()};
+  status.replaceChildren();
+  if(editingCard||input.addr.length<4)return;
+  status.textContent='Checking existing cardholders…';
+  try{
+    const rows=await readPersonRegistry();if(revision!==cardDuplicateRevision)return;
+    const atAddress=rows.filter(c=>personAddressKey(c.addr)===personAddressKey(input.addr));
+    const exact=atAddress.filter(c=>sameCardPerson(c,input));
+    status.textContent=exact.length?
+      (exact.length===1?'Existing card found for this person. Generate card will reuse it.':'Multiple cards match this person. Review the Card Registry before saving.'):
+      atAddress.length?'Existing cards at this address — check the names below. Each different person receives their own card.':'No existing card found at this address. Printing is optional after saving.';
+    atAddress.forEach(card=>{
+      const row=document.createElement('div');row.textContent=`${card.fn} ${card.ln} · ${card.cardId} · ${card.status}`;status.appendChild(row);
+    });
+  }catch(e){if(revision===cardDuplicateRevision)status.textContent=e.message}
+}
+['cfn','cln','caddr'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{
+  clearTimeout(cardDuplicateTimer);cardDuplicateRevision++;
+  document.getElementById('cardDuplicateStatus').textContent='';
+  cardDuplicateTimer=setTimeout(checkCardDuplicates,400);
+}));
 
 async function saveCustomCard(card){
   if(!oauthManager)throw new Error('Your ArcGIS Online session is not active. Refresh the page and sign in again.');
@@ -2108,12 +2192,12 @@ async function generateCard(){
       await showCardPreview(card);
       const i=cardRegistry.findIndex(c=>c.objectId===card.objectId);if(i>=0)cardRegistry[i]=card;updateRegistryFilterOptions();filterCardRegistry();
     }else{
-      const cardId=createCardId();
-      // The QR carries only an opaque card ID. Cardholder details are retrieved
-      // from the private registry after every scan.
-      const card={fn,ln,addr,phone,reason,cardId};
-      const result=await saveCustomCard(card);card.objectId=result.objectId;
-      await showCardPreview(card);cardRegistry.unshift(card);updateRegistryFilterOptions();filterCardRegistry();
+      const result=await ensurePersonCard({fn,ln,addr,phone,reason});
+      await showCardPreview(result.card);
+      updateRegistryFilterOptions();filterCardRegistry();
+      document.getElementById('cardCheckinStatus').className='card-checkin-status ok';
+      document.getElementById('cardCheckinStatus').textContent=result.created?
+        'New card saved. Printing is optional.':'Existing card found and reused. No duplicate was created.';
     }
   }catch(e){console.error('Card save error:',e);alert('Card was not saved: '+e.message)}
   finally{btn.disabled=false;btn.textContent='Generate card'}
@@ -2623,3 +2707,4 @@ window.LPCCardLiveScanner=(()=>{
 </script>
 </body>
 </html>
+
