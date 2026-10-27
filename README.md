@@ -194,7 +194,7 @@ No `LICENSE` file is currently included. Contact the maintainer about reuse and 
 
 ## Resource distribution (LPC Evac)
 
-Select **Checkpoint** or **Resource**, choose an evacuation zone, and review it on the main map. The button above the map opens the scanner: **Check in** for evacuation attendance or **Distribute resources** for aid. The dedicated Map tab and zone confirmation screen have been removed.
+In **Checkpoint**, choose an evacuation zone and use **Check in** above the map. **Resource** has no map or zone selection: choose the items and quantities, then use **Distribute resources** to open the scanner.
 
 Before opening the Resource scanner, select one or more common aid presets or Custom resources and set the quantity per person for each. The selections remain ready for subsequent recipients. Resource accepts DL scans and the same approved Custom Cards used by Checkpoint. After scanning, enter distribution and optional coverage dates and notes, then save all items together. Each item is a separate row in the existing Resource table; **the import CSV and GIS schema do not change**.
 
@@ -205,6 +205,8 @@ Resource is configured for the private `LPCOEM_Resource` hosted service. The app
 
 ### Resource activity and mobile navigation
 
-In Resource mode, the main Activity tab shows resource distributions for the selected zone, including recipient, item, quantity, unit, date, notes, and operator. Its count is the number of item records, and the top CSV button exports the Resource records. Checkpoint mode continues to show its own IN/OUT activity. Resource activity loads outside the scanner, refreshes every 15 seconds while the mode is active, and updates after saves. Query failures are displayed instead of appearing as an empty history.
+In Resource mode, the main Activity tab shows all resource distributions, with an optional resource-type filter, including recipient, item, quantity, unit, date, notes, and operator. Its count is the number of item records, and the top CSV button exports the Resource records. Checkpoint mode continues to show its own IN/OUT activity. Resource activity loads outside the scanner, refreshes every 15 seconds while the mode is active, and updates after saves. Query failures are displayed instead of appearing as an empty history.
 
-On mobile, the page scrolls through item selection, map, and the Activity table. Wide tables scroll horizontally inside their panel. Swiping over the map scrolls the page by default; tap **Move map** to pan/zoom, then **Scroll page** to restore page scrolling. Resource pages also scroll normally on desktop when item selections and activity exceed the viewport.
+On mobile, the Resource page scrolls through item selection and the Activity table. The map appears only in Checkpoint. Wide tables scroll horizontally inside their panel. In Checkpoint, swiping over the map scrolls the page by default; tap **Move map** to pan/zoom, then **Scroll page** to restore page scrolling. Resource pages also scroll normally on desktop when item selections and activity exceed the viewport.
+
+Resource no longer assigns new distributions to an evacuation zone. The existing CSV/table schema stays compatible: zone_id, zone_name, and incident remain available for earlier records and are blank on new Resource saves. Earlier zoned distributions remain visible in Resource Activity.

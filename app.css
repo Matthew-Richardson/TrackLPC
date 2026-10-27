@@ -318,3 +318,25 @@ body[data-workflow="resource"] .oem-contacts{margin-top:auto}
  .hdr-meta{grid-column:1/-1;grid-row:4}
 }
 @media(max-width:700px){.hdr-meta,body[data-system="sar"] .hdr-meta{flex-wrap:wrap;justify-content:flex-end;gap:6px}}
+
+/* Resource is item based; it has no evacuation-zone or map step. */
+body[data-workflow="resource"] #zoneBar>.zone-bar-label,
+body[data-workflow="resource"] #zoneBar>.zone-bar-select,
+body[data-workflow="resource"] #zoneHint,
+body[data-workflow="resource"] #mc,
+body[data-workflow="resource"] #stats,
+body[data-workflow="resource"] .tt[data-t="parcels"],
+body[data-workflow="resource"] .tt[data-t="addrs"],
+body[data-workflow="resource"] #modal .zone-confirmed{display:none!important}
+body[data-workflow="resource"] #resourceSelection{border-top:0;padding-top:0}
+#resourceActivityType[hidden]{display:none!important}
+body[data-workflow="resource"] #sbar{display:flex;flex-wrap:wrap;gap:6px;padding:8px 12px}
+#resourceActivityType{min-width:0;max-width:100%;padding:8px;border:1px solid var(--ui-border);border-radius:7px;background:var(--ui-panel);color:var(--ui-text)}
+body[data-workflow="resource"] #tsr{flex:1 1 160px;min-width:0;width:auto;margin:0}
+#modal .md,#scanBody,#resourcePanel,#resourceForm,#resourceForm .af{min-width:0;max-width:100%;box-sizing:border-box}
+#resourcePanel .resource-grid{grid-template-columns:minmax(0,1fr)}
+#resourceForm input,#resourceForm textarea,#resourceForm select{display:block;width:100%;min-width:0;max-width:100%;box-sizing:border-box}
+#resourceForm input[type="datetime-local"]{-webkit-appearance:none;appearance:none;width:100%;min-width:0;max-width:100%;font-size:16px;overflow:hidden}
+#resourceForm input[type="datetime-local"]::-webkit-datetime-edit{min-width:0;padding:0}
+#resourcePerson,#resourceItemSummary,#resourceScanSummary,#resourceCardReady,#resourceStatus{overflow-wrap:anywhere;word-break:normal;max-width:100%}
+#resourcePanel button{max-width:100%;white-space:normal}

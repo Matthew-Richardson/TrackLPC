@@ -270,7 +270,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
 }
 </style>
 <link rel="stylesheet" href="sar.css"/>
-<link rel="stylesheet" href="app.css"/>
+<link rel="stylesheet" href="app.css?v=resource-simple-20261027"/>
 </head>
 <body>
 
@@ -336,7 +336,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
     <button class="activity-filter" data-log-filter="in" onclick="setActivityFilter('in')">IN only</button>
     <button class="activity-filter" data-log-filter="out" onclick="setActivityFilter('out')">OUT only</button>
   </div>
-  <div class="sb2" id="sbar"><input type="text" id="tsr" placeholder="Filter name, address, phone…" oninput="filterTable()"/></div>
+  <div class="sb2" id="sbar"><select id="resourceActivityType" hidden aria-label="Filter resource type" onchange="renderResourceActivity()"><option value="">All resource types</option></select><input type="text" id="tsr" placeholder="Filter name, address, phone…" oninput="filterTable()"/></div>
   <div class="tw">
     <div class="em" id="emp"><div class="empty-mark"></div><div>Select a zone to begin</div></div>
     <table id="dt" style="display:none"><thead id="dth"></thead><tbody id="dtb"></tbody></table>
@@ -431,7 +431,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
     </div>
     <div class="ss" id="ss"></div>
     <div class="pf" id="pf"></div>
-    <div class="dv" id="s1dv"><span>check-in details</span></div>
+    <div class="dv" id="s1dv"><span id="scanDetailsLabel">check-in details</span></div>
     <div class="af"><label>First name</label><input type="text" id="s1fn" placeholder="Jane"/></div>
     <div class="af"><label>Last name</label><input type="text" id="s1ln" placeholder="Doe"/></div>
     <input type="hidden" id="s1phone"/>
@@ -746,14 +746,14 @@ function rebuildZoneCatalog({fit=false}={}){
       selZoneId=null;selZone=null;selGeom=null;clearResourceActivity();selLayer.clearLayers();
       document.getElementById('zoneBanner').style.display='none';
       document.getElementById('zoneBar').classList.remove('has-zone');
-      checkpointZoneConfirmed=false;window.LPCLiveScanner?.stop();wedge.setTarget(null);
+      checkpointZoneConfirmed=false;if(workflowMode!=='resource'){window.LPCLiveScanner?.stop();wedge.setTarget(null);}
     }
   }
-  if(document.getElementById('modal').classList.contains('open')){
+  if(workflowMode!=='resource'&&document.getElementById('modal').classList.contains('open')){
     if(!selZone)closeModal();
     else document.getElementById('zoneConfirmedName').textContent=(workflowMode==='resource'?'Resource: ':'Checkpoint: ')+selZone.name;
   }
-  document.getElementById('zoneScanBtn').disabled=!selZone;
+  document.getElementById('zoneScanBtn').disabled=workflowMode!=='resource'&&!selZone;
 }
 
 evacLayer.once('load',()=>rebuildZoneCatalog({fit:true}));
@@ -930,6 +930,7 @@ function setRefreshButton(label,{busy=false,success=false}={}){
 async function refreshAll(){
   if(document.body.dataset.system==='sar'){await window.SAR?.refresh();return}
   if(workflowMode==='card'){await loadCardRegistry();return}
+  if(workflowMode==='resource'){await loadResourceHistory();return}
   if(refreshInFlight)return;
   refreshInFlight=true;const btn=document.getElementById('refreshBtn');btn.disabled=true;setRefreshButton('Refreshing…',{busy:true});setLoading(true);
   let succeeded=false;
@@ -949,11 +950,12 @@ async function refreshAll(){
 
 // ---- LOG POLLING ----
 let logTimer=null;
-async function fetchLog(){if(document.body.dataset.system==='sar'||!selZone)return;
+async function fetchLog(){if(document.body.dataset.system==='sar')return;
   if(workflowMode==='resource'){
     clearInterval(logTimer);logTimer=setInterval(fetchLog,15000);
     await loadResourceHistory();return;
   }
+  if(!selZone)return;
   const checkpointZone=selZone;
 
   try{
@@ -995,7 +997,7 @@ function setWorkflowMode(mode){
     document.getElementById('cardModal').classList.remove('open');
     closeModal();resetModal({resumeScanner:false});updateResourceModeUI();
     if(mode==='resource'||activeTab==='log')switchTab('log');
-    if(selZone)fetchLog();
+    if(selZone||mode==='resource')fetchLog();
   }else if(mode==='card'){
     document.getElementById('modal').classList.remove('open');
     closeCardModal();wedge.setTarget(null);loadCardRegistry();
@@ -1007,15 +1009,15 @@ function setWorkflowMode(mode){
   }
 }
 function openModal(){
-  if(!selZone){document.getElementById('zs').focus();return}
+  if(workflowMode!=='resource'&&!selZone){document.getElementById('zs').focus();return}
   if(workflowMode==='resource'&&!beginResourceScan())return;
   workflowMode=workflowMode==='resource'?'resource':'scan';document.body.dataset.workflow=workflowMode;
   updateResourceModeUI();
   document.getElementById('cardModal').classList.remove('open');window.LPCCardLiveScanner?.stop();
   document.getElementById('modal').classList.add('open');
   syncWorkflowButtons(workflowMode);
-  checkpointZoneConfirmed=true;resetModal({resumeScanner:false});
-  document.getElementById('zoneConfirmedName').textContent=(workflowMode==='resource'?'Resource: ':'Checkpoint: ')+selZone.name;
+  if(workflowMode!=='resource')checkpointZoneConfirmed=true;resetModal({resumeScanner:false});
+  document.getElementById('zoneConfirmedName').textContent=(workflowMode==='resource'?'Resource distribution':'Checkpoint: '+selZone.name);
   document.getElementById('scanBody').style.display='';wedge.setTarget('checkpoint');
   requestAnimationFrame(()=>window.LPCLiveScanner?.start());
 }
@@ -1038,7 +1040,7 @@ function resetModal({resumeScanner=true,statusText=''}={}){
   document.querySelectorAll('.dbtn').forEach(b=>b.classList.remove('sel'));
   const ws=document.getElementById('wedgeStatusCP');
   ws.className='wedge-status listening';ws.textContent=statusText?statusText+' — scan the next DL or card':'Scanner ready — scan a DL or re-entry card';
-  if(resumeScanner&&checkpointZoneConfirmed&&selZone&&document.getElementById('modal').classList.contains('open'))window.LPCLiveScanner?.start();
+  if(resumeScanner&&(workflowMode==='resource'||checkpointZoneConfirmed&&selZone)&&document.getElementById('modal').classList.contains('open'))window.LPCLiveScanner?.start();
 }
 
 function startNextCheckpointScan(){
@@ -1430,7 +1432,7 @@ async function applyCheckpointDL(parsed){
   document.getElementById('ai').value=parsedDL.fullAddress;
   const phoneInput=document.getElementById('s1phone');
   phoneInput.value='';
-  document.getElementById('ss').textContent='DL scanned — checking prior checkpoint records…';
+  document.getElementById('ss').textContent=workflowMode==='resource'?'DL captured':'DL scanned — checking prior checkpoint records…';
   const previousPhone=workflowMode==='resource'?'':await lookupPreviousPhone(parsedDL.firstName,parsedDL.lastName,parsedDL.fullAddress);
   if(previousPhone&&!phoneInput.value){
     phoneInput.value=previousPhone;
@@ -2704,8 +2706,8 @@ window.LPCCardLiveScanner=(()=>{
 })();
 
 </script>
-<script src="resource-config.js"></script>
-<script src="resource.js"></script>
+<script src="resource-config.js?v=resource-simple-20261027"></script>
+<script src="resource.js?v=resource-simple-20261027"></script>
 </body>
 </html>
 

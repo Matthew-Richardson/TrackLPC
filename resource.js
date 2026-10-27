@@ -27,7 +27,6 @@ function setupResourceSelection(){
   if(!section.dataset.ready){
     section.dataset.ready='true';resourceDraftItems=[newResourceDraft()];
     section.innerHTML=`<strong>Resources to distribute</strong>
-      <p class="resource-help">Choose all items and quantities before scanning. These selections stay ready for the next person.</p>
       <form id="resourceSelectionForm"><div id="resourceItemRows"></div></form>
       <button class="b" id="resourceAddItem" type="button">Add another item</button>
       <p id="resourceSelectionStatus" role="status" aria-live="polite"></p>`;
@@ -146,7 +145,10 @@ function updateResourceModeUI(){
   document.getElementById('resourceSelection').hidden=!on;
   document.getElementById('resourceScanSummary').hidden=!on;
   if(on)setupResourceSelection();
-  document.getElementById('zoneHint').textContent=on?'Resource mode — choose an evacuation zone to record aid distribution':'Choose a zone to begin checkpoint scanning';
+  document.getElementById('zoneHint').textContent=on?'':'Choose a zone to begin checkpoint scanning';
+  document.getElementById('zoneScanBtn').disabled=!on&&!selZone;
+  document.getElementById('resourceActivityType').hidden=!on;
+  document.getElementById('scanDetailsLabel').textContent=on?'Person':'check-in details';
   document.getElementById('zoneScanBtn').textContent=on?'Distribute resources':'Check in';
 }
 function resetResourceForm(){
@@ -154,7 +156,7 @@ function resetResourceForm(){
   const manual=document.getElementById('resourceManual');if(manual)manual.hidden=workflowMode!=='resource';
 }
 async function prepareResourceRecipient(){
-  if(workflowMode!=='resource'||!checkpointZoneConfirmed||!selZone)return false;
+  if(workflowMode!=='resource')return false;
   try{validateResourceItems(activeResourceItems)}catch(err){document.getElementById('ss').textContent=err.message;return false}
   const fn=document.getElementById('s1fn').value.trim(),ln=document.getElementById('s1ln').value.trim(),addr=document.getElementById('ai').value.trim();
   if(!fn||!ln||!addr){document.getElementById('ss').textContent='First name, last name, and address are required.';return false}
@@ -162,9 +164,9 @@ async function prepareResourceRecipient(){
   parsedDL={...parsedDL,firstName:fn,lastName:ln,fullAddress:addr,scanType:parsedDL?.scanType||'Manual'};
   document.getElementById('s1').style.display='none';document.getElementById('s2').style.display='none';
   document.getElementById('resourceManual').hidden=true;
+  document.getElementById('resourceScanSummary').hidden=true;
   const panel=document.getElementById('resourcePanel');panel.hidden=false;
-  panel.innerHTML=`<p class="resource-mode-label">RESOURCE MODE · <span id="resourceZone"></span></p>
-    <p id="resourcePerson"></p><p class="resource-help">The selected zone identifies this distribution. An address outside the zone does not block aid. The same EZcard works at evacuation checkpoints.</p>
+  panel.innerHTML=`<p id="resourcePerson"></p>
     <p id="resourceSetup" role="status"></p>
     <form id="resourceForm">
       <p id="resourceItemSummary"></p>
@@ -179,8 +181,7 @@ async function prepareResourceRecipient(){
     </form>
     <div id="resourceCardResult" hidden></div>
     <button class="b" id="resourceNextPerson" type="button" onclick="startNextCheckpointScan()">Scan another person</button>
-    <details><summary>Distributions for selected zone</summary><button class="b" type="button" id="resourceRefresh">Refresh</button><button class="b" type="button" id="resourceExport">Export CSV</button><p id="resourceHistoryStatus" role="status"></p><div id="resourceHistory"></div></details>`;
-  document.getElementById('resourceZone').textContent=selZone.name;
+    <details><summary>Distribution history</summary><button class="b" type="button" id="resourceRefresh">Refresh</button><button class="b" type="button" id="resourceExport">Export CSV</button><p id="resourceHistoryStatus" role="status"></p><div id="resourceHistory"></div></details>`;
   document.getElementById('resourcePerson').textContent=[fn,ln].join(' ')+' · '+addr;
   document.getElementById('resourceItemSummary').textContent='Distributing: '+describeResourceItems(activeResourceItems);
   document.getElementById('resourceDate').value=resourceLocalDate();
@@ -205,7 +206,7 @@ function resourceAttributes(person,zone,fields,cardId){
     distributed_at:distributed,covers_through:through,recorded_at:Date.now(),operator_name:fields.operator,scan_type:person.scanType,notes:fields.notes};
 }
 async function saveResourceDistribution(e){
-  e.preventDefault();if(resourceSaving||workflowMode!=='resource'||!checkpointZoneConfirmed||!selZone)return;
+  e.preventDefault();if(resourceSaving||workflowMode!=='resource')return;
   const url=resourceURL();if(!url)return;
   const form=document.getElementById('resourceForm'),btn=document.getElementById('resourceSave'),status=document.getElementById('resourceStatus');
   if(form.dataset.saved==='true'||!form.reportValidity())return;
@@ -216,7 +217,7 @@ async function saveResourceDistribution(e){
     try{
       validateResourceItems(activeResourceItems);
       const common={date:read('resourceDate'),through:read('resourceThrough'),phone:read('resourcePhone'),notes:read('resourceNotes'),operator:operatorName};
-      pending={person:{...parsedDL},zone:{...selZone},items:activeResourceItems.map(item=>({...item,...common,id:crypto.randomUUID()}))};
+      pending={person:{...parsedDL},zone:{id:'',name:'',incident:''},items:activeResourceItems.map(item=>({...item,...common,id:crypto.randomUUID()}))};
       pending.items.forEach(item=>resourceAttributes(pending.person,pending.zone,item,pending.person.cardId||''));
     }catch(err){status.textContent=err.message;return}
     form._pendingResource=pending;
@@ -246,9 +247,9 @@ async function saveResourceDistribution(e){
     delete form._pendingResource;form.dataset.saved='true';
     btn.textContent='Distribution saved';
     showResourceCardReady(pending.card,pending.cardCreated);
-    status.textContent=`Saved ${pending.items.length} item${pending.items.length===1?'':'s'} — ${describeResourceItems(pending.items)}. Scan the next person with the same resources selected.`;
+    status.textContent=`Saved ${pending.items.length} item${pending.items.length===1?'':'s'}.`;
     await loadResourceHistory();
-  }catch(err){status.textContent='Distribution not confirmed: '+err.message+' Retry checks each item and saves only missing items. Keep this screen open to retry.'}
+  }catch(err){status.textContent='Distribution not confirmed: '+err.message+' Retry to confirm.'}
   finally{
     resourceSaving=false;
     if(document.getElementById('resourceForm')===form){btn.disabled=form.dataset.saved==='true';next.disabled=!!form._pendingResource;}
@@ -285,22 +286,30 @@ function clearResourceActivity(){
 }
 function resourceFilteredRows(){
   const query=document.getElementById('tsr').value.toLowerCase().trim();
-  return query?resourceRows.filter(row=>['name','address','phone','resource_type','resource_name','unit','notes','operator_name','card_id'].some(key=>String(row[key]??'').toLowerCase().includes(query))):resourceRows;
+  const type=document.getElementById('resourceActivityType').value;
+  const rows=type?resourceRows.filter(row=>row.resource_type===type):resourceRows;
+  return query?rows.filter(row=>['name','address','phone','resource_type','resource_name','unit','notes','operator_name','card_id'].some(key=>String(row[key]??'').toLowerCase().includes(query))):rows;
 }
 function resourceHistoryMessage(){
-  if(!selZone)return 'Select a zone to view resource distributions.';
   if(resourceHistoryState==='loading')return 'Loading resource distributions…';
   if(resourceHistoryState==='error')return 'Could not load distributions: '+resourceHistoryError;
   if(resourceHistoryState==='idle')return 'Resource distributions have not loaded yet. Use Refresh to load activity.';
-  return `${resourceRows.length} resource item records in ${selZone.name}.`;
+  return `${resourceRows.length} resource item records.`;
 }
 function renderResourceActivity(){
   document.getElementById('activityFilters').style.display='none';
   document.getElementById('tlc').textContent=String(resourceRows.length);
+  const typeFilter=document.getElementById('resourceActivityType'),selectedType=typeFilter.value;
+  typeFilter.replaceChildren();
+  const all=document.createElement('option');all.value='';all.textContent='All resource types';typeFilter.append(all);
+  [...new Set(resourceRows.map(row=>row.resource_type).filter(Boolean))].sort().forEach(type=>{const option=document.createElement('option');option.value=type;option.textContent=type;typeFilter.append(option)});
+  typeFilter.value=selectedType;
+  if(![...new Set(resourceRows.map(row=>row.resource_type))].includes(selectedType))typeFilter.value='';
+  typeFilter.hidden=false;
   const rows=resourceFilteredRows(),empty=document.getElementById('emp'),table=document.getElementById('dt');
   const ready=resourceHistoryState==='ready';
   table.style.display=ready&&rows.length?'':'none';empty.style.display=ready&&rows.length?'none':'';
-  if(!ready||!rows.length){empty.textContent=ready?(resourceRows.length?'No distributions match this filter.':'No resource distributions recorded for this zone.'):resourceHistoryMessage();document.getElementById('dtb').replaceChildren();return}
+  if(!ready||!rows.length){empty.textContent=ready?(resourceRows.length?'No distributions match this filter.':'No resource distributions recorded.'):resourceHistoryMessage();document.getElementById('dtb').replaceChildren();return}
   renderTableHeader(['Distributed','Name','Resource','Quantity','Unit','Address','Phone','Notes','Operator']);
   const fragment=document.createDocumentFragment();
   rows.forEach(record=>{
@@ -327,21 +336,20 @@ function renderResourceHistory(){
   });
 }
 async function loadResourceHistory(){
-  const version=++resourceHistoryVersion,zone=selZone,url=resourceURL();
+  const version=++resourceHistoryVersion,url=resourceURL();
   resourceRows=[];resourceHistoryState='loading';resourceHistoryError='';
-  if(!zone){resourceHistoryState='idle';renderResourceHistory();return}
   if(!url){resourceHistoryState='error';resourceHistoryError='Resource GIS table is not connected.';renderResourceHistory();return}
   renderResourceHistory();
   try{
     const tableUrl=await resolveResourceURL();
     const token=await getAgolToken(tableUrl),rows=[];let offset=0;
     while(true){
-      const result=await resourceQuery(tableUrl,token,{where:`zone_id='${String(zone.id).replace(/'/g,"''")}'`,outFields:'*',returnGeometry:'false',orderByFields:`distributed_at DESC,${resourceObjectIdFields.get(tableUrl)} DESC`,resultOffset:String(offset),resultRecordCount:'1000'});
+      const result=await resourceQuery(tableUrl,token,{where:'1=1',outFields:'*',returnGeometry:'false',orderByFields:`distributed_at DESC,${resourceObjectIdFields.get(tableUrl)} DESC`,resultOffset:String(offset),resultRecordCount:'1000'});
       if(!Array.isArray(result.features))throw new Error('GIS returned no distribution records array.');
       const batch=result.features;rows.push(...batch.map(feature=>feature.attributes));
       if(!result.exceededTransferLimit)break;if(!batch.length)throw new Error('GIS returned an incomplete page');offset+=batch.length;
     }
-    if(version!==resourceHistoryVersion||String(selZone?.id)!==String(zone.id))return;
+    if(version!==resourceHistoryVersion)return;
     resourceRows=rows;resourceHistoryState='ready';renderResourceHistory();
   }catch(err){
     if(version!==resourceHistoryVersion)return;

@@ -25,7 +25,7 @@ test('all scripts parse, map tab and confirmation markup are absent',()=>{
  for(const m of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g))new vm.Script(m[1]);
  new vm.Script(resource);assert(!html.includes('data-mode="map"'));assert(!html.includes('id="scanZoneWrap"'));assert(html.includes('id="zoneScanBtn"'));
 });
-test('selecting Resource stays on map; explicit launch starts Resource scanner',()=>{
+test('selecting Resource waits for explicit scanner launch',()=>{
  const f=fixture();f.loadFunction('setWorkflowMode','openModal');f.loadFunction('openModal','closeModal');
  f.run("setWorkflowMode('resource')");assert(!f.get('modal').classList.contains('open'));assert.equal(f.get('zoneScanBtn').textContent,'Distribute resources');
  f.run('openModal()');assert(f.get('modal').classList.contains('open'));assert.equal(f.get('heading').textContent,'Resource — aid distribution');assert(f.calls.includes('scanner'));
@@ -76,7 +76,7 @@ test('one scan saves multiple items in a batch and creates one shared custom car
   return {ok:true,json:async()=>({features:[]})};
  };
  await f.run('saveResourceDistribution({preventDefault(){}})');
- assert.equal(cardCalls,1);assert.equal(payloads.length,2);assert.equal(payloads[0].attributes.quantity,2);
+ assert.equal(cardCalls,1);assert.equal(payloads.length,2);assert.equal(payloads[0].attributes.quantity,2);assert.equal(payloads[0].attributes.zone_id,'');assert.equal(payloads[0].attributes.zone_name,'');
  assert(payloads.every(f=>f.attributes.card_id==='LPC-SHARED'));assert.notEqual(payloads[0].attributes.distribution_id,payloads[1].attributes.distribution_id);
  const schema=JSON.parse(fs.readFileSync('resource-table-definition.json','utf8')).tables[0].fields.filter(f=>f.name!=='OBJECTID').map(f=>f.name).sort();
  for(const feature of payloads)assert.deepEqual(Object.keys(feature.attributes).sort(),schema);
@@ -182,4 +182,21 @@ test('touch map scrolling is the default and panning is an explicit toggle',()=>
  f.run('syncMobileMapInteraction()');assert(!dragging&&!zoom);assert.equal(f.get('map').dataset.pageScroll,'true');
  f.run('toggleMobileMapPan()');assert(dragging&&zoom);assert.equal(f.get('mapPanToggle').textContent,'Scroll page');
  f.run('toggleMobileMapPan()');assert(!dragging&&!zoom);assert.equal(f.get('mapPanToggle').textContent,'Move map');
+});
+
+test('Resource scanning and saving require no evacuation zone',async()=>{
+ const f=preparedSave();f.loadFunction('openModal','closeModal');
+ f.run("selZone=null;selZoneId=null;checkpointZoneConfirmed=false;openModal()");
+ assert(f.get('modal').classList.contains('open'));assert.equal(f.get('zoneScanBtn').disabled,false);
+ f.run("parsedDL={firstName:'Jane',lastName:'Test',fullAddress:'10 Test',scanType:'DL'}");
+ let adds=[];f.context.ensurePersonCard=async()=>({card:{cardId:'LPC-SHARED'},created:true});
+ f.context.fetch=async(url,options)=>{if(url.endsWith('/applyEdits')){adds=JSON.parse(options.body.get('adds'));return {ok:true,json:async()=>({addResults:adds.map(()=>({success:true}))})}}return {ok:true,json:async()=>({features:[]})}};
+ await f.run('saveResourceDistribution({preventDefault(){}})');assert.equal(adds.length,1);assert.equal(adds[0].attributes.zone_id,'');assert.match(f.get('resourceStatus').textContent,/Saved 1 item/);
+});
+test('Resource history includes prior zoned records and filters by resource type',async()=>{
+ const f=fixture();f.run("workflowMode='resource';activeTab='log';selZone=null;window.LPC_RESOURCE_CONFIG={tableUrl:'https://example.test/Resource/FeatureServer/3'}");
+ f.context.resourceMetadata=async()=>metadataFixture();f.context.getAgolToken=async()=> 'token';
+ f.context.fetch=async(url,options)=>{assert.equal(options.body.get('where'),'1=1');return {ok:true,json:async()=>({features:[{attributes:{name:'Jane',resource_name:'Water case',resource_type:'Water',quantity:1,unit:'case',zone_id:'7'}},{attributes:{name:'John',resource_name:'Food box',resource_type:'Food',quantity:1,unit:'box',zone_id:''}}]})}};
+ await f.run('loadResourceHistory()');assert.equal(f.get('tlc').textContent,'2');assert.equal(f.get('dtb').children[0].children.length,2);
+ f.get('resourceActivityType').value='Water';f.run('renderResourceActivity()');assert.equal(f.get('dtb').children[0].children.length,1);assert.equal(f.get('dtb').children[0].children[0].children[1].textContent,'Jane');
 });
