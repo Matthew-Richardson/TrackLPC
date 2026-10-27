@@ -268,6 +268,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
   .oem-contacts .oem-contact-list span{align-items:center;flex-direction:row;flex-shrink:0;gap:4px;white-space:nowrap}
 }
 </style>
+<link rel="stylesheet" href="sar.css"/>
 </head>
 <body>
 
@@ -276,6 +277,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
     <img class="brand-logo" id="appLogo" alt="La Plata County logo"/>
     <span class="brand-copy"><span class="brand-title">La Plata County EZcard</span><small>EVACUATION ZONE CARD</small></span>
   </button>
+  <div class="system-picker"><label for="systemMode">EZtag workspace</label><select id="systemMode"><option value="evac">LPC Evac mode</option><option value="sar">LPC SAR mode</option></select></div>
   <div class="mode-toggle" id="modeToggle">
     <div class="mt-thumb"></div>
     <button class="mt-btn active" data-mode="scan" onclick="setWorkflowMode('scan')"><span class="checkpoint-symbol" aria-hidden="true">IN/OUT</span><span>Checkpoint</span></button>
@@ -352,6 +354,8 @@ body[data-workflow="card"] #cardManageView{display:flex}
   </div>
   <div class="registry-list" id="cardRegistryList"></div>
 </section>
+
+<main id="sarRoot" aria-label="LPC Search and Rescue workspace"></main>
 
 <footer class="oem-contacts" aria-label="OEM contacts"><strong>OEM contacts</strong><div class="oem-contact-list"><span>Rob Farino <a href="tel:+19707599274">970-759-9274</a></span><span>Matthew Richardson <a href="tel:+19707495273">970-749-5273</a></span></div></footer>
 
@@ -630,6 +634,7 @@ async function activateArcGISSession(manager,operator){
   document.getElementById('signOutBtn').style.display='';
   document.getElementById('loginModal').classList.remove('open');
   openModeGuide();
+  window.SAR?.onLogin();
 }
 async function completeRedirectedOAuth(){
   const params=new URLSearchParams(location.search);
@@ -969,6 +974,7 @@ function setRefreshButton(label,{busy=false,success=false}={}){
 }
 
 async function refreshAll(){
+  if(document.body.dataset.system==='sar'){await window.SAR?.refresh();return}
   if(workflowMode==='card'){await loadCardRegistry();return}
   if(refreshInFlight)return;
   refreshInFlight=true;const btn=document.getElementById('refreshBtn');btn.disabled=true;setRefreshButton('Refreshing…',{busy:true});setLoading(true);
@@ -989,7 +995,7 @@ async function refreshAll(){
 
 // ---- LOG POLLING ----
 let logTimer=null;
-async function fetchLog(){if(!selZone)return;
+async function fetchLog(){if(document.body.dataset.system==='sar'||!selZone)return;
   try{
     const token=await getAgolToken(LOG_URL);
     const rows=[];let offset=0;
@@ -1002,6 +1008,7 @@ async function fetchLog(){if(!selZone)return;
       if(!j.exceededTransferLimit&&batch.length<2000)break;
       if(!batch.length)break;offset+=batch.length;
     }
+    if(document.body.dataset.system==='sar')return;
     logData=rows;currentInsideRows=computeCurrentInside(rows);
     document.getElementById('tlc').textContent=logData.length;
     document.getElementById('currentInCount').textContent=currentInsideRows.length;
@@ -1038,7 +1045,7 @@ function setWorkflowMode(mode){
     requestAnimationFrame(()=>{map.invalidateSize();refreshAll()});
   }
 }
-function openModeGuide(){document.getElementById('modeGuide').classList.add('open')}
+function openModeGuide(){if(window.SAR?.show())return;document.getElementById('modeGuide').classList.add('open')}
 function closeModeGuide(){document.getElementById('modeGuide').classList.remove('open')}
 function chooseMode(mode){closeModeGuide();setWorkflowMode(mode)}
 function openModal(){
@@ -1579,6 +1586,7 @@ const wedge=(function(){
     const raw=normalizeScanData(buffer);
     buffer='';
     if(raw.length<MIN_LENGTH) return;
+    if(target==='sar'){await window.SAR?.scan(raw);return}
 
     // Detect if it's a re-entry card QR (JSON with t:'card')
     let qd=null;
@@ -2492,6 +2500,9 @@ function rc(pt,rings){let ins=ray(pt[0],pt[1],rings[0]);for(let i=1;i<rings.leng
 function ray(px,py,ring){let ins=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const xi=ring[i][0],yi=ring[i][1],xj=ring[j][0],yj=ring[j][1];if(((yi>py)!==(yj>py))&&(px<(xj-xi)*(py-yi)/(yj-yi)+xi))ins=!ins}return ins}
 </script>
 
+<script src="sar-config.js"></script>
+<script src="sar.js"></script>
+
 <script type="module">
 // ---- BARCODE DETECTOR (phone camera) ----
 let detector=null;
@@ -2707,4 +2718,5 @@ window.LPCCardLiveScanner=(()=>{
 </script>
 </body>
 </html>
+
 
