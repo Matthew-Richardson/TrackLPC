@@ -2036,6 +2036,23 @@ function personAddressKey(value){
   return String(value||'').split(',')[0].toUpperCase().replace(/COUNTY\s+ROAD/g,'CR').replace(/#/g,' UNIT ').replace(/[^A-Z0-9\s]/g,' ').trim().split(/\s+/).map(t=>aliases[t]||t).join(' ');
 }
 function sameCardPerson(a,b){return personNameKey(a.fn)===personNameKey(b.fn)&&personNameKey(a.ln)===personNameKey(b.ln)&&personAddressKey(a.addr)===personAddressKey(b.addr)}
+function cardAddressSearchParts(value){
+  const key=personAddressKey(value),match=key.match(/^(\d+[A-Z]?)\s+(.+)$/);
+  if(!match)return null;
+  const [street,unit]=match[2].split(/\s+UNIT\b\s*/);
+  // Start suggesting after the site number and two street characters.
+  // A site number alone is too broad, and 123 must never match 1234.
+  if(street.length<2)return null;
+  return{site:match[1],street:street.trim(),unit:unit===undefined?null:unit.trim()};
+}
+function existingCardAddressCandidates(cards,address){
+  const entered=cardAddressSearchParts(address);if(!entered)return[];
+  return cards.filter(card=>{
+    const saved=cardAddressSearchParts(card.addr);
+    return saved&&saved.site===entered.site&&saved.street.startsWith(entered.street)&&
+      (entered.unit===null||saved.unit===entered.unit);
+  });
+}
 let personRegistryCache=null,personRegistryCachedAt=0;
 async function readPersonRegistry({fresh=false}={}){
   if(!fresh&&personRegistryCache&&Date.now()-personRegistryCachedAt<15000)return personRegistryCache;
@@ -2082,24 +2099,26 @@ async function checkCardDuplicates(){
   const status=document.getElementById('cardDuplicateStatus');
   const input={fn:document.getElementById('cfn').value.trim(),ln:document.getElementById('cln').value.trim(),addr:document.getElementById('caddr').value.trim()};
   status.replaceChildren();
-  if(editingCard||input.addr.length<4)return;
+  if(editingCard||!cardAddressSearchParts(input.addr))return;
   status.textContent='Checking existing cardholders…';
   try{
     const rows=await readPersonRegistry();if(revision!==cardDuplicateRevision)return;
-    const atAddress=rows.filter(c=>personAddressKey(c.addr)===personAddressKey(input.addr));
+    // Suggestions are intentionally broader than the exact identity check used
+    // when saving: typing site number + street is enough to find candidates.
+    const atAddress=existingCardAddressCandidates(rows,input.addr);
     const exact=atAddress.filter(c=>sameCardPerson(c,input));
     status.textContent=exact.length?
       (exact.length===1?'Existing card found for this person. Generate card will reuse it.':'Multiple cards match this person. Review the Card Registry before saving.'):
-      atAddress.length?'Existing cards at this address — check the names below. Each different person receives their own card.':'No existing card found at this address. Printing is optional after saving.';
+      atAddress.length?'Possible existing cards — confirm the name and street address below.':'No existing cards match this site number and street so far.';
     atAddress.forEach(card=>{
-      const row=document.createElement('div');row.textContent=`${card.fn} ${card.ln} · ${card.cardId} · ${card.status}`;status.appendChild(row);
+      const row=document.createElement('div');row.textContent=`${card.fn} ${card.ln} · ${card.addr} · ${card.cardId} · ${card.status}`;status.appendChild(row);
     });
   }catch(e){if(revision===cardDuplicateRevision)status.textContent=e.message}
 }
 ['cfn','cln','caddr'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{
   clearTimeout(cardDuplicateTimer);cardDuplicateRevision++;
   document.getElementById('cardDuplicateStatus').textContent='';
-  cardDuplicateTimer=setTimeout(checkCardDuplicates,400);
+  cardDuplicateTimer=setTimeout(checkCardDuplicates,250);
 }));
 
 async function saveCustomCard(card){
@@ -2702,3 +2721,4 @@ window.LPCCardLiveScanner=(()=>{
 </script>
 </body>
 </html>
+
