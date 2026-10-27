@@ -8,7 +8,7 @@
     theme=value==='dark'?'dark':'light';
     root.dataset.theme=theme;
     const toggle=document.getElementById('themeToggle');
-    if(toggle)toggle.setAttribute('aria-checked',String(theme==='dark'));
+    if(toggle){toggle.setAttribute('aria-checked',String(theme==='dark'));toggle.title=theme==='dark'?'Switch to light mode':'Switch to dark mode';}
   }
   apply(theme);
   function bind(){

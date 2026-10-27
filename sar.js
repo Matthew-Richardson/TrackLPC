@@ -129,7 +129,7 @@ function switchSystem(mode){
  const sar=mode==='sar';stop();window.LPCLiveScanner?.stop();window.LPCCardLiveScanner?.stop();
  ['modal','cardModal'].forEach(id=>$(id).classList.remove('open'));closeForms();
  try{clearInterval(logTimer);logTimer=null}catch(e){}
- document.body.dataset.system=sar?'sar':'evac';$('systemMode').value=sar?'sar':'evac';
+ document.body.dataset.system=sar?'sar':'evac';$('systemMode').value=sar?'sar':'evac';$('systemMode').setAttribute('aria-checked',String(sar));
  try{sessionStorage.setItem('eztag_system',sar?'sar':'evac')}catch(e){}
  $('appLogo').src=sar?window.EZTAG_SAR_LOGO:LPC_LOGO_FIXED;$('appLogo').alt=sar?'La Plata County Search and Rescue logo':'La Plata County logo';
  document.querySelector('.brand-title').textContent=sar?'LPC Search & Rescue':'La Plata County EZcard';document.querySelector('.brand-copy small').textContent=sar?'MEMBER & EVENT MANAGEMENT':'EVACUATION ZONE CARD';
@@ -328,7 +328,7 @@ $('sarModeToggle').addEventListener('click',e=>{
  const tab=e.target.closest('[data-sar-tab]');if(!tab||document.body.dataset.system!=='sar')return;
  stopCamera();state.tab=tab.dataset.sarTab;render();
 });
-$('systemMode').addEventListener('change',e=>switchSystem(e.target.value));$('sarMemberSearch').addEventListener('input',renderMembers);$('sarEventForm').addEventListener('submit',saveEvent);$('sarMemberForm').addEventListener('submit',saveMember);
+$('systemMode').addEventListener('click',()=>switchSystem(document.body.dataset.system==='sar'?'evac':'sar'));$('sarMemberSearch').addEventListener('input',renderMembers);$('sarEventForm').addEventListener('submit',saveEvent);$('sarMemberForm').addEventListener('submit',saveMember);
 $('sarRoot').addEventListener('click',async e=>{
  const button=e.target.closest('button');if(!button||button.disabled)return;
  if(button.dataset.sarTab){stopCamera();state.tab=button.dataset.sarTab;render();return}
