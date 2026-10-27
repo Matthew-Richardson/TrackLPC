@@ -15,7 +15,7 @@ Use the selector beside the logo to switch between **LPC Evac mode** and **LPC S
 
 | Workspace | Functions | Data requirements |
 | --- | --- | --- |
-| LPC Evac | Zone selection and map confirmation, driver-license/EZcard scanning, address checks, IN/OUT logging, custom cards, registry search, and CSV exports | Evacuation zones, county GIS reference data, checkpoint log, and custom-card registry |
+| LPC Evac | Zone selection on the map, aid distribution, driver-license/EZcard scanning, address checks, IN/OUT logging, custom cards, registry search, and CSV exports | Evacuation zones, county GIS reference data, checkpoint log, and custom-card registry |
 | LPC SAR | Meeting, training, and field-mission events; IN/OUT Checkpoint attendance; member cards with Name, Division, and Phone; CSV exports | Three standalone tables: Members, Events, and Attendance. No geometry required |
 
 Evac uses county blue. SAR uses its logo red. Both workspaces share navigation, forms, and plain registry rows. The header's **Dark mode** toggle switches between light and dark display in either workspace and remembers the preference on that browser. Card printing and PNG exports keep their white background.
@@ -32,7 +32,7 @@ Evac uses county blue. SAR uses its logo red. Both workspaces share navigation, 
 ### LPC Evac
 
 1. Enter the operator name and sign in with ArcGIS Online.
-2. Open **IN/OUT Checkpoint**, select an evacuation zone, review its boundary, and confirm the zone.
+2. Open **IN/OUT Checkpoint**, select an evacuation zone to display its boundary on the main map, then click **Check in** above the map.
 3. Scan a driver's license or existing EZcard, or enter the person's information manually. The app checks the address against the selected zone. An outside-zone result can be reviewed through the override workflow.
 4. Confirm IN or OUT, enter the requested phone/notes, and save the visit.
 
@@ -191,3 +191,11 @@ Maintained in the [Matthew-Richardson/TrackLPC](https://github.com/Matthew-Richa
 
 No `LICENSE` file is currently included. Contact the maintainer about reuse and redistribution. County and SAR names/logos are organizational branding; this repository does not grant separate permission to reuse them.
 
+
+## Resource distribution (LPC Evac)
+
+Select **Checkpoint** or **Resource**, choose an evacuation zone, and review it on the main map. The button above the map opens the scanner: **Check in** for evacuation attendance or **Distribute resources** for aid. The dedicated Map tab and zone confirmation screen have been removed.
+
+Resource accepts DL scans and the same approved Custom Cards used by Checkpoint. Select a common aid preset or Custom resource, adjust type/description/quantity/unit, enter distribution and optional coverage dates, and add notes. Save multiple resource lines for the same person or scan the next recipient. Resource writes to its own nonspatial GIS table and provides zone history and CSV export.
+
+**GIS setup is required before resource saves work.** See [RESOURCE_GIS_SETUP.md](RESOURCE_GIS_SETUP.md), [resource-table-definition.json](resource-table-definition.json), and [resource-config.js](resource-config.js). The hosted table has not been created by this code change. Preset quantities are editable entry defaults, not eligibility or allotment standards.

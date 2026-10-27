@@ -240,3 +240,16 @@ html[data-theme="dark"] header #refreshBtn,
 html[data-theme="dark"] header #csv{color:#fff;background:#ffffff12;border-color:#ffffff55}
 @media(prefers-reduced-motion:reduce){.theme-thumb{transition:none}}
 
+
+/* Resource uses the same county-blue controls in both themes. */
+header .mode-toggle{grid-template-columns:repeat(3,minmax(0,1fr));max-width:390px}
+.resource-mode-label{font-weight:750;color:var(--ui-accent-dark);margin-bottom:8px}
+.resource-help{font-size:12px;line-height:1.5;color:var(--ui-muted);margin:8px 0 12px}
+.resource-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+#resourcePanel .af select,#resourcePanel .af textarea{width:100%;padding:9px 10px;border:1px solid var(--ui-border);border-radius:7px;background:var(--ui-panel);color:var(--ui-text);font:inherit}
+#resourcePanel .af textarea{min-height:70px;resize:vertical}
+#resourcePanel [role="status"]{font-size:12px;margin:10px 0;line-height:1.5}
+#resourceHistory p{font-size:12px;padding:9px 0;border-bottom:1px solid var(--ui-border)}
+#resourcePanel details{margin-top:18px}#resourcePanel summary{cursor:pointer;margin-bottom:10px}
+#resourceManual{margin-bottom:10px}
+@media(max-width:520px){header .mode-toggle .mt-btn{padding:7px 3px;font-size:10px;gap:3px}.resource-grid{grid-template-columns:1fr}}

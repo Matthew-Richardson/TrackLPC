@@ -283,8 +283,8 @@ body[data-workflow="card"] #cardManageView{display:flex}
   <div class="mode-toggle" id="modeToggle">
     <div class="mt-thumb"></div>
     <button class="mt-btn active" data-mode="scan" onclick="setWorkflowMode('scan')"><span class="checkpoint-symbol" aria-hidden="true">IN/OUT</span><span>Checkpoint</span></button>
+    <button class="mt-btn" data-mode="resource" onclick="setWorkflowMode('resource')"><span>Resource</span></button>
     <button class="mt-btn" data-mode="card" onclick="setWorkflowMode('card')"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8" cy="11" r="2"/><path d="M5.5 16c.7-1.6 4.3-1.6 5 0M13 10h5m-5 4h5"/></svg><span>Custom Card</span></button>
-    <button class="mt-btn" data-mode="map" onclick="setWorkflowMode('map')"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3zM9 3v15m6-12v15"/></svg><span>Map</span></button>
   </div>
   <nav class="sar-nav" id="sarModeToggle" aria-label="SAR workspace"><button type="button" data-sar-tab="events" aria-selected="true">IN/OUT Checkpoint</button><button type="button" data-sar-tab="members" aria-selected="false">Member cards</button></nav>
   <div class="hdr-right">
@@ -306,6 +306,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
   <div class="zone-bar-select">
     <select id="zs"><option value="">Select zone…</option></select>
   </div>
+  <button class="b ba" type="button" id="zoneScanBtn" onclick="openModal()" disabled>Check in</button>
   <div class="zone-bar-hint" id="zoneHint">Choose a zone to begin checkpoint scanning</div>
 </div>
 
@@ -382,7 +383,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
   <div class="privacy-summary">
     <section class="privacy-section">
       <h3>Information EZcard stores</h3>
-      <p>Secured County ArcGIS Online records may include name, authorized address, phone number, checkpoint direction and time, operator, evacuation zone, notes, card ID, and card-issuance details.</p>
+      <p>Secured County ArcGIS Online records may include name, authorized address, phone number, checkpoint direction and time, operator, evacuation zone, notes, card ID, card-issuance details, and resource distributions (resource type, description, quantity, unit, and distribution/coverage dates).</p>
     </section>
     <section class="privacy-section">
       <h3>Information EZcard does not store</h3>
@@ -409,22 +410,12 @@ body[data-workflow="card"] #cardManageView{display:flex}
 <div class="mo" id="modal">
  <div class="md">
   <div class="mh"><h2>Checkpoint Scan</h2><button class="mx" onclick="closeModal()">×</button></div>
-  <div class="modal-zone" id="scanZoneWrap">
-    <label for="scanZoneSel">Evacuation zone</label>
-    <div class="mz-wrap"><select id="scanZoneSel" onchange="previewCheckpointZone(this.value)"><option value="">Select zone…</option></select></div>
-    <div class="mz-hint">Review the zone on the map, then confirm to begin scanning.</div>
-    <div id="zonePreviewPanel">
-      <div id="zonePreviewMap" aria-label="Selected checkpoint zone map"></div>
-      <div class="county-layer-hint">Roads and parcels are enabled. Address numbers appear only when zoomed in close; use Layers to toggle overlays.</div>
-      <div id="zonePreviewInfo" role="status">Select an evacuation zone to preview its boundary.</div>
-      <button class="cb" id="zoneConfirmBtn" type="button" disabled onclick="confirmCheckpointZone()">Confirm zone and begin scanning</button>
-    </div>
-  </div>
-  <div class="zone-confirmed" id="zoneConfirmedBar" style="display:none"><strong id="zoneConfirmedName"></strong><button class="b" type="button" onclick="changeCheckpointZone()">Change zone</button></div>
+  <div class="zone-confirmed"><strong id="zoneConfirmedName"></strong><button class="b" type="button" onclick="closeModal();document.getElementById('zs').focus()">Change zone</button></div>
   <div id="scanBody">
   <div class="wedge-status" id="wedgeStatusCP">Scanner ready — scan a DL or re-entry card</div>
     <div class="res" id="s1res"><div class="vd" id="s1rv"></div><div class="dt" id="s1rd"></div><div class="ae" id="s1ra"></div></div>
 
+  <button id="resourceManual" class="b" type="button" hidden onclick="prepareResourceRecipient()">Continue with entered person</button>
   <!-- STEP 1: scan + check -->
   <div id="s1">
     <div class="live-scanner" id="liveScanner">
@@ -463,6 +454,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
     <button class="btn-outline next-scan-action" type="button" onclick="startNextCheckpointScan()">Scan another person</button>
     <div class="res" id="s2res"><div class="vd" id="s2rv"></div><div class="dt" id="s2rd"></div></div>
   </div>
+  <div id="resourcePanel" hidden></div>
   </div>
  </div>
 </div>
@@ -556,7 +548,7 @@ const PF=['APN','SITE_ADDR','NAME','ACRES','SITE_CITY','SITE_ZIP'],PH=['Parcel #
 const AFlds=['PROPERTY_A','NAME','APN','ADDR_HN','SITE_ST','City','ZIP'],AHdr=['Address','Name','Parcel #','House #','Street','City','ZIP'];
 
 let map,evacLayer,selLayer,zoneLabelLayer,scanMarker;
-let workflowMode='scan',zonePreviewMap=null,zonePreviewLayer=null,pendingZoneId=null,checkpointZoneConfirmed=false;
+let workflowMode='scan',checkpointZoneConfirmed=false;
 let filteredRegistryCards=[],registryLoadSequence=0;
 let zones=[],selGeom=null,selZoneId=null,selZone=null;
 let pData=[],aData=[],logData=[],activeTab='parcels';
@@ -726,7 +718,7 @@ function rebuildZoneCatalog({fit=false}={}){
   zones=[];zoneLabelLayer.clearLayers();
   evacLayer.eachFeature(l=>{const p=l.feature.properties;zones.push({id:p.OBJECTID,name:p.zonename,incident:p.incident,status:p.STATUS,feature:l.feature})});
   zones.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
-  const allSelects=[document.getElementById('zs'),document.getElementById('scanZoneSel')];
+  const allSelects=[document.getElementById('zs')];
   allSelects.forEach(sel=>{
     const first=document.createElement('option');first.value='';first.textContent='Select zone…';
     sel.replaceChildren(first);
@@ -745,7 +737,6 @@ function rebuildZoneCatalog({fit=false}={}){
     if(refreshed){
       selZone=refreshed;selGeom=refreshed.feature.geometry;
       document.getElementById('zs').value=String(selZoneId);
-      if(checkpointZoneConfirmed)document.getElementById('scanZoneSel').value=String(selZoneId);
       selLayer.clearLayers();selLayer.addData(refreshed.feature);
       const banner=document.getElementById('zoneBanner');banner.textContent=[refreshed.name,refreshed.incident].filter(Boolean).join(' — ');banner.style.display='block';
     }else{
@@ -756,69 +747,35 @@ function rebuildZoneCatalog({fit=false}={}){
     }
   }
   if(document.getElementById('modal').classList.contains('open')){
-    if(!checkpointZoneConfirmed)previewCheckpointZone(pendingZoneId);
-    else document.getElementById('zoneConfirmedName').textContent='Checkpoint: '+selZone.name;
+    if(!selZone)closeModal();
+    else document.getElementById('zoneConfirmedName').textContent=(workflowMode==='resource'?'Resource: ':'Checkpoint: ')+selZone.name;
   }
+  document.getElementById('zoneScanBtn').disabled=!selZone;
 }
 
 evacLayer.once('load',()=>rebuildZoneCatalog({fit:true}));
 document.getElementById('zs').addEventListener('change',function(){requestZoneSelection(this.value)});
 
 function requestZoneSelection(oid){
-  if(workflowMode==='scan'){
-    if(!document.getElementById('modal').classList.contains('open'))openModal();
-    previewCheckpointZone(oid);
-  }else if(oid)selectZone(Number(oid));
+  closeModal();resetModal({resumeScanner:false});
+  if(oid){selectZone(Number(oid));return}
+  selZone=null;selZoneId=null;selGeom=null;checkpointZoneConfirmed=false;
+  selLayer.clearLayers();document.getElementById('zoneBanner').style.display='none';
+  document.getElementById('zoneBar').classList.remove('has-zone');
+  document.getElementById('zoneScanBtn').disabled=true;
+  pData=[];aData=[];logData=[];currentInsideRows=[];updateCounts();renderTable();
 }
-function previewCheckpointZone(oid){
-  checkpointZoneConfirmed=false;pendingZoneId=oid?Number(oid):null;
-  window.LPCLiveScanner?.stop();wedge.setTarget(null);
-  resetModal({resumeScanner:false});
-  document.getElementById('scanBody').style.display='none';
-  document.getElementById('scanZoneWrap').style.display='';
-  document.getElementById('zoneConfirmedBar').style.display='none';
-  document.getElementById('scanZoneSel').value=oid||'';
-  if(!zonePreviewMap){
-    zonePreviewMap=L.map('zonePreviewMap',{scrollWheelZoom:false}).setView([37.28,-107.88],10);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap contributors',maxZoom:19}).addTo(zonePreviewMap);
-    addCountyReferenceLayers(zonePreviewMap);
-    zonePreviewLayer=L.geoJSON(null,{style:{color:'#2563eb',weight:3,fillColor:'#2563eb',fillOpacity:.08}}).addTo(zonePreviewMap);
-  }
-  const zone=zones.find(z=>String(z.id)===String(oid));
-  zonePreviewLayer.clearLayers();
-  document.getElementById('zoneConfirmBtn').disabled=!zone?.feature?.geometry;
-  document.getElementById('scanZoneWrap').classList.toggle('has-zone',!!zone);
-  document.getElementById('zonePreviewInfo').textContent=zone?[zone.name,zone.incident,zone.status].filter(Boolean).join(' — '):'Select an evacuation zone to preview its boundary.';
-  if(zone?.feature?.geometry)zonePreviewLayer.addData(zone.feature);
-  requestAnimationFrame(()=>{
-    zonePreviewMap.invalidateSize();
-    const bounds=zonePreviewLayer.getBounds();
-    if(bounds.isValid())zonePreviewMap.fitBounds(bounds,{padding:[16,16],maxZoom:15});
-  });
-}
-function confirmCheckpointZone(){
-  const zone=zones.find(z=>String(z.id)===String(pendingZoneId));
-  if(!zone?.feature?.geometry)return;
-  checkpointZoneConfirmed=true;
-  document.getElementById('scanZoneWrap').style.display='none';
-  document.getElementById('zoneConfirmedName').textContent='Checkpoint: '+zone.name;
-  document.getElementById('zoneConfirmedBar').style.display='flex';
-  selectZone(zone.id);
-}
-function changeCheckpointZone(){previewCheckpointZone(selZoneId)}
 async function selectZone(oid,{fit=true}={}){
   // Sync checkpoint selectors. Custom-card assignment remains independent.
   const zone=zones.find(z=>String(z.id)===String(oid));if(!zone)return;
   document.getElementById('zs').value=oid;
-  if(checkpointZoneConfirmed)document.getElementById('scanZoneSel').value=oid;
-  selZoneId=zone.id;selZone=zone;
+  selZoneId=zone.id;selZone=zone;checkpointZoneConfirmed=true;document.getElementById('zoneScanBtn').disabled=false;
   logData=[];currentInsideRows=[];document.getElementById('tlc').textContent='0';document.getElementById('currentInCount').textContent='0';
   if(activeTab==='log')renderLog();
   selGeom=selZone.feature.geometry;var _zb=document.getElementById('zoneBanner');_zb.textContent=[selZone.name,selZone.incident].filter(Boolean).join(' \u2014 ');_zb.style.display='block';selLayer.clearLayers();selLayer.addData(selZone.feature);
   if(fit)map.fitBounds(selLayer.getBounds(),{padding:[30,30]});
   // Update zone bar + modal zone wrappers to "has zone" state
   document.getElementById('zoneBar').classList.add('has-zone');
-  document.getElementById('scanZoneWrap').classList.add('has-zone');
   // If checkpoint modal is already open, activate scan body
   if(checkpointZoneConfirmed&&document.getElementById('modal').classList.contains('open')){
     document.getElementById('scanBody').style.display='';
@@ -1022,9 +979,9 @@ function setWorkflowMode(mode){
   workflowMode=mode;document.body.dataset.workflow=mode;
   syncWorkflowButtons(mode);
   if(mode!=='card')requestAnimationFrame(()=>map.invalidateSize());
-  if(mode==='scan'){
+  if(mode==='scan'||mode==='resource'){
     document.getElementById('cardModal').classList.remove('open');
-    openModal();
+    closeModal();resetModal({resumeScanner:false});updateResourceModeUI();
   }else if(mode==='card'){
     document.getElementById('modal').classList.remove('open');
     closeCardModal();wedge.setTarget(null);loadCardRegistry();
@@ -1036,16 +993,23 @@ function setWorkflowMode(mode){
   }
 }
 function openModal(){
-  workflowMode='scan';document.body.dataset.workflow='scan';
+  if(!selZone){document.getElementById('zs').focus();return}
+  workflowMode=workflowMode==='resource'?'resource':'scan';document.body.dataset.workflow=workflowMode;
+  updateResourceModeUI();
   document.getElementById('cardModal').classList.remove('open');window.LPCCardLiveScanner?.stop();
   document.getElementById('modal').classList.add('open');
-  syncWorkflowButtons('scan');previewCheckpointZone(selZoneId);
+  syncWorkflowButtons(workflowMode);
+  checkpointZoneConfirmed=true;resetModal({resumeScanner:false});
+  document.getElementById('zoneConfirmedName').textContent=(workflowMode==='resource'?'Resource: ':'Checkpoint: ')+selZone.name;
+  document.getElementById('scanBody').style.display='';wedge.setTarget('checkpoint');
+  requestAnimationFrame(()=>window.LPCLiveScanner?.start());
 }
 function closeModal(){document.getElementById('modal').classList.remove('open');wedge.setTarget(null);window.LPCLiveScanner?.stop()}
 let manualAddressTimer=null,addressCheckSequence=0;
 function resetModal({resumeScanner=true,statusText=''}={}){
   clearTimeout(manualAddressTimer);addressCheckSequence++;
   lastCheck=null;parsedDL=null;selectedDir=null;
+  resetResourceForm();
   document.getElementById('s1').style.display='';document.getElementById('s2').style.display='none';
   document.getElementById('ai').value='';document.getElementById('s1fn').value='';document.getElementById('s1ln').value='';
   document.getElementById('s1phone').value='';document.getElementById('ss').textContent=statusText;
@@ -1071,6 +1035,7 @@ function startNextCheckpointScan(){
 
 // ---- STEP 1: ADDRESS CHECK ----
 async function doCheck({autoAdvance=true}={}){
+  if(workflowMode==='resource')return prepareResourceRecipient();
   const addr=document.getElementById('ai').value.trim();if(!addr||!selGeom)return;
   const requestId=++addressCheckSequence;
   document.getElementById('ss').textContent='Checking address against '+(selZone?.name||'the selected zone')+'…';
@@ -1450,7 +1415,7 @@ async function applyCheckpointDL(parsed){
   const phoneInput=document.getElementById('s1phone');
   phoneInput.value='';
   document.getElementById('ss').textContent='DL scanned — checking prior checkpoint records…';
-  const previousPhone=await lookupPreviousPhone(parsedDL.firstName,parsedDL.lastName,parsedDL.fullAddress);
+  const previousPhone=workflowMode==='resource'?'':await lookupPreviousPhone(parsedDL.firstName,parsedDL.lastName,parsedDL.fullAddress);
   if(previousPhone&&!phoneInput.value){
     phoneInput.value=previousPhone;
     document.getElementById('ss').textContent='DL scanned — phone restored from the prior matching visit';
@@ -2723,6 +2688,8 @@ window.LPCCardLiveScanner=(()=>{
 })();
 
 </script>
+<script src="resource-config.js"></script>
+<script src="resource.js"></script>
 </body>
 </html>
 
