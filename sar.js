@@ -119,7 +119,7 @@ function updatePicked(){
 function renderMembers(){
  const q=normalized($('sarMemberSearch').value);
  const rows=state.members.filter(m=>!q||[m.name,m.division,m.phone,m.member_id].some(v=>normalized(v).includes(q))).sort((a,b)=>a.name.localeCompare(b.name));
- $('sarMemberList').innerHTML=rows.length?rows.map(m=>`<article class="sar-member-tile ${m.status==='Active'?'':'inactive'}"><h3>${esc(m.name)}</h3><p>${esc(m.division)}<br>${esc(m.phone||'No phone entered')} · ${esc(m.status)}</p><div class="sar-actions"><button class="sar-btn primary" type="button" data-sar-card="${esc(m.member_id)}">View / print card</button><button class="sar-btn" type="button" data-sar-edit-member="${esc(m.member_id)}">Edit</button></div><div class="sar-id">${esc(m.member_id)}</div></article>`).join(''):'<div class="sar-empty"><strong>No members found</strong>Add members to create reusable cards.</div>';
+ $('sarMemberList').innerHTML=rows.length?rows.map(m=>`<article class="sar-member-tile ${m.status==='Active'?'':'inactive'}"><h3>${esc(m.name)}</h3><p>${esc(m.division)}<br>${esc(m.phone||'No phone entered')} · ${esc(m.status)}</p><div class="sar-actions"><button class="sar-btn" type="button" data-sar-card="${esc(m.member_id)}">View / print card</button><button class="sar-btn" type="button" data-sar-edit-member="${esc(m.member_id)}">Edit</button></div><div class="sar-id">${esc(m.member_id)}</div></article>`).join(''):'<div class="sar-empty"><strong>No members found</strong>Add members to create reusable cards.</div>';
 }
 function setScanTarget(){try{wedge.setTarget(document.body.dataset.system==='sar'&&state.tab==='events'&&event()?.status==='Open'&&!document.querySelector('.sar-modal.open')&&enabled()?'sar':null)}catch(e){/* Evac scanner may still be initializing. */}}
 function stopCamera(){cameraVersion++;clearTimeout(cameraTimer);cameraStream?.getTracks().forEach(t=>t.stop());cameraStream=null;const wrap=$('sarCameraWrap');if(wrap)wrap.classList.remove('active')}
@@ -127,7 +127,7 @@ function stop(){stopCamera();clearInterval(refreshTimer);refreshTimer=null;try{w
 function closeForms(){document.querySelectorAll('.sar-modal').forEach(m=>m.classList.remove('open'));setScanTarget()}
 function switchSystem(mode){
  const sar=mode==='sar';stop();window.LPCLiveScanner?.stop();window.LPCCardLiveScanner?.stop();
- ['modal','cardModal','modeGuide'].forEach(id=>$(id).classList.remove('open'));closeForms();
+ ['modal','cardModal'].forEach(id=>$(id).classList.remove('open'));closeForms();
  try{clearInterval(logTimer);logTimer=null}catch(e){}
  document.body.dataset.system=sar?'sar':'evac';$('systemMode').value=sar?'sar':'evac';
  try{sessionStorage.setItem('eztag_system',sar?'sar':'evac')}catch(e){}
@@ -135,7 +135,7 @@ function switchSystem(mode){
  document.querySelector('.brand-title').textContent=sar?'LPC Search & Rescue':'La Plata County EZcard';document.querySelector('.brand-copy small').textContent=sar?'MEMBER & EVENT MANAGEMENT':'EVACUATION ZONE CARD';
  $('refreshBtn').title=sar?'Refresh SAR events, members, and attendance':'Refresh zones, map, addresses, parcels, and activity';
  if(sar){connection();render();if(configured&&oauthManager)refresh()}
- else{requestAnimationFrame(()=>map.invalidateSize());if(oauthManager)openModeGuide()}
+ else{requestAnimationFrame(()=>map.invalidateSize())}
 }
 async function refresh(){
  if(state.preview){connection();render();return}
@@ -288,10 +288,9 @@ async function toggleCamera(){
 function fit(ctx,text,max,start,min=20){let n=start;do{ctx.font=`700 ${n}px Arial, sans-serif`;if(ctx.measureText(text).width<=max)break;n--}while(n>min);return n}
 async function renderCard(m){
  const canvas=document.createElement('canvas');canvas.width=638;canvas.height=1013;const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,638,1013);
- ctx.fillStyle='#3752a3';ctx.fillRect(0,0,638,46);
  const image=new Image();await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=()=>reject(new Error('SAR logo could not be loaded.'));image.src=window.EZTAG_SAR_LOGO});
  const ratio=Math.min(130/image.width,150/image.height);ctx.drawImage(image,(638-image.width*ratio)/2,75,image.width*ratio,image.height*ratio);
- ctx.textAlign='center';ctx.fillStyle='#3752a3';ctx.font='700 27px Arial, sans-serif';ctx.fillText('LA PLATA COUNTY',319,265);ctx.font='700 31px Arial, sans-serif';ctx.fillText('SEARCH & RESCUE',319,307);
+ ctx.textAlign='center';ctx.fillStyle='#e81e2c';ctx.font='700 27px Arial, sans-serif';ctx.fillText('LA PLATA COUNTY',319,265);ctx.font='700 31px Arial, sans-serif';ctx.fillText('SEARCH & RESCUE',319,307);
  ctx.fillStyle='#152447';fit(ctx,m.name,550,52);const words=m.name.split(/\s+/);let lines=[''];words.forEach(w=>{const i=lines.length-1,t=lines[i]?lines[i]+' '+w:w;if(ctx.measureText(t).width>550&&lines[i])lines.push(w);else lines[i]=t});
  if(lines.length>2){fit(ctx,m.name,550,36,14);lines=[m.name]}
  lines.forEach((line,i)=>ctx.fillText(line,319,390+i*55));
@@ -342,8 +341,7 @@ $('sarRoot').addEventListener('click',async e=>{
  try{await handlers[action]?.()}catch(e){if($('sarFeedback'))feedback(e.message,true);else connection(e.message)}
 });
 window.addEventListener('pagehide',stop);document.addEventListener('visibilitychange',()=>{if(document.hidden)stopCamera()});
-window.SAR={switchSystem,refresh,scan,stop,onLogin(){if(document.body.dataset.system==='sar'){closeModeGuide();refresh()}},show(){if(document.body.dataset.system==='sar'){state.tab='events';render();return true}return false}};
+window.SAR={switchSystem,refresh,scan,stop,onLogin(){if(document.body.dataset.system==='sar'){refresh()}}};
 let initial='evac';try{initial=sessionStorage.getItem('eztag_system')==='sar'?'sar':'evac'}catch(e){}
 if(initial==='sar')switchSystem('sar');else document.body.dataset.system='evac';
 })();
-

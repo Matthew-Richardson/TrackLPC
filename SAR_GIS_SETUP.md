@@ -104,4 +104,4 @@ No formal geodatabase relationship classes are required: the app joins through `
 - [Field and spatial indexes](https://developers.arcgis.com/documentation/portal-and-data-services/data-services/feature-services/field-and-spatial-indexes/)
 - [LPCSAR branding reference](https://laplatasar.org/la-plata-county-weather/)
 
-The official SAR logo is embedded in sar.js for reliable card printing and PNG export. SAR's website blue (#3752a3) is used in the workspace and cards.
+The official SAR logo is embedded in sar.js for reliable card printing and PNG export. SAR uses the logo red (#e81e2c) for interface accents and card headings; member lists use plain rows.

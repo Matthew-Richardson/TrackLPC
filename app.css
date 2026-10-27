@@ -1,14 +1,15 @@
 /* Shared EZtag visual language for LPC Evac and LPC SAR. */
-:root{--ui-accent:#3752a3;--ui-accent-dark:#283e80;--ui-accent-light:#edf1fc;--ui-border:#dbe1ec;--ui-text:#26385a;--ui-muted:#72809a;--ui-bg:#f3f5fa;--ui-panel:#fff;--ui-radius:12px}
+:root{--ui-accent:#0066a4;--ui-accent-dark:#004b79;--ui-accent-light:#eaf3f8;--ui-border:#dcdfe3;--ui-text:#263238;--ui-muted:#6b7280;--ui-bg:#f5f6f7;--ui-panel:#fff;--ui-radius:12px}
+body[data-system="sar"]{--ui-accent:#e81e2c;--ui-accent-dark:#a81723;--ui-accent-light:#fcecef}
 body,body[data-system="sar"]{--bg:var(--ui-bg);--sf:var(--ui-panel);--bd:var(--ui-border);--tx:var(--ui-text);--mu:var(--ui-muted);--navy:var(--ui-accent-dark);--ac:var(--ui-accent);--ac2:var(--ui-accent-dark);--al:var(--ui-accent-light);--scan:var(--ui-accent);--scan-dark:var(--ui-accent-dark);--scan-light:var(--ui-accent-light);--card:var(--ui-accent);--card-dark:var(--ui-accent-dark);--card-light:var(--ui-accent-light);background:var(--ui-bg);color:var(--ui-text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif}
 header,body[data-system="sar"] header{padding:12px 24px;gap:12px;background:var(--ui-accent);border-bottom:1px solid var(--ui-accent-dark);box-shadow:0 2px 8px #23325c0d}
 .brand,body[data-system="sar"] .brand{gap:9px}.brand-logo,body[data-system="sar"] .brand-logo{width:44px;height:38px;padding:4px;background:#fff;border-radius:7px;object-fit:contain;flex-shrink:0}
-.brand-title,body[data-system="sar"] .brand-title{font-size:13px;line-height:1.2;font-weight:750;letter-spacing:0;max-width:none}.brand-copy{line-height:1.2}.brand-copy small{font-size:8px;letter-spacing:.05em;color:#e1e7fb;margin-top:3px}
+.brand-title,body[data-system="sar"] .brand-title{font-size:13px;line-height:1.2;font-weight:750;letter-spacing:0;max-width:none}.brand-copy{line-height:1.2}.brand-copy small{font-size:8px;letter-spacing:.05em;color:rgba(255,255,255,.85);margin-top:3px}
 .system-picker{margin-left:0}.system-picker select{border-radius:7px;min-height:36px;background:#fff;color:var(--ui-accent-dark);font:700 12px/1.2 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
 header .mode-toggle,header .sar-nav{display:grid;position:relative;grid-template-columns:repeat(3,minmax(0,1fr));flex:1;min-width:275px;max-width:390px;gap:4px;padding:4px;border:1px solid #ffffff35;background:#ffffff1f;border-radius:10px;overflow:hidden;align-self:center;box-shadow:none;margin:0}
 header .sar-nav{grid-template-columns:repeat(2,minmax(0,1fr))}#sarModeToggle{display:none}body[data-system="sar"] #sarModeToggle{display:grid}
 header .mode-toggle .mt-thumb{display:none}
-header .mode-toggle .mt-btn,header .sar-nav button{display:flex;align-items:center;justify-content:center;gap:5px;min-height:34px;padding:8px 9px;border:0;border-radius:7px;background:transparent;color:#e1e7fb;font:700 12px/1.2 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;letter-spacing:0;cursor:pointer;box-shadow:none;text-align:center}
+header .mode-toggle .mt-btn,header .sar-nav button{display:flex;align-items:center;justify-content:center;gap:5px;min-height:34px;padding:8px 9px;border:0;border-radius:7px;background:transparent;color:rgba(255,255,255,.85);font:700 12px/1.2 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;letter-spacing:0;cursor:pointer;box-shadow:none;text-align:center}
 header .mode-toggle .mt-btn.active,header .sar-nav button[aria-selected="true"]{background:#fff;color:var(--ui-accent-dark);box-shadow:0 1px 4px #24386b18}
 header .mode-toggle .mt-btn:not(.active):hover,header .sar-nav button:not([aria-selected="true"]):hover{background:#ffffff14;color:#fff}
 header .header-actions{gap:6px}#signOutBtn,#refreshBtn,#csv{width:92px;flex-basis:92px;height:34px;border:1px solid #ffffff55;border-radius:7px;background:#ffffff12;color:#fff;font-size:11px;font-weight:650}#signOutBtn:hover,#refreshBtn:hover,#csv:hover{background:#ffffff25}
@@ -27,7 +28,7 @@ table,.sar-table{font-size:12px}th,.sar-table th{padding:10px 12px;background:#f
 .em,.sar-empty{color:var(--ui-muted);font-size:13px;line-height:1.7}
 body:not([data-system="sar"]) #cardManageView{padding:22px 24px 28px;width:100%;max-width:1240px;margin:0 auto;background:transparent}
 .registry-toolbar{padding:18px;border:1px solid var(--ui-border);border-radius:var(--ui-radius);background:#fff;box-shadow:0 2px 6px #23325c04}.registry-heading{margin-bottom:14px}.registry-heading h2{font-size:18px;color:var(--ui-accent-dark);letter-spacing:-.02em}
-#cardRegistryList{padding:18px 0 0;gap:14px;grid-template-columns:repeat(auto-fill,minmax(245px,1fr))}.registry-item,.sar-member-tile{padding:18px;border:1px solid var(--ui-border);border-top:3px solid var(--ui-accent);border-radius:11px;box-shadow:none;background:#fff}.registry-name,.sar-member-tile h3{font-size:16px;font-weight:700;color:#243a74;margin-bottom:5px}.registry-detail,.sar-member-tile p{font-size:12px;color:var(--ui-muted);line-height:1.7}.registry-id{font-size:9px;background:transparent;padding:0;color:#929eb2;margin-top:6px}.registry-actions{margin-top:13px;gap:7px}
+#cardRegistryList{padding:18px 0 0;gap:14px;grid-template-columns:repeat(auto-fill,minmax(245px,1fr))}.registry-item,.sar-member-tile{padding:18px;border:1px solid var(--ui-border);border-top:3px solid var(--ui-accent);border-radius:11px;box-shadow:none;background:#fff}.registry-name,.sar-member-tile h3{font-size:16px;font-weight:700;color:var(--ui-text);margin-bottom:5px}.registry-detail,.sar-member-tile p{font-size:12px;color:var(--ui-muted);line-height:1.7}.registry-id{font-size:9px;background:transparent;padding:0;color:#929eb2;margin-top:6px}.registry-actions{margin-top:13px;gap:7px}
 /* Common controls and dialog surfaces. Status colors remain reserved for results. */
 .b,.sar-btn,.registry-actions button,.btn-outline,.rst{border:1px solid #ccd4e5;border-radius:7px;background:#fff;color:var(--ui-accent-dark);font-family:inherit;font-size:12px;font-weight:600;line-height:1.2;padding:9px 13px;box-shadow:none}
 .b:hover,.sar-btn:hover,.registry-actions button:hover,.btn-outline:hover,.rst:hover{background:var(--ui-accent-light);border-color:#bbc9ee;color:var(--ui-accent-dark)}
@@ -38,13 +39,13 @@ body:not([data-system="sar"]) #cardManageView{padding:22px 24px 28px;width:100%;
 .mo{background:rgba(24,37,68,.48)}.md,.sar-modal .md{padding:22px;border-radius:var(--ui-radius);border:1px solid var(--ui-border);box-shadow:0 12px 50px #172b4d24}.mh{margin-bottom:18px}.mh h2,.sar-modal .mh h2{color:var(--ui-accent-dark);font-size:18px;font-weight:700;letter-spacing:-.02em}.mx{width:30px;height:30px;background:#f1f4fa;color:#72809a;border-radius:7px;font-size:16px}
 .af label,.modal-zone label,.registry-filters label,.sar-field label{font-size:11px;color:#4c5d7b;font-weight:700;letter-spacing:0;text-transform:none;margin-bottom:5px}
 .af input,.modal-zone select,.modal-zone.has-zone select,.registry-search,.registry-filters select,.sar-field input,.sar-field select,.sar-field textarea{min-height:39px;border:1px solid #cbd4e5;border-radius:7px;background:#fff;color:var(--ui-text);padding:9px 10px;font:13px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
-.af input:focus,.modal-zone select:focus,.registry-search:focus,.registry-filters select:focus,.sar-field input:focus,.sar-field select:focus,.sar-field textarea:focus{outline:2px solid #b7c7f6;outline-offset:1px;border-color:var(--ui-accent);box-shadow:none}
+.af input:focus,.modal-zone select:focus,.registry-search:focus,.registry-filters select:focus,.sar-field input:focus,.sar-field select:focus,.sar-field textarea:focus{outline:2px solid var(--ui-accent-light);outline-offset:1px;border-color:var(--ui-accent);box-shadow:none}
 .modal-zone .mz-hint{font-size:11px;color:var(--ui-muted);animation:none}.zone-confirmed{background:var(--ui-accent-light);border:1px solid #bbc9ee;color:var(--ui-accent-dark);border-radius:8px}
 .edit-note{background:var(--ui-accent-light);border-color:#bbc9ee;color:var(--ui-accent-dark)}.edit-note button{color:var(--ui-accent-dark)}
 .mode-guide-card{border:1px solid var(--ui-border);border-radius:var(--ui-radius);box-shadow:none}.mode-guide-card:hover,.mode-guide-card.card-choice:hover,.mode-guide-card.map-choice:hover{border-color:#bbc9ee;box-shadow:0 2px 8px #23325c0d}.mode-guide-icon,.card-choice .mode-guide-icon,.map-choice .mode-guide-icon{background:var(--ui-accent-light);color:var(--ui-accent)}
 .mode-guide-card strong{color:var(--ui-accent-dark)}.mode-guide-card span:last-child{color:var(--ui-muted);line-height:1.6}
 .sar-shell{padding-top:22px}.sar-nav{margin:0}.sar-panel,.sar-checkin{border-color:var(--ui-border)}
-.oem-contacts,.sar-footer{font-size:11px;color:var(--ui-muted);background:var(--ui-bg);border-color:var(--ui-border)}.oem-contacts{padding:10px 12px}.oem-contact-list a,.sar-footer a{color:#536ba9}
+.oem-contacts,.sar-footer{font-size:11px;color:var(--ui-muted);background:var(--ui-bg);border-color:var(--ui-border)}.oem-contacts{padding:10px 12px}.oem-contact-list a,.sar-footer a{color:var(--ui-accent-dark)}
 @media(max-width:900px){header,body[data-system="sar"] header{padding:10px 16px;gap:9px}body:not([data-system="sar"]) #zoneBar,body:not([data-system="sar"]) #mc,body:not([data-system="sar"]) .ts{width:calc(100% - 32px)}body:not([data-system="sar"]) #cardManageView{padding:18px 16px 24px}}
 @media(max-width:560px){
  header,body[data-system="sar"] header{display:grid;grid-template-columns:minmax(0,1fr) auto;padding:8px 12px;gap:7px 6px}
@@ -59,4 +60,28 @@ body:not([data-system="sar"]) #cardManageView{padding:22px 24px 28px;width:100%;
  body:not([data-system="sar"]) .ts{width:calc(100% - 24px);margin:14px auto;min-height:90px}.tb{padding:6px 8px}.tt{padding:7px 10px;font-size:11px}
  body:not([data-system="sar"]) #cardManageView{padding:18px 12px 24px}.registry-toolbar{padding:14px}#cardRegistryList{padding:14px 0 0;grid-template-columns:1fr}.registry-actions{grid-template-columns:repeat(2,1fr)}
  .md,.sar-modal .md{padding:18px;border-radius:16px 16px 0 0}.sar-shell{padding:18px 12px 30px}.oem-contacts{padding:7px 8px}
+}
+
+
+/* Plain registries: one row per person, without colored tile decoration. */
+#cardRegistryList,.sar-member-grid{display:flex;flex-direction:column;gap:0;background:#fff;border:1px solid var(--ui-border);border-radius:8px;padding:0 18px;overflow-x:hidden}
+#cardRegistryList{margin-top:18px}
+.registry-item,.sar-member-tile{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:18px;align-items:start;min-width:0;width:100%;padding:16px 0;border:0;border-bottom:1px solid var(--ui-border);border-radius:0;background:transparent;box-shadow:none}
+.registry-item:last-child,.sar-member-tile:last-child{border-bottom:0}
+.registry-name,.sar-member-tile h3{grid-column:1;grid-row:1;margin:0 0 4px;font-size:14px;font-weight:700;color:var(--ui-text);overflow-wrap:anywhere;min-width:0}
+.registry-detail,.sar-member-tile p{grid-column:1;grid-row:2;font-size:12px;line-height:1.6;color:var(--ui-muted);overflow-wrap:anywhere;min-width:0}
+.registry-id,.sar-member-tile .sar-id{grid-column:1;grid-row:3;min-width:0;max-width:100%;margin-top:6px;white-space:normal;overflow-wrap:anywhere;word-break:break-word;background:none;padding:0;font-size:9px;color:var(--ui-muted)}
+.registry-actions,.sar-member-tile .sar-actions{grid-column:2;grid-row:1 / span 3;display:flex;flex-wrap:wrap;justify-content:flex-end;align-self:center;gap:6px;max-width:330px;margin:0;min-width:0}
+.registry-actions button,.sar-member-tile .sar-actions button{flex:0 1 auto;min-width:0;max-width:100%;padding:8px 10px;font-size:12px;white-space:normal;overflow-wrap:anywhere;box-sizing:border-box}
+.sar-member-tile.inactive{border-top:0;opacity:.7}
+.sar-metrics{border:0;border-radius:0;background:transparent;margin:18px 0;padding:0}.sar-metrics div{padding:8px 16px;border-color:var(--ui-border)}.sar-metrics div:first-child{padding-left:0}.sar-metrics strong{color:var(--ui-text);font-size:23px}
+.sar-checkin{background:transparent;border:0;border-top:1px solid var(--ui-border);border-bottom:1px solid var(--ui-border);border-radius:0;padding:18px 0}
+.sar-event-item[aria-pressed="true"]{background:#f0f1f3;border-color:transparent}.sar-event-item:hover{background:#f5f6f7}
+.sar-panel,.registry-toolbar,body:not([data-system="sar"]) #zoneBar,body:not([data-system="sar"]) #mc,body:not([data-system="sar"]) .ts{box-shadow:none}
+.sar-pill{background:#f0f1f3;color:var(--ui-text)}
+@media(max-width:700px){
+ #cardRegistryList,.sar-member-grid{padding:0 14px}
+ .registry-item,.sar-member-tile{grid-template-columns:minmax(0,1fr);column-gap:0;padding:14px 0}
+ .registry-actions,.sar-member-tile .sar-actions{grid-column:1;grid-row:4;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%;max-width:none;gap:7px;margin-top:12px}
+ .registry-actions button,.sar-member-tile .sar-actions button{width:100%;padding:9px 7px;min-width:0;max-width:100%}
 }
