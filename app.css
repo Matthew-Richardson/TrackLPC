@@ -1,4 +1,5 @@
 /* Shared EZtag visual language for LPC Evac and LPC SAR. */
+html{color-scheme:light}
 :root{--ui-accent:#0066a4;--ui-accent-dark:#004b79;--ui-accent-light:#eaf3f8;--ui-border:#dcdfe3;--ui-text:#263238;--ui-muted:#6b7280;--ui-bg:#f5f6f7;--ui-panel:#fff;--ui-radius:12px}
 body[data-system="sar"]{--ui-accent:#e81e2c;--ui-accent-dark:#a81723;--ui-accent-light:#fcecef}
 body,body[data-system="sar"]{--bg:var(--ui-bg);--sf:var(--ui-panel);--bd:var(--ui-border);--tx:var(--ui-text);--mu:var(--ui-muted);--navy:var(--ui-accent-dark);--ac:var(--ui-accent);--ac2:var(--ui-accent-dark);--al:var(--ui-accent-light);--scan:var(--ui-accent);--scan-dark:var(--ui-accent-dark);--scan-light:var(--ui-accent-light);--card:var(--ui-accent);--card-dark:var(--ui-accent-dark);--card-light:var(--ui-accent-light);background:var(--ui-bg);color:var(--ui-text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif}
@@ -85,3 +86,157 @@ body:not([data-system="sar"]) #cardManageView{padding:22px 24px 28px;width:100%;
  .registry-actions,.sar-member-tile .sar-actions{grid-column:1;grid-row:4;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%;max-width:none;gap:7px;margin-top:12px}
  .registry-actions button,.sar-member-tile .sar-actions button{width:100%;padding:9px 7px;min-width:0;max-width:100%}
 }
+
+/* The same display preference follows the operator between both workspaces. */
+.theme-toggle{display:inline-flex;align-items:center;gap:7px;min-height:30px;padding:4px 7px;border:1px solid #ffffff55;border-radius:7px;background:transparent;color:#fff;font:600 11px/1.2 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;white-space:nowrap;cursor:pointer}
+.theme-toggle:hover{background:#ffffff14}.theme-toggle:focus-visible{outline:2px solid #fff;outline-offset:3px}
+.theme-track{display:block;position:relative;width:28px;height:16px;border-radius:20px;background:#ffffff50;flex-shrink:0}
+.theme-thumb{display:block;position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#fff;transition:transform .15s ease}
+.theme-toggle[aria-checked="true"] .theme-track{background:#10182088}.theme-toggle[aria-checked="true"] .theme-thumb{transform:translateX(12px)}
+html[data-theme="dark"]{color-scheme:dark;--ui-bg:#11161d;--ui-panel:#1b232e;--ui-border:#354252;--ui-text:#e8edf3;--ui-muted:#acb7c5;--ui-accent-light:#173449;--ui-link:#8dd0f5;--ui-raised:#253140;--ui-input:#131c27;--ui-hover:#293748}
+html[data-theme="dark"] body[data-system="sar"]{--ui-accent-light:#41242b;--ui-link:#ffa6ad}
+html[data-theme="dark"] .sar-panel,
+html[data-theme="dark"] .registry-toolbar,
+html[data-theme="dark"] #cardRegistryList,
+html[data-theme="dark"] .sar-member-grid,
+html[data-theme="dark"] .md,
+html[data-theme="dark"] .sb2,
+html[data-theme="dark"] .tb,
+html[data-theme="dark"] body:not([data-system="sar"]) #zoneBar,
+html[data-theme="dark"] body:not([data-system="sar"]) .ts{background:var(--ui-panel);border-color:var(--ui-border);color:var(--ui-text)}
+html[data-theme="dark"] #cardManageView{background:transparent}
+html[data-theme="dark"] .registry-item,
+html[data-theme="dark"] .sar-member-tile{background:transparent;border-color:var(--ui-border)}
+html[data-theme="dark"] .b,
+html[data-theme="dark"] .sar-btn,
+html[data-theme="dark"] .registry-actions button,
+html[data-theme="dark"] .btn-outline,
+html[data-theme="dark"] .rst{background:var(--ui-raised);color:var(--ui-link);border-color:var(--ui-border)}
+html[data-theme="dark"] .b:hover,
+html[data-theme="dark"] .sar-btn:hover,
+html[data-theme="dark"] .registry-actions button:hover,
+html[data-theme="dark"] .btn-outline:hover,
+html[data-theme="dark"] .rst:hover{background:var(--ui-hover);color:var(--ui-link);border-color:var(--ui-link)}
+html[data-theme="dark"] .sar-btn.primary,
+html[data-theme="dark"] .ba,
+html[data-theme="dark"] .cb,
+html[data-theme="dark"] .sb1,
+html[data-theme="dark"] #cardModal .cb{background:var(--ui-accent)!important;color:#fff;border-color:var(--ui-accent)}
+html[data-theme="dark"] .sar-btn.primary:hover,
+html[data-theme="dark"] .ba:hover,
+html[data-theme="dark"] .cb:hover,
+html[data-theme="dark"] .sb1:hover,
+html[data-theme="dark"] #cardModal .cb:hover{background:var(--ui-accent-dark)!important;color:#fff;border-color:var(--ui-accent-dark)}
+html[data-theme="dark"] .af input,
+html[data-theme="dark"] .modal-zone select,
+html[data-theme="dark"] .zone-bar-select select,
+html[data-theme="dark"] .registry-search,
+html[data-theme="dark"] .registry-filters select,
+html[data-theme="dark"] .sb2 input,
+html[data-theme="dark"] .sar-field input,
+html[data-theme="dark"] .sar-field select,
+html[data-theme="dark"] .sar-field textarea{background:var(--ui-input);color:var(--ui-text);border-color:var(--ui-border)}
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder{color:#8e9cac;opacity:1}
+html[data-theme="dark"] .af label,
+html[data-theme="dark"] .modal-zone label,
+html[data-theme="dark"] .zone-bar-label,
+html[data-theme="dark"] .registry-filters label,
+html[data-theme="dark"] .sar-field label,
+html[data-theme="dark"] .sar-event-item,
+html[data-theme="dark"] .sar-picked{color:var(--ui-text)}
+html[data-theme="dark"] .mh h2,
+html[data-theme="dark"] .registry-heading h2,
+html[data-theme="dark"] .sar-checkin h3,
+html[data-theme="dark"] .sar-attendance-head h3,
+html[data-theme="dark"] .sar-empty strong,
+html[data-theme="dark"] .sar-feedback,
+html[data-theme="dark"] .phone-link,
+html[data-theme="dark"] .oem-contact-list a,
+html[data-theme="dark"] .sar-footer a,
+html[data-theme="dark"] .privacy-link{color:var(--ui-link)}
+html[data-theme="dark"] .sar-meta,
+html[data-theme="dark"] .sar-help,
+html[data-theme="dark"] .sar-eyebrow,
+html[data-theme="dark"] .sar-event-item span,
+html[data-theme="dark"] .sar-table small,
+html[data-theme="dark"] .sar-card-hint,
+html[data-theme="dark"] .sar-metrics span,
+html[data-theme="dark"] .sar-setup-details,
+html[data-theme="dark"] .county-layer-hint{color:var(--ui-muted)}
+html[data-theme="dark"] th,
+html[data-theme="dark"] .sar-table th{background:var(--ui-raised);color:var(--ui-muted);border-color:var(--ui-border)}
+html[data-theme="dark"] td,
+html[data-theme="dark"] .sar-table td,
+html[data-theme="dark"] .sar-panel-heading,
+html[data-theme="dark"] .sar-table-wrap,
+html[data-theme="dark"] .sar-metrics div,
+html[data-theme="dark"] .sar-checkin{border-color:var(--ui-border)}
+html[data-theme="dark"] tr:hover td{background:var(--ui-hover)}
+html[data-theme="dark"] .tt{color:var(--ui-muted)}
+html[data-theme="dark"] .tt.on,
+html[data-theme="dark"] .tt:hover,
+html[data-theme="dark"] .sar-event-item[aria-pressed="true"],
+html[data-theme="dark"] .sar-event-item:hover{background:var(--ui-raised);color:var(--ui-text)}
+html[data-theme="dark"] .activity-filters,
+html[data-theme="dark"] .activity-filter,
+html[data-theme="dark"] .card-tabs{background:var(--ui-panel);color:var(--ui-muted);border-color:var(--ui-border)}
+html[data-theme="dark"] .activity-filter.on{background:var(--ui-accent);color:#fff;border-color:var(--ui-accent)}
+html[data-theme="dark"] .activity-filter .c,
+html[data-theme="dark"] .tt .c,
+html[data-theme="dark"] .sar-pill,
+html[data-theme="dark"] .sar-pill.closed,
+html[data-theme="dark"] .card-tab.on,
+html[data-theme="dark"] .mx{background:var(--ui-raised);color:var(--ui-text)}
+html[data-theme="dark"] .zone-confirmed,
+html[data-theme="dark"] .edit-note,
+html[data-theme="dark"] .next-scan-action,
+html[data-theme="dark"] .print-hint,
+html[data-theme="dark"] .sar-notice[data-state="live"],
+html[data-theme="dark"] .wedge-status.listening,
+html[data-theme="dark"] .wedge-status.captured,
+html[data-theme="dark"] #s1res.ri{background:var(--ui-accent-light);border-color:var(--ui-border);color:var(--ui-link)}
+html[data-theme="dark"] #s1res.ri .vd,
+html[data-theme="dark"] #s1res.ri .dt,
+html[data-theme="dark"] .edit-note button{color:var(--ui-link)}
+html[data-theme="dark"] .sar-notice:not([data-state="live"]),
+html[data-theme="dark"] .re,
+html[data-theme="dark"] .override-zone-btn{background:#382f1e!important;border-color:#796438;color:#f3d68e!important}
+html[data-theme="dark"] .re .vd,
+html[data-theme="dark"] .re .dt{color:#f3d68e}
+html[data-theme="dark"] .sar-feedback.error,
+html[data-theme="dark"] .registry-actions .danger,
+html[data-theme="dark"] .sar-btn.danger{color:#ffadb5}
+html[data-theme="dark"] .ro,
+html[data-theme="dark"] .wedge-status.invalid,
+html[data-theme="dark"] .card-checkin-status.error{background:#40252c;border-color:#a44f5b;color:#ffc0c6}
+html[data-theme="dark"] .ro .vd,
+html[data-theme="dark"] .ro .dt{color:#ffc0c6}
+html[data-theme="dark"] .ri,
+html[data-theme="dark"] .card-checkin-status.ok,
+html[data-theme="dark"] .dbtn.ib.sel,
+html[data-theme="dark"] .dbtn.ib:hover{background:#193b31;border-color:#4b9b81;color:#a9ecd3}
+html[data-theme="dark"] .ri .vd,
+html[data-theme="dark"] .ri .dt{color:#a9ecd3}
+html[data-theme="dark"] .dbtn{background:var(--ui-raised);color:var(--ui-text);border-color:var(--ui-border)}
+html[data-theme="dark"] .dbtn.ob2.sel,
+html[data-theme="dark"] .dbtn.ob2:hover{background:#40252c;border-color:#a44f5b;color:#ffc0c6}
+html[data-theme="dark"] .pf,
+html[data-theme="dark"] .card-parsed,
+html[data-theme="dark"] .privacy-note,
+html[data-theme="dark"] .privacy-section{background:var(--ui-input);color:var(--ui-muted);border-color:var(--ui-border)}
+html[data-theme="dark"] .privacy-section h3{color:var(--ui-text)}
+html[data-theme="dark"] .leg,
+html[data-theme="dark"] .leaflet-control-layers,
+html[data-theme="dark"] .leaflet-control-zoom a,
+html[data-theme="dark"] .leaflet-tooltip{background:var(--ui-panel);color:var(--ui-text);border-color:var(--ui-border)}
+html[data-theme="dark"] .leaflet-control-attribution{background:#1b232ee8;color:var(--ui-muted)}
+html[data-theme="dark"] .leaflet-control-attribution a{color:var(--ui-link)}
+html[data-theme="dark"] header .mode-toggle .mt-btn.active,
+html[data-theme="dark"] header .sar-nav button[aria-selected="true"],
+html[data-theme="dark"] .system-picker select{color:#17232d;background:#fff}
+html[data-theme="dark"] header #signOutBtn,
+html[data-theme="dark"] header #refreshBtn,
+html[data-theme="dark"] header #csv{color:#fff;background:#ffffff12;border-color:#ffffff55}
+@media(prefers-reduced-motion:reduce){.theme-thumb{transition:none}}
+

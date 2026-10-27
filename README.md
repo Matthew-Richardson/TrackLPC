@@ -18,7 +18,7 @@ Use the selector beside the logo to switch between **LPC Evac mode** and **LPC S
 | LPC Evac | Zone selection and map confirmation, driver-license/EZcard scanning, address checks, IN/OUT logging, custom cards, registry search, and CSV exports | Evacuation zones, county GIS reference data, checkpoint log, and custom-card registry |
 | LPC SAR | Meeting, training, and field-mission events; IN/OUT Checkpoint attendance; member cards with Name, Division, and Phone; CSV exports | Three standalone tables: Members, Events, and Attendance. No geometry required |
 
-Evac uses county blue. SAR uses its logo red. Both workspaces share navigation, forms, and plain registry rows.
+Evac uses county blue. SAR uses its logo red. Both workspaces share navigation, forms, and plain registry rows. The header's **Dark mode** toggle switches between light and dark display in either workspace and remembers the preference on that browser. Card printing and PNG exports keep their white background.
 
 ## Current status
 
@@ -138,7 +138,8 @@ Keep `index.html`, the CSS files, and SAR scripts together at the site root. For
 | File | Purpose |
 | --- | --- |
 | `index.html` | Main application, Evac workflows, mapping, scanning, and sign-in |
-| `app.css` | Shared layout, workspace colors, and registry styling |
+| `app.css` | Shared layout, workspace colors, light/dark themes, and registry styling |
+| `theme.js` | Persistent light/dark preference and shared header toggle |
 | `sar.js` | SAR events, attendance, members, scanning, and member-card rendering |
 | `sar.css` | SAR workspace layout and components |
 | `sar-config.js` | SAR REST table URL configuration |
@@ -189,3 +190,4 @@ Maintained in the [Matthew-Richardson/TrackLPC](https://github.com/Matthew-Richa
 ## License and branding
 
 No `LICENSE` file is currently included. Contact the maintainer about reuse and redistribution. County and SAR names/logos are organizational branding; this repository does not grant separate permission to reuse them.
+
