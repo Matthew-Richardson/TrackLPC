@@ -8,14 +8,14 @@ function fixture(){
  class Element{
   constructor(){this.value='';this.textContent='';this.hidden=false;this.disabled=false;this.style={};this.dataset={};this.children=[];this.classes=new Set();this.classList={add:x=>this.classes.add(x),remove:x=>this.classes.delete(x),contains:x=>this.classes.has(x),toggle:(x,on)=>on?this.classes.add(x):this.classes.delete(x)};}
   set innerHTML(s){for(const m of s.matchAll(/id="([^"]+)"/g))elements.set(m[1],new Element())}
-  get innerHTML(){return ''} append(x){this.children.push(x);if(!this.value&&x.value)this.value=x.value} replaceChildren(){this.children=[]}
+  get innerHTML(){return ''} append(x){this.children.push(x);if(!this.value&&x.value)this.value=x.value} replaceChildren(...nodes){this.children=nodes} appendChild(node){this.children.push(node);return node} setAttribute(name,value){this[name]=value}
   querySelectorAll(){return []} reportValidity(){return true} scrollIntoView(){} focus(){this.focused=true}
  }
  const get=id=>{if(!elements.has(id))elements.set(id,new Element());return elements.get(id)};
- const doc={getElementById:get,createElement:()=>new Element(),querySelector:()=>get('heading'),querySelectorAll:()=>[],body:{dataset:{}}};
+ const doc={getElementById:get,createElement:()=>new Element(),createDocumentFragment:()=>new Element(),querySelector:()=>get('heading'),querySelectorAll:()=>[],body:{dataset:{}}};
  const calls=[];
- context=vm.createContext({console,document:doc,window:{LPC_RESOURCE_CONFIG:{tableUrl:''},LPCLiveScanner:{stop(){},pause(){},start(){calls.push('scanner')}}},crypto:require('node:crypto').webcrypto,URL,Blob,URLSearchParams,Date,setTimeout,clearTimeout,requestAnimationFrame:f=>f(),titleCase:s=>s,escapeHTML:s=>s,csvCell:s=>String(s),map:{invalidateSize(){}},wedge:{setTarget:x=>calls.push(x)},syncWorkflowButtons(){},closeCardModal(){},loadCardRegistry(){},switchTab(){},refreshAll(){},resetModal(){},closeModal(){get('modal').classList.remove('open')},updateCounts(){},renderTable(){},selLayer:{clearLayers(){}},clearInterval(){}});
- vm.runInContext(`let workflowMode='scan',checkpointZoneConfirmed=true,selZone={id:7,name:'TEST-7',incident:'Exercise'},selZoneId=7,selGeom={},parsedDL=null,operatorName='Test operator',manualAddressTimer=null,addressCheckSequence=0,pData=[],aData=[],logData=[],currentInsideRows=[];`,context);
+ context=vm.createContext({console,document:doc,window:{LPC_RESOURCE_CONFIG:{tableUrl:''},LPCLiveScanner:{stop(){},pause(){},start(){calls.push('scanner')}}},crypto:require('node:crypto').webcrypto,URL,Blob,URLSearchParams,Date,setTimeout,clearTimeout,requestAnimationFrame:f=>f(),titleCase:s=>s,escapeHTML:s=>s,csvCell:s=>String(s),map:{invalidateSize(){}},wedge:{setTarget:x=>calls.push(x)},syncWorkflowButtons(){},closeCardModal(){},loadCardRegistry(){},fetchLog:async()=>{},switchTab(){},refreshAll(){},setInterval:()=>1,LOG_URL:'https://example.test/checkpoint',computeCurrentInside:()=>[],renderLog(){},renderTableHeader(headers){get('dth').headers=headers},makeElement(tag,options){const node=new Element();node.textContent=options?.text??'';return node},resetModal(){},closeModal(){get('modal').classList.remove('open')},updateCounts(){},renderTable(){},selLayer:{clearLayers(){}},clearInterval(){}});
+ vm.runInContext(`let workflowMode='scan',checkpointZoneConfirmed=true,selZone={id:7,name:'TEST-7',incident:'Exercise'},selZoneId=7,selGeom={},parsedDL=null,operatorName='Test operator',manualAddressTimer=null,addressCheckSequence=0,pData=[],aData=[],logData=[],currentInsideRows=[],activeTab='parcels',logTimer=null;`,context);
  vm.runInContext(resource,context);
  const run=s=>vm.runInContext(s,context);
  const loadFunction=(name,next)=>run(html.slice(html.indexOf('function '+name+'('),html.indexOf('function '+next+'(')));
@@ -153,4 +153,33 @@ test('history uses the discovered system ID for stable pagination ordering',asyn
  };
  await f.run('loadResourceHistory()');assert.deepEqual(orders,['distributed_at DESC,FID DESC']);
  assert.match(f.get('resourceHistoryStatus').textContent,/0 resource item records/);
+});
+
+test('Resource Activity loads and renders distributions without an open scanner modal',async()=>{
+ const f=fixture();f.run("workflowMode='resource';activeTab='log';window.LPC_RESOURCE_CONFIG={tableUrl:'https://example.test/Resource/FeatureServer/3'}");
+ const get=f.context.document.getElementById;f.context.document.getElementById=id=>['resourceHistoryStatus','resourceHistory'].includes(id)?null:get(id);
+ f.context.getAgolToken=async()=> 'token';f.context.fetch=async(url)=>({ok:true,json:async()=>url.endsWith('/3')?metadataFixture():{features:[{attributes:{name:'Jane',resource_name:'Water',quantity:2,unit:'case',address:'10 Test',distributed_at:1,zone_id:'7'}}]}});
+ await f.run('loadResourceHistory()');assert.equal(f.get('tlc').textContent,'1');assert.equal(f.get('dt').style.display,'');assert.equal(f.get('activityFilters').style.display,'none');
+ assert(f.get('dth').headers.includes('Resource'));assert.equal(f.get('dtb').children[0].children.length,1);
+ const row=f.get('dtb').children[0].children[0];assert.equal(row.children[1].textContent,'Jane');assert.equal(row.children[3].textContent,2);
+ f.get('tsr').value='does not match';f.run('renderResourceActivity()');assert.match(f.get('emp').textContent,/No distributions match/);
+});
+test('Activity polling and CSV export use Resource data in Resource mode',async()=>{
+ const f=fixture();f.run("workflowMode='resource';activeTab='log'");let loads=0,exports=0,queries=0;
+ f.context.loadResourceHistory=async()=>{loads++};f.context.fetch=async()=>{queries++;throw Error('Checkpoint must not be queried')};f.context.exportResourceHistory=()=>{exports++};
+ const start=html.indexOf('async function fetchLog()'),end=html.indexOf('// ---- CHECKPOINT MODAL',start);f.run(html.slice(start,end));
+ await f.run('fetchLog()');assert.equal(loads,1);assert.equal(queries,0);
+ f.loadFunction('doExport','setLoading');f.run('doExport()');assert.equal(exports,1);
+});
+test('failed Resource history is shown as an error instead of an empty Activity view',async()=>{
+ const f=fixture();f.run("workflowMode='resource';activeTab='log';window.LPC_RESOURCE_CONFIG={tableUrl:'https://example.test/Resource/FeatureServer/3'}");
+ f.context.resourceMetadata=async()=>metadataFixture();f.context.getAgolToken=async()=> 'token';f.context.fetch=async()=>({ok:true,json:async()=>({error:{message:'Access denied'}})});
+ await f.run('loadResourceHistory()');assert.match(f.get('emp').textContent,/Could not load distributions: Access denied/);assert.equal(f.get('dt').style.display,'none');
+});
+test('touch map scrolling is the default and panning is an explicit toggle',()=>{
+ const f=fixture();let dragging=false,zoom=false;
+ f.context.matchMedia=()=>({matches:true});f.context.map.dragging={enable(){dragging=true},disable(){dragging=false}};f.context.map.touchZoom={enable(){zoom=true},disable(){zoom=false}};f.context.map.scrollWheelZoom={disable(){}};
+ f.run('syncMobileMapInteraction()');assert(!dragging&&!zoom);assert.equal(f.get('map').dataset.pageScroll,'true');
+ f.run('toggleMobileMapPan()');assert(dragging&&zoom);assert.equal(f.get('mapPanToggle').textContent,'Scroll page');
+ f.run('toggleMobileMapPan()');assert(!dragging&&!zoom);assert.equal(f.get('mapPanToggle').textContent,'Move map');
 });

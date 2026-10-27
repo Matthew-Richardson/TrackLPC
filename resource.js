@@ -16,6 +16,7 @@ const RESOURCE_PRESETS = [
   ['custom','','','','']
 ];
 let resourceSaving=false,resourceRows=[],resourceHistoryVersion=0;
+let resourceHistoryState='idle',resourceHistoryError='';
 let resourceDraftItems=[],activeResourceItems=[],resourceDraftSequence=0;
 function newResourceDraft(presetId='water-case'){
   const preset=RESOURCE_PRESETS.find(p=>p[0]===presetId)||RESOURCE_PRESETS[0];
@@ -149,9 +150,7 @@ function updateResourceModeUI(){
   document.getElementById('zoneScanBtn').textContent=on?'Distribute resources':'Check in';
 }
 function resetResourceForm(){
-  resourceHistoryVersion++;
   const panel=document.getElementById('resourcePanel');if(panel){panel.hidden=true;panel.replaceChildren()}
-  resourceRows=[];
   const manual=document.getElementById('resourceManual');if(manual)manual.hidden=workflowMode!=='resource';
 }
 async function prepareResourceRecipient(){
@@ -280,28 +279,98 @@ async function resourceQuery(url,token,params){
   const r=await fetch(url+'/query',{method:'POST',body:new URLSearchParams({f:'json',token,...params})});const j=await r.json();
   if(!r.ok||j.error)throw new Error(j.error?.message||'Resource query failed');return j;
 }
+function clearResourceActivity(){
+  resourceHistoryVersion++;resourceRows=[];resourceHistoryState='idle';resourceHistoryError='';
+  if(workflowMode==='resource')renderResourceHistory();
+}
+function resourceFilteredRows(){
+  const query=document.getElementById('tsr').value.toLowerCase().trim();
+  return query?resourceRows.filter(row=>['name','address','phone','resource_type','resource_name','unit','notes','operator_name','card_id'].some(key=>String(row[key]??'').toLowerCase().includes(query))):resourceRows;
+}
+function resourceHistoryMessage(){
+  if(!selZone)return 'Select a zone to view resource distributions.';
+  if(resourceHistoryState==='loading')return 'Loading resource distributions…';
+  if(resourceHistoryState==='error')return 'Could not load distributions: '+resourceHistoryError;
+  if(resourceHistoryState==='idle')return 'Resource distributions have not loaded yet. Use Refresh to load activity.';
+  return `${resourceRows.length} resource item records in ${selZone.name}.`;
+}
+function renderResourceActivity(){
+  document.getElementById('activityFilters').style.display='none';
+  document.getElementById('tlc').textContent=String(resourceRows.length);
+  const rows=resourceFilteredRows(),empty=document.getElementById('emp'),table=document.getElementById('dt');
+  const ready=resourceHistoryState==='ready';
+  table.style.display=ready&&rows.length?'':'none';empty.style.display=ready&&rows.length?'none':'';
+  if(!ready||!rows.length){empty.textContent=ready?(resourceRows.length?'No distributions match this filter.':'No resource distributions recorded for this zone.'):resourceHistoryMessage();document.getElementById('dtb').replaceChildren();return}
+  renderTableHeader(['Distributed','Name','Resource','Quantity','Unit','Address','Phone','Notes','Operator']);
+  const fragment=document.createDocumentFragment();
+  rows.forEach(record=>{
+    const row=document.createElement('tr');
+    const date=record.distributed_at==null?'':new Date(record.distributed_at).toLocaleString();
+    [date,record.name,record.resource_name,record.quantity,record.unit,record.address,record.phone,record.notes,record.operator_name].forEach(value=>row.appendChild(makeElement('td',{text:value??''})));
+    fragment.appendChild(row);
+  });
+  document.getElementById('dtb').replaceChildren(fragment);
+  document.getElementById('csv').disabled=false;
+}
+function renderResourceHistory(){
+  if(workflowMode==='resource'&&document.body.dataset.system!=='sar'){
+    document.getElementById('tlc').textContent=String(resourceRows.length);
+    if(activeTab==='log')renderResourceActivity();
+  }
+  const status=document.getElementById('resourceHistoryStatus'),list=document.getElementById('resourceHistory');
+  if(!status||!list)return;
+  status.textContent=resourceHistoryMessage()+(resourceHistoryState==='ready'?' Showing latest 100; CSV includes all loaded records.':'');
+  list.replaceChildren();
+  if(resourceHistoryState!=='ready')return;
+  resourceRows.slice(0,100).forEach(record=>{
+    const row=document.createElement('p');row.textContent=`${new Date(record.distributed_at).toLocaleString()} · ${record.name} · ${record.quantity} ${record.unit} ${record.resource_name}${record.notes?' · '+record.notes:''}`;list.append(row);
+  });
+}
 async function loadResourceHistory(){
-  const version=++resourceHistoryVersion,zone=selZone,url=resourceURL(),status=document.getElementById('resourceHistoryStatus');
-  if(!status)return;resourceRows=[];document.getElementById('resourceHistory').replaceChildren();
-  if(!url){status.textContent='Resource GIS table is not connected.';return}
-  status.textContent='Loading distributions…';
+  const version=++resourceHistoryVersion,zone=selZone,url=resourceURL();
+  resourceRows=[];resourceHistoryState='loading';resourceHistoryError='';
+  if(!zone){resourceHistoryState='idle';renderResourceHistory();return}
+  if(!url){resourceHistoryState='error';resourceHistoryError='Resource GIS table is not connected.';renderResourceHistory();return}
+  renderResourceHistory();
   try{
     const tableUrl=await resolveResourceURL();
     const token=await getAgolToken(tableUrl),rows=[];let offset=0;
     while(true){
-      const j=await resourceQuery(tableUrl,token,{where:`zone_id='${String(zone.id).replace(/'/g,"''")}'`,outFields:'*',returnGeometry:'false',orderByFields:`distributed_at DESC,${resourceObjectIdFields.get(tableUrl)} DESC`,resultOffset:String(offset),resultRecordCount:'1000'});
-      const batch=j.features||[];rows.push(...batch.map(f=>f.attributes));
-      if(!j.exceededTransferLimit)break;if(!batch.length)throw new Error('GIS returned an incomplete page');offset+=batch.length;
+      const result=await resourceQuery(tableUrl,token,{where:`zone_id='${String(zone.id).replace(/'/g,"''")}'`,outFields:'*',returnGeometry:'false',orderByFields:`distributed_at DESC,${resourceObjectIdFields.get(tableUrl)} DESC`,resultOffset:String(offset),resultRecordCount:'1000'});
+      if(!Array.isArray(result.features))throw new Error('GIS returned no distribution records array.');
+      const batch=result.features;rows.push(...batch.map(feature=>feature.attributes));
+      if(!result.exceededTransferLimit)break;if(!batch.length)throw new Error('GIS returned an incomplete page');offset+=batch.length;
     }
+    if(version!==resourceHistoryVersion||String(selZone?.id)!==String(zone.id))return;
+    resourceRows=rows;resourceHistoryState='ready';renderResourceHistory();
+  }catch(err){
     if(version!==resourceHistoryVersion)return;
-    resourceRows=rows;status.textContent=`${rows.length} resource item records in ${zone.name}. Showing latest 100; CSV includes all loaded records.`;
-    const list=document.getElementById('resourceHistory');
-    rows.slice(0,100).forEach(a=>{const row=document.createElement('p');row.textContent=`${new Date(a.distributed_at).toLocaleString()} · ${a.name} · ${a.quantity} ${a.unit} ${a.resource_name}${a.notes?' · '+a.notes:''}`;list.append(row)});
-  }catch(err){if(version===resourceHistoryVersion)status.textContent='Could not load distributions: '+err.message}
+    resourceHistoryState='error';resourceHistoryError=err.message;renderResourceHistory();
+  }
 }
 function exportResourceHistory(){
   if(!resourceRows.length)return;
   const fields=['distribution_id','card_id','name','address','phone','zone_id','zone_name','incident','resource_type','resource_name','preset_id','quantity','unit','distributed_at','covers_through','recorded_at','operator_name','scan_type','notes'];
   const rows=[fields.map(csvCell).join(','),...resourceRows.map(a=>fields.map(k=>csvCell(k.endsWith('_at')||k==='covers_through'?a[k]==null?'':new Date(a[k]).toISOString():a[k])).join(','))];
   const url=URL.createObjectURL(new Blob([rows.join('\r\n')],{type:'text/csv;charset=utf-8'})),link=document.createElement('a');link.href=url;link.download='LPC_Resource_Distributions.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+// On touch screens, native page scrolling takes priority until map movement is enabled.
+let mobileMapPan=false;
+function syncMobileMapInteraction(){
+  if(typeof matchMedia!=='function')return;
+  const mobile=matchMedia('(max-width:700px), (pointer:coarse)').matches;
+  const button=document.getElementById('mapPanToggle');button.hidden=!mobile;
+  const pan=!mobile||mobileMapPan;
+  if(pan){map.dragging.enable();map.touchZoom.enable()}else{map.dragging.disable();map.touchZoom.disable()}
+  map.scrollWheelZoom.disable();
+  document.getElementById('map').dataset.pageScroll=mobile&&!pan?'true':'false';
+  button.setAttribute('aria-pressed',String(mobile&&mobileMapPan));
+  button.textContent=mobileMapPan?'Scroll page':'Move map';
+}
+function toggleMobileMapPan(){mobileMapPan=!mobileMapPan;syncMobileMapInteraction()}
+if(typeof matchMedia==='function'){
+  const media=matchMedia('(max-width:700px), (pointer:coarse)');
+  media.addEventListener('change',()=>{mobileMapPan=false;syncMobileMapInteraction()});
+  syncMobileMapInteraction();
 }

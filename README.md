@@ -201,3 +201,10 @@ Before opening the Resource scanner, select one or more common aid presets or Cu
 A successful distribution automatically creates or reuses the person’s shared Custom Card, with View, Print to ZC300, and Save PNG controls. Printing is optional. Batch retries check each item ID and submit only missing rows. Zone history and CSV export retain one row per issued item.
 
 Resource is configured for the private `LPCOEM_Resource` hosted service. The app discovers the table after ArcGIS sign-in and validates its fields, text capacity, and Query/Create capabilities before saving. Live schema and permissions still need verification in the signed-in app. See [RESOURCE_GIS_SETUP.md](RESOURCE_GIS_SETUP.md), [resource-table-definition.json](resource-table-definition.json), and [resource-config.js](resource-config.js). Preset quantities are editable entry defaults, not eligibility or allotment standards.
+
+
+### Resource activity and mobile navigation
+
+In Resource mode, the main Activity tab shows resource distributions for the selected zone, including recipient, item, quantity, unit, date, notes, and operator. Its count is the number of item records, and the top CSV button exports the Resource records. Checkpoint mode continues to show its own IN/OUT activity. Resource activity loads outside the scanner, refreshes every 15 seconds while the mode is active, and updates after saves. Query failures are displayed instead of appearing as an empty history.
+
+On mobile, the page scrolls through item selection, map, and the Activity table. Wide tables scroll horizontally inside their panel. Swiping over the map scrolls the page by default; tap **Move map** to pan/zoom, then **Scroll page** to restore page scrolling. Resource pages also scroll normally on desktop when item selections and activity exceed the viewport.

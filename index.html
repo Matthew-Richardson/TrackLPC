@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>La Plata County EZcard</title>
 <script src="theme.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" integrity="sha384-c6Rcwz4e4CITMbu/NBmnNS8yN2sC3cUElMEMfP3vqqKFp7GOYaaBBCqmaWBjmkjb" crossorigin="anonymous"/>
@@ -314,6 +314,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
 <div id="mc">
   <div class="lb" id="lb"></div>
   <div id="map"></div>
+  <button class="b map-pan-toggle" id="mapPanToggle" type="button" hidden aria-pressed="false" onclick="toggleMobileMapPan()">Move map</button>
   <div id="zoneBanner"></div>
   <div class="leg" id="leg" style="display:none">
     <div class="li"><div class="ls" style="background:rgba(37,99,235,.08);border-color:rgba(37,99,235,.6)"></div>Zones</div>
@@ -742,7 +743,7 @@ function rebuildZoneCatalog({fit=false}={}){
       selLayer.clearLayers();selLayer.addData(refreshed.feature);
       const banner=document.getElementById('zoneBanner');banner.textContent=[refreshed.name,refreshed.incident].filter(Boolean).join(' — ');banner.style.display='block';
     }else{
-      selZoneId=null;selZone=null;selGeom=null;selLayer.clearLayers();
+      selZoneId=null;selZone=null;selGeom=null;clearResourceActivity();selLayer.clearLayers();
       document.getElementById('zoneBanner').style.display='none';
       document.getElementById('zoneBar').classList.remove('has-zone');
       checkpointZoneConfirmed=false;window.LPCLiveScanner?.stop();wedge.setTarget(null);
@@ -761,7 +762,7 @@ document.getElementById('zs').addEventListener('change',function(){requestZoneSe
 function requestZoneSelection(oid){
   closeModal();resetModal({resumeScanner:false});
   if(oid){selectZone(Number(oid));return}
-  selZone=null;selZoneId=null;selGeom=null;checkpointZoneConfirmed=false;
+  selZone=null;selZoneId=null;selGeom=null;checkpointZoneConfirmed=false;clearResourceActivity();
   selLayer.clearLayers();document.getElementById('zoneBanner').style.display='none';
   document.getElementById('zoneBar').classList.remove('has-zone');
   document.getElementById('zoneScanBtn').disabled=true;
@@ -771,7 +772,7 @@ async function selectZone(oid,{fit=true}={}){
   // Sync checkpoint selectors. Custom-card assignment remains independent.
   const zone=zones.find(z=>String(z.id)===String(oid));if(!zone)return;
   document.getElementById('zs').value=oid;
-  selZoneId=zone.id;selZone=zone;checkpointZoneConfirmed=true;document.getElementById('zoneScanBtn').disabled=false;
+  selZoneId=zone.id;selZone=zone;clearResourceActivity();checkpointZoneConfirmed=true;document.getElementById('zoneScanBtn').disabled=false;
   logData=[];currentInsideRows=[];document.getElementById('tlc').textContent='0';document.getElementById('currentInCount').textContent='0';
   if(activeTab==='log')renderLog();
   selGeom=selZone.feature.geometry;var _zb=document.getElementById('zoneBanner');_zb.textContent=[selZone.name,selZone.incident].filter(Boolean).join(' \u2014 ');_zb.style.display='block';selLayer.clearLayers();selLayer.addData(selZone.feature);
@@ -784,6 +785,7 @@ async function selectZone(oid,{fit=true}={}){
     wedge.setTarget('checkpoint');
     requestAnimationFrame(()=>window.LPCLiveScanner?.start());
   }
+  const activityTask=workflowMode==='resource'?fetchLog():null;
   setLoading(true);
   try{
     const gr=await fetch(`${EVAC_URL}/query?where=OBJECTID=${oid}&outFields=OBJECTID&returnGeometry=true&outSR=3857&f=json`);
@@ -792,7 +794,7 @@ async function selectZone(oid,{fit=true}={}){
     const[p,a]=await Promise.all([spQ(PARCEL_URL,geom,PF),spQ(ADDR_URL,geom,AFlds)]);
     pData=p;aData=a;updateCounts();renderTable();
   }catch(e){console.error(e)}
-  setLoading(false);await fetchLog();
+  setLoading(false);if(activityTask)await activityTask;else await fetchLog();
 }
 async function spQ(url,geom,flds){
   const all=[];let off=0;
@@ -810,7 +812,7 @@ function updateCounts(){
 // ---- TABLE ----
 function switchTab(t){activeTab=t;document.querySelectorAll('.tt').forEach(el=>el.classList.toggle('on',el.dataset.t===t));
   document.getElementById('tsr').value='';
-  document.getElementById('activityFilters').style.display=t==='log'?'flex':'none';
+  document.getElementById('activityFilters').style.display=t==='log'&&workflowMode!=='resource'?'flex':'none';
   document.getElementById('tsr').placeholder=t==='log'?'Filter name, address, phone…':'Filter…';
   renderTable()}
 function renderTable(filt){
@@ -881,9 +883,10 @@ function phoneLink(value){
 }
 
 function renderLog(){
+  if(workflowMode==='resource'){renderResourceActivity();return}
   const rows=getFilteredLogRows();
   const emp=document.getElementById('emp');emp.style.display=rows.length?'none':'';document.getElementById('dt').style.display=rows.length?'':'none';
-  if(!rows.length){emp.lastElementChild.textContent=activityFilter==='current'?'No unmatched IN records for this zone':'No matching activity';return}
+  if(!rows.length){emp.replaceChildren(makeElement('div',{text:activityFilter==='current'?'No unmatched IN records for this zone':'No matching activity'}));return}
   renderTableHeader(['Check-in date','Time','Status','Name','Address','Phone','Op','Type']);
   const fragment=document.createDocumentFragment();
   rows.forEach(r=>{
@@ -900,6 +903,7 @@ function renderLog(){
   document.getElementById('dtb').replaceChildren(fragment);
 }
 function doExport(){
+  if(workflowMode==='resource'&&activeTab==='log'){exportResourceHistory();return}
   const data=activeTab==='parcels'?pData:activeTab==='addrs'?aData:getFilteredLogRows();
   const f=activeTab==='parcels'?PF:activeTab==='addrs'?AFlds:['check_time','direction','name','address','phone','license_num','operator_name','card_type','notes'];
   const h=activeTab==='parcels'?PH:activeTab==='addrs'?AHdr:['Time','Dir','Name','Address','Phone','Card ID','Operator','Type','Notes'];
@@ -946,11 +950,17 @@ async function refreshAll(){
 // ---- LOG POLLING ----
 let logTimer=null;
 async function fetchLog(){if(document.body.dataset.system==='sar'||!selZone)return;
+  if(workflowMode==='resource'){
+    clearInterval(logTimer);logTimer=setInterval(fetchLog,15000);
+    await loadResourceHistory();return;
+  }
+  const checkpointZone=selZone;
+
   try{
     const token=await getAgolToken(LOG_URL);
     const rows=[];let offset=0;
     while(true){
-      const p=new URLSearchParams({where:`zone_name='${(selZone.name||'').replace(/'/g,"''")}'`,outFields:'*',orderByFields:'check_time DESC',resultOffset:String(offset),resultRecordCount:'2000',returnGeometry:'false',f:'json'});
+      const p=new URLSearchParams({where:`zone_name='${(checkpointZone.name||'').replace(/'/g,"''")}'`,outFields:'*',orderByFields:'check_time DESC',resultOffset:String(offset),resultRecordCount:'2000',returnGeometry:'false',f:'json'});
       p.append('token',token);
       const r=await fetch(`${LOG_URL}/query`,{method:'POST',body:p});const j=await r.json();
       if(j.error)throw new Error(j.error.message||'Activity query failed');
@@ -958,7 +968,7 @@ async function fetchLog(){if(document.body.dataset.system==='sar'||!selZone)retu
       if(!j.exceededTransferLimit&&batch.length<2000)break;
       if(!batch.length)break;offset+=batch.length;
     }
-    if(document.body.dataset.system==='sar')return;
+    if(document.body.dataset.system==='sar'||workflowMode==='resource'||selZone!==checkpointZone)return;
     logData=rows;currentInsideRows=computeCurrentInside(rows);
     document.getElementById('tlc').textContent=logData.length;
     document.getElementById('currentInCount').textContent=currentInsideRows.length;
@@ -984,6 +994,8 @@ function setWorkflowMode(mode){
   if(mode==='scan'||mode==='resource'){
     document.getElementById('cardModal').classList.remove('open');
     closeModal();resetModal({resumeScanner:false});updateResourceModeUI();
+    if(mode==='resource'||activeTab==='log')switchTab('log');
+    if(selZone)fetchLog();
   }else if(mode==='card'){
     document.getElementById('modal').classList.remove('open');
     closeCardModal();wedge.setTarget(null);loadCardRegistry();

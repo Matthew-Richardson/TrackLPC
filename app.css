@@ -269,3 +269,52 @@ body[data-system="sar"] #resourceSelection{display:none!important}
 #resourceCardCanvas{display:block;max-width:230px;width:100%;height:auto;margin:12px auto;background:#fff}
 #resourceCardResult{border-top:1px solid var(--ui-border);padding-top:12px;margin:14px 0}
 #resourceManual[hidden],#resourceScanSummary[hidden],#resourceCardResult[hidden],#resourceCardCanvas[hidden]{display:none!important}
+
+/* Keep the Resource page and narrow screens in normal document flow. */
+html{overflow-x:hidden;overflow-y:auto}
+body[data-workflow="resource"]:not([data-system="sar"]){height:auto;min-height:100dvh;overflow:visible}
+body[data-workflow="resource"]:not([data-system="sar"]) #mc{height:280px;height:clamp(210px,32dvh,350px)}
+body[data-workflow="resource"]:not([data-system="sar"]) .ts{flex:0 0 auto;min-height:220px;overflow:visible}
+body[data-workflow="resource"]:not([data-system="sar"]) .tw{flex:0 0 auto;min-height:120px;overflow-x:auto}
+body[data-workflow="resource"] #resourceSelection{max-height:none;overflow:visible}
+body[data-workflow="resource"] .oem-contacts{margin-top:auto}
+.resource-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.resource-grid>*{min-width:0}
+.map-pan-toggle{position:absolute;bottom:9px;left:9px;z-index:1001;box-shadow:0 1px 5px #0002}
+.map-pan-toggle[hidden]{display:none!important}
+#map[data-page-scroll="true"],#map[data-page-scroll="true"] .leaflet-pane{touch-action:pan-y!important}
+#zoneBanner{max-width:calc(100% - 28px);white-space:normal;text-align:center;overflow-wrap:anywhere}
+@media(max-width:700px){
+ body,body[data-system="sar"]{height:auto;min-height:100dvh;max-width:100%;overflow:visible;padding-bottom:env(safe-area-inset-bottom)}
+ header,body[data-system="sar"] header{padding:8px max(8px,env(safe-area-inset-right)) 8px max(8px,env(safe-area-inset-left));min-width:0}
+ header .brand,header .brand-copy,header .system-picker,header .hdr-meta{min-width:0;max-width:100%}
+ body:not([data-system="sar"]) #zoneBar,body:not([data-system="sar"]) #mc,body:not([data-system="sar"]) .ts{width:calc(100% - 16px);max-width:calc(100% - 16px);margin:8px auto}
+ body:not([data-system="sar"]) #zoneBar{padding:10px;gap:8px}
+ body:not([data-system="sar"]) #mc{height:230px;min-height:190px;flex:0 0 auto}
+ body:not([data-system="sar"]) .ts{flex:0 0 auto;min-height:200px;overflow:visible}
+ body:not([data-system="sar"]) .tw{flex:0 0 auto;min-height:110px;overflow-x:auto}
+ body:not([data-system="sar"]) #cardManageView{flex:0 0 auto;overflow:visible;padding:8px}
+ #sarRoot{flex:0 0 auto;overflow:visible;min-height:50dvh}
+ .sar-shell{padding:12px 8px 24px}
+ .resource-grid{grid-template-columns:minmax(0,1fr)}
+ #resourceSelection{max-height:none;overflow:visible;padding-top:10px}
+ .resource-item-row{padding:8px 0;margin-bottom:8px}
+ .resource-help{margin:6px 0 9px}
+ .zone-bar-select{min-width:0;flex:1 1 100%}
+ .zone-bar-select select,.af input,.af textarea,.sar-field input,.sar-field select,.sar-field textarea{min-width:0;max-width:100%}
+ .af input,.af select,.af textarea,.sar-field input,.sar-field select,.sar-field textarea,#resourceSelection .af select{font-size:16px}
+ .mo{padding:env(safe-area-inset-top) 0 0;align-items:flex-end}
+ .md,.sar-modal .md{width:100%;max-width:100%;max-height:calc(100dvh - env(safe-area-inset-top));padding:14px 12px max(14px,env(safe-area-inset-bottom));overflow-x:hidden;overflow-y:auto;overscroll-behavior-y:contain}
+ #resourcePanel .af select,#resourcePanel .af textarea{font-size:16px}
+ .resource-item-heading .b{white-space:normal;min-height:36px}
+ .mh{gap:8px}.mh h2{min-width:0;overflow-wrap:anywhere}.mh .mx{flex:0 0 32px}
+ .leg{max-width:65%;font-size:8px}
+}
+@media(min-width:561px) and (max-width:700px){
+ header,body[data-system="sar"] header{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px}
+ .hdr-right{display:contents}.header-actions{grid-column:2;grid-row:1}
+ .system-picker{grid-column:1/-1;grid-row:2}.system-picker select{width:100%;max-width:none}
+ header .mode-toggle,header .sar-nav{grid-column:1/-1;grid-row:3;min-width:0;max-width:none;width:100%}
+ .hdr-meta{grid-column:1/-1;grid-row:4}
+}
+@media(max-width:700px){.hdr-meta,body[data-system="sar"] .hdr-meta{flex-wrap:wrap;justify-content:flex-end;gap:6px}}
