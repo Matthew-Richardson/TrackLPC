@@ -60,7 +60,7 @@ async function update(kind,original,changes){
   return {...original,...changes};
 }
 $('sarRoot').innerHTML=`<div class="sar-shell">
- <div class="sar-topline"><div><div class="sar-eyebrow">LPC SAR · EZtag</div><h1>People. Events. Accountability.</h1></div><nav class="sar-nav" aria-label="SAR workspace"><button type="button" data-sar-tab="events" aria-selected="true">IN/OUT Checkpoint</button><button type="button" data-sar-tab="members" aria-selected="false">Member cards</button></nav></div>
+
  <div id="sarConnection" class="sar-notice" role="status"></div>
  <div id="sarEventView" class="sar-event-layout"><aside class="sar-panel"><div class="sar-panel-heading"><h2>Events</h2><button class="sar-btn primary" id="sarNewEvent" data-sar-action="new-event" type="button">+ Create</button></div><div class="sar-event-list" id="sarEventList"></div></aside><section class="sar-panel"><div id="sarEventDetail"></div></section></div>
  <div id="sarMemberView" hidden><div class="sar-members-toolbar"><div class="sar-field"><label for="sarMemberSearch">Find a member</label><input id="sarMemberSearch" type="search" placeholder="Name, division, phone, or member ID"/></div><div class="sar-actions"><button class="sar-btn" data-sar-action="export-members" type="button">Export members</button><button class="sar-btn primary" id="sarNewMember" data-sar-action="new-member" type="button">+ Add member</button></div></div><div class="sar-member-grid" id="sarMemberList"></div></div>
@@ -325,6 +325,10 @@ function preview(on){
  if(configured)return;
  stop();state.loadVersion++;state.attendanceVersion++;state.preview=on;state.ready=false;state.events=[];state.members=[];state.attendance=[];previewAttendance=[];state.eventId='';state.memberId='';state.pending=null;closeForms();connection();render();
 }
+$('sarModeToggle').addEventListener('click',e=>{
+ const tab=e.target.closest('[data-sar-tab]');if(!tab||document.body.dataset.system!=='sar')return;
+ stopCamera();state.tab=tab.dataset.sarTab;render();
+});
 $('systemMode').addEventListener('change',e=>switchSystem(e.target.value));$('sarMemberSearch').addEventListener('input',renderMembers);$('sarEventForm').addEventListener('submit',saveEvent);$('sarMemberForm').addEventListener('submit',saveMember);
 $('sarRoot').addEventListener('click',async e=>{
  const button=e.target.closest('button');if(!button||button.disabled)return;
@@ -342,3 +346,4 @@ window.SAR={switchSystem,refresh,scan,stop,onLogin(){if(document.body.dataset.sy
 let initial='evac';try{initial=sessionStorage.getItem('eztag_system')==='sar'?'sar':'evac'}catch(e){}
 if(initial==='sar')switchSystem('sar');else document.body.dataset.system='evac';
 })();
+
