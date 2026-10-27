@@ -179,8 +179,8 @@ async function prepareResourceRecipient(){
       <button class="cb" id="resourceSave" type="submit">Save distribution</button>
       <p id="resourceStatus" role="status" aria-live="polite"></p>
     </form>
-    <div id="resourceCardResult" hidden></div>
     <button class="b" id="resourceNextPerson" type="button" onclick="startNextCheckpointScan()">Scan another person</button>
+    <div id="resourceCardResult" hidden></div>
     <details><summary>Distribution history</summary><button class="b" type="button" id="resourceRefresh">Refresh</button><button class="b" type="button" id="resourceExport">Export CSV</button><p id="resourceHistoryStatus" role="status"></p><div id="resourceHistory"></div></details>`;
   document.getElementById('resourcePerson').textContent=[fn,ln].join(' ')+' · '+addr;
   document.getElementById('resourceItemSummary').textContent='Distributing: '+describeResourceItems(activeResourceItems);
@@ -248,6 +248,8 @@ async function saveResourceDistribution(e){
     btn.textContent='Distribution saved';
     showResourceCardReady(pending.card,pending.cardCreated);
     status.textContent=`Saved ${pending.items.length} item${pending.items.length===1?'':'s'}.`;
+    next.classList.add('ready-next');
+    next.scrollIntoView({behavior:'smooth',block:'nearest'});
     await loadResourceHistory();
   }catch(err){status.textContent='Distribution not confirmed: '+err.message+' Retry to confirm.'}
   finally{

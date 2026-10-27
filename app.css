@@ -340,3 +340,5 @@ body[data-workflow="resource"] #tsr{flex:1 1 160px;min-width:0;width:auto;margin
 #resourceForm input[type="datetime-local"]::-webkit-datetime-edit{min-width:0;padding:0}
 #resourcePerson,#resourceItemSummary,#resourceScanSummary,#resourceCardReady,#resourceStatus{overflow-wrap:anywhere;word-break:normal;max-width:100%}
 #resourcePanel button{max-width:100%;white-space:normal}
+#resourcePanel #resourceNextPerson.ready-next{display:flex;align-items:center;justify-content:center;width:100%;max-width:360px;min-height:52px;margin:14px auto 18px;padding:14px 18px;background:var(--ui-accent);border-color:var(--ui-accent);color:#fff;font-size:16px;font-weight:750;text-align:center}
+#resourcePanel #resourceNextPerson.ready-next:hover{background:var(--ui-accent-dark);border-color:var(--ui-accent-dark)}
