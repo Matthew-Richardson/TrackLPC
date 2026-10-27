@@ -86,6 +86,7 @@ function beginResourceScan(){
 }
 function resourceURL(){return String(window.LPC_RESOURCE_CONFIG?.tableUrl||window.LPC_RESOURCE_CONFIG?.serviceUrl||'').trim().replace(/\/$/,'')}
 let resourceResolvedSource='',resourceResolvedPromise=null;
+const resourceObjectIdFields=new Map();
 async function resourceMetadata(url){
   const token=await getAgolToken(url);
   const response=await fetch(url,{method:'POST',body:new URLSearchParams({f:'json',token})});
@@ -95,7 +96,10 @@ async function resourceMetadata(url){
 }
 function validateResourceTable(metadata){
   if(metadata.geometryType)throw new Error('Resource requires a nonspatial table. Publish the CSV with location set to None.');
-  if(metadata.objectIdField!=='OBJECTID')throw new Error('Resource table needs an OBJECTID field.');
+  const oidFields=(metadata.fields||[]).filter(field=>field.type==='esriFieldTypeOID');
+  const declared=metadata.objectIdField||metadata.objectIdFieldName||'';
+  const oidField=oidFields.find(field=>field.name.toLowerCase()===String(declared).toLowerCase())||(oidFields.length===1?oidFields[0]:null);
+  if(!oidField||!/^[A-Za-z_][A-Za-z0-9_]*$/.test(oidField.name))throw new Error('Resource table metadata does not identify a valid Object ID field.');
   const text=['distribution_id','card_id','name','address','phone','zone_id','zone_name','incident','resource_type','resource_name','preset_id','unit','operator_name','scan_type','notes'];
   const types=Object.fromEntries(text.map(name=>[name,'esriFieldTypeString']));
   Object.assign(types,{quantity:'esriFieldTypeDouble',distributed_at:'esriFieldTypeDate',covers_through:'esriFieldTypeDate',recorded_at:'esriFieldTypeDate'});
@@ -107,6 +111,7 @@ function validateResourceTable(metadata){
   const capabilities=new Set(String(metadata.capabilities||'').toLowerCase().split(',').map(c=>c.trim()));
   if(!capabilities.has('query')||!capabilities.has('create'))throw new Error('Enable Query and Add/Create editing for the Resource table.');
   if(metadata.advancedQueryCapabilities?.supportsPagination===false)throw new Error('Resource table must support pagination.');
+  return oidField.name;
 }
 async function resolveResourceURL(){
   const source=resourceURL();if(!source)throw new Error('Resource GIS service is not configured.');
@@ -122,7 +127,8 @@ async function resolveResourceURL(){
       url=source+'/'+table.id;
     }
     if(!/\/FeatureServer\/\d+$/i.test(url))throw new Error('Resource URL must end in /FeatureServer or /FeatureServer/<table ID>.');
-    validateResourceTable(await resourceMetadata(url));
+    const oidField=validateResourceTable(await resourceMetadata(url));
+    resourceObjectIdFields.set(url,oidField);
     return url;
   })();
   resourceResolvedPromise=pending;
@@ -283,7 +289,7 @@ async function loadResourceHistory(){
     const tableUrl=await resolveResourceURL();
     const token=await getAgolToken(tableUrl),rows=[];let offset=0;
     while(true){
-      const j=await resourceQuery(tableUrl,token,{where:`zone_id='${String(zone.id).replace(/'/g,"''")}'`,outFields:'*',returnGeometry:'false',orderByFields:'distributed_at DESC,OBJECTID DESC',resultOffset:String(offset),resultRecordCount:'1000'});
+      const j=await resourceQuery(tableUrl,token,{where:`zone_id='${String(zone.id).replace(/'/g,"''")}'`,outFields:'*',returnGeometry:'false',orderByFields:`distributed_at DESC,${resourceObjectIdFields.get(tableUrl)} DESC`,resultOffset:String(offset),resultRecordCount:'1000'});
       const batch=j.features||[];rows.push(...batch.map(f=>f.attributes));
       if(!j.exceededTransferLimit)break;if(!batch.length)throw new Error('GIS returned an incomplete page');offset+=batch.length;
     }

@@ -132,3 +132,25 @@ test('ambiguous service tables require an explicit URL and never guess a table I
  f.context.fetch=async()=>({ok:true,json:async()=>({tables:[{id:1,name:'A'},{id:2,name:'B'}]})});
  await assert.rejects(f.run('resolveResourceURL()'),/exact tableUrl/);
 });
+
+test('Resource accepts alternate system ID names and metadata property variants',()=>{
+ const f=fixture();
+ for(const [fieldName,property] of [['FID','objectIdField'],['ObjectId','objectIdFieldName'],['fid',null]]){
+  const metadata=metadataFixture();metadata.fields.find(x=>x.type==='esriFieldTypeOID').name=fieldName;
+  delete metadata.objectIdField;if(property)metadata[property]=fieldName;
+  f.context.alternateMetadata=metadata;assert.equal(f.run('validateResourceTable(alternateMetadata)'),fieldName);
+ }
+ const metadata=metadataFixture();metadata.fields=metadata.fields.filter(x=>x.type!=='esriFieldTypeOID');
+ f.context.alternateMetadata=metadata;assert.throws(()=>f.run('validateResourceTable(alternateMetadata)'),/valid Object ID field/);
+});
+test('history uses the discovered system ID for stable pagination ordering',async()=>{
+ const f=fixture(),base='https://example.test/Resource/FeatureServer/3',orders=[];
+ f.run(`window.LPC_RESOURCE_CONFIG={tableUrl:'${base}'}`);f.context.getAgolToken=async()=> 'token';
+ f.context.fetch=async(url,opts)=>{
+  if(url===base){const metadata=metadataFixture();delete metadata.objectIdField;metadata.fields.find(x=>x.type==='esriFieldTypeOID').name='FID';return {ok:true,json:async()=>metadata}}
+  assert.equal(url,base+'/query');orders.push(opts.body.get('orderByFields'));
+  return {ok:true,json:async()=>({features:[]})};
+ };
+ await f.run('loadResourceHistory()');assert.deepEqual(orders,['distributed_at DESC,FID DESC']);
+ assert.match(f.get('resourceHistoryStatus').textContent,/0 resource item records/);
+});
