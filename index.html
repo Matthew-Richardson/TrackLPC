@@ -270,7 +270,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
 }
 </style>
 <link rel="stylesheet" href="sar.css"/>
-<link rel="stylesheet" href="app.css?v=scanner-fill-all-modes-20261028"/>
+<link rel="stylesheet" href="app.css?v=county-inventory-20261028"/>
 </head>
 <body>
 
@@ -949,7 +949,7 @@ function setRefreshButton(label,{busy=false,success=false}={}){
 async function refreshAll(){
   if(document.body.dataset.system==='sar'){await window.SAR?.refresh();return}
   if(workflowMode==='card'){await loadCardRegistry();return}
-  if(workflowMode==='resource'){await loadResourceHistory();return}
+  if(workflowMode==='resource'){await window.LPCInventory?.refresh();await loadResourceHistory();return}
   if(refreshInFlight)return;
   refreshInFlight=true;const btn=document.getElementById('refreshBtn');btn.disabled=true;setRefreshButton('Refreshing…',{busy:true});setLoading(true);
   let succeeded=false;
@@ -972,7 +972,7 @@ let logTimer=null;
 async function fetchLog(){if(document.body.dataset.system==='sar')return;
   if(workflowMode==='resource'){
     clearInterval(logTimer);logTimer=setInterval(fetchLog,15000);
-    await loadResourceHistory();return;
+    await window.LPCInventory?.refresh();await loadResourceHistory();return;
   }
   if(!selZone)return;
   const checkpointZone=selZone;
@@ -1040,7 +1040,7 @@ function openModal(){
   document.getElementById('scanBody').style.display='';wedge.setTarget('checkpoint');
   requestAnimationFrame(()=>window.LPCLiveScanner?.start());
 }
-function closeModal(){document.getElementById('modal').classList.remove('open');wedge.setTarget(null);window.LPCLiveScanner?.stop()}
+function closeModal(){document.getElementById('modal').classList.remove('open');wedge.setTarget(null);window.LPCLiveScanner?.stop();window.LPCInventory?.render()}
 let manualAddressTimer=null,addressCheckSequence=0;
 function resetModal({resumeScanner=true,statusText=''}={}){
   clearTimeout(manualAddressTimer);addressCheckSequence++;
@@ -2739,6 +2739,7 @@ window.LPCCardLiveScanner=(()=>{
 
 </script>
 <script src="resource-config.js?v=compact-header-20261027"></script>
-<script src="resource.js?v=phone-first-20261027"></script>
+<script src="resource.js?v=county-inventory-20261028"></script>
+<script src="resource-inventory.js?v=county-inventory-20261028"></script>
 </body>
 </html>
