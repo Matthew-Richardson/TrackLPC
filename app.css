@@ -894,3 +894,16 @@ html[data-theme="dark"] .ri-operation-choice[aria-pressed="true"],html[data-them
 .ri-activity-scope[hidden]{display:none!important}
 .ri-activity-scope .ri-pill{min-height:34px;padding:7px 11px;font-size:11px}
 .ri-activity-scope>span{flex:1 1 100%;font-size:10px;color:var(--ui-muted)}
+.ri-supply-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:10px;margin:10px 0}
+.ri-supply-card{min-width:0;border:1px solid var(--ui-border);border-radius:9px;padding:12px;background:var(--ui-bg);overflow-wrap:anywhere}
+.ri-supply-card h4{font-size:14px;margin:0 0 5px;color:var(--ui-text)}
+.ri-supply-card>p{font-size:12px;line-height:1.5;margin:5px 0;color:var(--ui-text)}
+.ri-supply-actions{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.ri-supply-actions .b{min-height:38px;padding:8px 10px;font-size:11px}
+.ri-supply-history{font-size:11px;margin-top:8px}
+.ri-supply-history summary,#riInactiveGroup>summary{cursor:pointer;color:var(--ui-muted);padding:8px 0}
+.ri-supply-history p{font-size:11px;line-height:1.5;padding:7px 0;border-top:1px solid var(--ui-border)}
+.ri-edit-details{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+#riEditQuantity,#riSupplyEditCancel{grid-column:1/-1}
+#riSupplyEditTitle{font-size:15px;margin:14px 0 6px}
+#riSupplyEditor[hidden],#riSupplyLists[hidden],#riEditDetails[hidden],#riEditQuantity[hidden],#riInactiveGroup[hidden]{display:none!important}
