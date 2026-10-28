@@ -270,7 +270,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
 }
 </style>
 <link rel="stylesheet" href="sar.css"/>
-<link rel="stylesheet" href="app.css?v=compact-header-20261027"/>
+<link rel="stylesheet" href="app.css?v=manual-enter-20261027"/>
 </head>
 <body>
 
@@ -289,7 +289,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
     <button class="mt-btn" data-mode="resource" onclick="setWorkflowMode('resource')"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 7 9-4 9 4v10l-9 4-9-4zM3 7l9 5 9-5M12 12v9M7.5 5l9 4.5"/></svg><span>Resource</span></button>
     <button class="mt-btn" data-mode="card" onclick="setWorkflowMode('card')"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8" cy="11" r="2"/><path d="M5.5 16c.7-1.6 4.3-1.6 5 0M13 10h5m-5 4h5"/></svg><span>Custom Card</span></button>
   </div>
-  <nav class="sar-nav" id="sarModeToggle" aria-label="SAR workspace"><button type="button" data-sar-tab="events" aria-selected="true">IN/OUT Checkpoint</button><button type="button" data-sar-tab="members" aria-selected="false">Member cards</button></nav>
+  <nav class="sar-nav" id="sarModeToggle" aria-label="SAR workspace"><button type="button" data-sar-tab="events" aria-selected="true">IN/OUT Checkpoint</button><button type="button" data-sar-tab="members" aria-selected="false"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8" cy="11" r="2"/><path d="M5.5 16c.7-1.6 4.3-1.6 5 0M13 10h5m-5 4h5"/></svg><span>Member cards</span></button></nav>
   <div class="hdr-right">
     <div class="hdr-meta">
     <div class="hs" id="stats" style="display:none"><span>P:<strong id="pc">0</strong></span><span>A:<strong id="ac">0</strong></span></div>
@@ -420,7 +420,6 @@ body[data-workflow="card"] #cardManageView{display:flex}
   <div class="wedge-status" id="wedgeStatusCP">Scanner ready — scan a DL or re-entry card</div>
     <div class="res" id="s1res"><div class="vd" id="s1rv"></div><div class="dt" id="s1rd"></div><div class="ae" id="s1ra"></div></div>
 
-  <button id="resourceManual" class="b" type="button" hidden onclick="prepareResourceRecipient()">Continue with entered person</button>
   <!-- STEP 1: scan + check -->
   <div id="s1">
     <div class="live-scanner" id="liveScanner">
@@ -437,7 +436,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
     <div class="af"><label>First name</label><input type="text" id="s1fn" placeholder="Jane"/></div>
     <div class="af"><label>Last name</label><input type="text" id="s1ln" placeholder="Doe"/></div>
     <input type="hidden" id="s1phone"/>
-    <div class="af"><label>Address</label><input type="text" id="ai" placeholder="Type an address to check automatically"/></div>
+    <div class="af"><label for="ai">Address</label><div class="manual-address-row"><input type="text" id="ai" placeholder="Type an address, then press Enter"/><button id="manualAddressEnter" class="manual-address-enter" type="button" hidden>Enter</button></div></div>
     <div class="scan-resolution-actions" id="s1ResolutionActions" style="display:none">
       <button class="cb override-zone-btn" id="zoneOverrideBtn" type="button" style="display:none" onclick="overrideZoneCheck()">Override zone check and continue</button>
       <button class="btn-outline next-scan-action" type="button" onclick="startNextCheckpointScan()">Scan another person</button>
@@ -1030,7 +1029,7 @@ function resetModal({resumeScanner=true,statusText=''}={}){
   lastCheck=null;parsedDL=null;selectedDir=null;
   resetResourceForm();
   document.getElementById('s1').style.display='';document.getElementById('s2').style.display='none';
-  document.getElementById('ai').value='';document.getElementById('s1fn').value='';document.getElementById('s1ln').value='';
+  document.getElementById('ai').value='';document.getElementById('manualAddressEnter').hidden=true;document.getElementById('s1fn').value='';document.getElementById('s1ln').value='';
   document.getElementById('s1phone').value='';document.getElementById('ss').textContent=statusText;
   document.getElementById('pf').style.display='none';document.getElementById('pf').replaceChildren();
   document.getElementById('s1res').style.display='none';
@@ -1063,7 +1062,7 @@ async function doCheck({autoAdvance=true}={}){
     const p=new URLSearchParams({SingleLine:addr,f:'json',outFields:'Match_addr,Score',maxLocations:1,location:'-107.88,37.28',distance:80000});
     const r=await fetch(`${GEOCODE_URL}?${p}`);const j=await r.json();
     if(requestId!==addressCheckSequence||document.getElementById('ai').value.trim()!==addr)return;
-    if(!j.candidates?.length){showS1('re','Could not geocode','Edit the address and it will check again automatically.',addr);showS1ResolutionActions();document.getElementById('ss').textContent='Address not found';return false}
+    if(!j.candidates?.length){showS1('re','Could not geocode','Edit the address, then press Enter to check again.',addr);showS1ResolutionActions();document.getElementById('ss').textContent='Address not found';return false}
     const c=j.candidates[0],lng=c.location.x,lat=c.location.y,ma=c.attributes?.Match_addr||addr,sc=c.attributes?.Score||0;
     if(scanMarker)map.removeLayer(scanMarker);
     scanMarker=L.circleMarker([lat,lng],{radius:8,color:'#ef4444',fillColor:'#ef4444',fillOpacity:.9,weight:2}).addTo(map);
@@ -1104,23 +1103,25 @@ function overrideZoneCheck(){
 }
 
 const manualAddressInput=document.getElementById('ai');
+const manualAddressEnter=document.getElementById('manualAddressEnter');
 manualAddressInput.addEventListener('input',()=>{
   clearTimeout(manualAddressTimer);addressCheckSequence++;lastCheck=null;
   document.getElementById('s1res').style.display='none';
+  document.getElementById('ss').textContent='';
   hideS1ResolutionActions();
-  const value=manualAddressInput.value.trim();
-  if(value.length>=6&&document.getElementById('s1').style.display!=='none'){
-    manualAddressTimer=setTimeout(()=>doCheck({autoAdvance:true}),900);
-  }
+  manualAddressEnter.hidden=!manualAddressInput.value.trim();
 });
+async function submitManualAddress(){
+  if(!manualAddressInput.value.trim()||manualAddressEnter.disabled)return;
+  clearTimeout(manualAddressTimer);
+  manualAddressEnter.disabled=true;
+  try{await doCheck({autoAdvance:true})}
+  finally{manualAddressEnter.disabled=false}
+}
+manualAddressEnter.addEventListener('click',submitManualAddress);
 manualAddressInput.addEventListener('keydown',e=>{
   if(e.key==='Enter'){
-    e.preventDefault();clearTimeout(manualAddressTimer);doCheck({autoAdvance:true});
-  }
-});
-manualAddressInput.addEventListener('blur',()=>{
-  if(!lastCheck&&manualAddressInput.value.trim().length>=6&&document.getElementById('s1').style.display!=='none'){
-    clearTimeout(manualAddressTimer);doCheck({autoAdvance:true});
+    e.preventDefault();submitManualAddress();
   }
 });
 
@@ -2712,6 +2713,3 @@ window.LPCCardLiveScanner=(()=>{
 <script src="resource.js?v=compact-header-20261027"></script>
 </body>
 </html>
-
-
-
