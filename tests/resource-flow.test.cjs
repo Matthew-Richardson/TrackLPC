@@ -254,3 +254,23 @@ test('typed addresses wait for explicit Enter and work in both Check-in and Reso
   f.get('ai').value='';f.get('ai').listeners.input();assert.equal(f.get('manualAddressEnter').hidden,true);
  }
 });
+
+test('adding a resource collapses earlier items, keeps their values, and permits reopening',()=>{
+ const f=fixture();f.run('setupResourceSelection()');
+ const first=f.run('resourceDraftItems[0].key');
+ f.get('resourceItem'+first+'Quantity').value='3';f.get('resourceItem'+first+'Quantity').oninput();
+ f.get('resourceAddItem').onclick();
+ let rows=f.get('resourceItemRows').children;assert.equal(rows[0].open,false);assert.equal(rows[1].open,true);
+ assert.equal(f.get('resourceItem'+first+'Summary').textContent,'3 case Bottled water case');
+ rows[0].open=true;rows[0].ontoggle();f.run('renderResourceDraftItems()');
+ assert.equal(f.get('resourceItemRows').children[0].open,true);assert.equal(f.get('resourceItem'+first+'Quantity').value,'3');
+ f.get('resourceAddItem').onclick();rows=f.get('resourceItemRows').children;
+ assert.deepEqual(rows.map(row=>row.open),[false,false,true]);
+});
+test('incomplete collapsed resources reopen for correction before scanning',()=>{
+ const f=fixture();f.run('setupResourceSelection()');const key=f.run('resourceDraftItems[0].key');
+ const quantity=f.get('resourceItem'+key+'Quantity');quantity.value='0';quantity.oninput();f.get('resourceAddItem').onclick();
+ assert.equal(f.get('resourceItemRows').children[0].open,false);
+ assert.equal(f.run('beginResourceScan()'),false);assert.equal(f.get('resourceItemRows').children[0].open,true);
+ assert.match(f.get('resourceSelectionStatus').textContent,/greater than zero/);
+});
