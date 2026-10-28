@@ -919,3 +919,43 @@ html[data-theme="dark"] .ri-operation-choice[aria-pressed="true"],html[data-them
 #riFilters .ri-activity-scope{margin:0 0 12px}
 #riFilters .ri-activity-scope>h4{flex:1 1 100%;margin:12px 0 2px}
 @media(max-width:700px){#resourceInventory .ri-heading{grid-template-columns:minmax(0,1fr);grid-template-areas:"title" "operation" "actions";gap:7px}}
+
+/* Resource management is a focused popup, separate from scan/enter. */
+.ri-management-dialog{width:min(680px,calc(100% - 28px));max-width:100%;max-height:calc(var(--ri-visible-height,100dvh) - 24px);padding:0;border:1px solid var(--ui-border);border-radius:12px;background:var(--ui-panel);color:var(--ui-text);box-shadow:0 18px 70px #0008;overflow:hidden;box-sizing:border-box;margin:auto}
+.ri-management-dialog:not([open]){display:none!important}
+.ri-management-dialog[open]{display:flex;flex-direction:column}
+.ri-management-dialog::backdrop{background:rgba(3,8,15,.82);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
+.ri-management-dialog [hidden]{display:none!important}
+.ri-dialog-header{display:flex;align-items:center;justify-content:space-between;flex:0 0 auto;gap:12px;padding:14px 16px;border-bottom:1px solid var(--ui-border);background:var(--ui-panel)}
+.ri-dialog-header h2{font-size:18px;margin:0;color:var(--ui-accent-dark);min-width:0;overflow-wrap:anywhere}
+html[data-theme="dark"] .ri-dialog-header h2{color:var(--ui-link)}
+.ri-dialog-header .b{min-height:38px;flex:0 0 auto}
+.ri-dialog-content{min-height:0;max-width:100%;overflow:auto;overscroll-behavior:contain;padding:14px 16px 0;box-sizing:border-box}
+#riManagementDialog #riOperationConfig,#riManagementDialog #resourceInventoryConfig{margin:0;padding:0;border:0;border-radius:0;background:transparent;max-width:100%;min-width:0}
+#riManagementDialog .ri-config-heading{display:none}
+#riManagementDialog input,#riManagementDialog select,#riManagementDialog textarea{display:block;width:100%;max-width:100%;min-width:0;min-height:42px;box-sizing:border-box;border:1px solid var(--ui-border);border-radius:7px;background:var(--ui-panel);color:var(--ui-text);padding:8px;font:inherit}
+#riManagementDialog input:focus{outline:2px solid var(--ui-link,var(--ui-accent));outline-offset:1px}
+#riManagementDialog input[readonly]{color:var(--ui-muted);background:var(--ui-bg)}
+#riManagementDialog[data-page]:not([data-page="county"]) #resourceInventoryConfig>.ri-panel-actions,
+#riManagementDialog[data-page]:not([data-page="county"]) #resourceInventoryConfig>.resource-help,
+#riManagementDialog[data-page]:not([data-page="county"]) #resourceInventoryConfig>a,
+#riManagementDialog[data-page="new-operation"] #riOperationConfig>.resource-help,
+#riManagementDialog[data-page="new-operation"] #riOperationConfig>.ri-panel-actions,
+#riManagementDialog[data-page="new-operation"] #riOperationConfig>.ri-section-label,
+#riManagementDialog[data-page="new-operation"] #riOpenOperations,
+#riManagementDialog[data-page="new-operation"] #riClosedOperationsGroup{display:none!important}
+#riManagementDialog #riSupplyEditTitle{display:none}
+#riManagementDialog .ri-form{margin:0;padding-bottom:0;gap:12px}
+.ri-form-actions{grid-column:1/-1;position:sticky;bottom:0;z-index:2;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;padding:12px 0;background:var(--ui-panel);border-top:1px solid var(--ui-border);margin-top:4px}
+#riManagementDialog .ri-form-actions>.b{grid-column:auto;justify-self:stretch;min-width:0;min-height:46px;justify-content:center;font-size:14px}
+#riManagementDialog .ri-form-actions>.ba{grid-column:auto;min-width:0}
+#riManagementDialog #riSupplyEditCancel,#riManagementDialog #riCancelOperation{grid-column:auto}
+html:has(.ri-management-dialog[open]),body:has(.ri-management-dialog[open]){overflow:hidden!important;overscroll-behavior:none}
+@media(max-width:700px){
+ .ri-management-dialog{position:fixed;inset:auto 8px;top:calc(var(--ri-visible-top,0px) + 8px);width:calc(100% - 16px);max-height:calc(var(--ri-visible-height,100dvh) - 16px);margin:0 auto;border-radius:12px}
+ .ri-dialog-header{padding:10px 12px}.ri-dialog-header h2{font-size:17px}.ri-dialog-content{padding:10px 12px 0}
+ #riManagementDialog input,#riManagementDialog select,#riManagementDialog textarea{font-size:16px}
+ #riManagementDialog .ri-supply-list{grid-template-columns:minmax(0,1fr)}
+ #riManagementDialog .ri-panel-actions .b{flex-basis:110px}
+}
+#riManagementDialog #riSupplyEditForm>label{grid-column:1/-1}
