@@ -177,13 +177,14 @@ async function prepareResourceRecipient(){
     <p id="resourceSetup" role="status"></p>
     <form id="resourceForm">
       <p id="resourceItemSummary"></p>
-      <details class="workflow-optional" open><summary>Date, phone &amp; notes</summary><div class="resource-grid">
-        <div class="af"><label for="resourceDate">Distributed at (local)</label><input id="resourceDate" type="datetime-local" required></div>
-        <div class="af"><label for="resourceThrough">Covers through (local, optional)</label><input id="resourceThrough" type="datetime-local"></div>
+      <div class="resource-fields">
+        <div class="af"><label for="resourcePhone">Phone</label><input id="resourcePhone" type="tel" maxlength="40"></div>
+        <div class="resource-grid">
+          <div class="af"><label for="resourceDate">Date</label><input id="resourceDate" type="datetime-local" required></div>
+          <div class="af"><label for="resourceThrough">Covers through (optional)</label><input id="resourceThrough" type="datetime-local"></div>
+        </div>
+        <div class="af"><label for="resourceNotes">Notes (optional)</label><textarea id="resourceNotes" maxlength="2000" placeholder="Package size, household needs, or other distribution notes"></textarea></div>
       </div>
-      <div class="af"><label for="resourcePhone">Phone (optional)</label><input id="resourcePhone" type="tel" maxlength="40"></div>
-      <div class="af"><label for="resourceNotes">Notes (optional)</label><textarea id="resourceNotes" maxlength="2000" placeholder="Package size, household needs, or other distribution notes"></textarea></div>
-      </details>
       <button class="cb" id="resourceSave" type="submit">Save distribution</button>
       <p id="resourceStatus" role="status" aria-live="polite"></p>
     </form>
@@ -195,7 +196,6 @@ async function prepareResourceRecipient(){
   document.getElementById('resourceDate').value=resourceLocalDate();
   document.getElementById('resourcePhone').value=document.getElementById('s1phone').value||parsedDL.phone||'';
   document.getElementById('resourceForm').onsubmit=saveResourceDistribution;
-  document.getElementById('resourceForm').addEventListener('invalid',e=>{const details=e.target.closest('details');if(details)details.open=true},true);
   document.getElementById('resourceRefresh').onclick=loadResourceHistory;
   document.getElementById('resourceExport').onclick=exportResourceHistory;
   document.getElementById('resourceSave').disabled=!resourceURL();
