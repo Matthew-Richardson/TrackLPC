@@ -318,20 +318,22 @@ function resourceHistoryMessage(){
   if(resourceHistoryState==='loading')return 'Loading resource distributions…';
   if(resourceHistoryState==='error')return 'Could not load distributions: '+resourceHistoryError;
   if(resourceHistoryState==='idle')return 'Resource distributions have not loaded yet. Use Refresh to load activity.';
-  return `${resourceRows.length} resource item records.`;
+  const scoped=window.LPCInventory?.filterRows(resourceRows)||resourceRows;
+  return `${scoped.length} resource item records.`;
 }
 function renderResourceActivity(){
   document.getElementById('activityFilters').style.display='none';
-  document.getElementById('tlc').textContent=String(resourceRows.length);
+  const scopeRows=window.LPCInventory?.filterRows(resourceRows)||resourceRows;
   const typeFilter=document.getElementById('resourceActivityType'),selectedType=typeFilter.value;
   typeFilter.replaceChildren();
   const all=document.createElement('option');all.value='';all.textContent='All resource types';typeFilter.append(all);
-  [...new Set(resourceRows.map(row=>row.resource_type).filter(Boolean))].sort().forEach(type=>{const option=document.createElement('option');option.value=type;option.textContent=type;typeFilter.append(option)});
+  [...new Set(scopeRows.map(row=>row.resource_type).filter(Boolean))].sort().forEach(type=>{const option=document.createElement('option');option.value=type;option.textContent=type;typeFilter.append(option)});
   typeFilter.value=selectedType;
-  if(![...new Set(resourceRows.map(row=>row.resource_type))].includes(selectedType))typeFilter.value='';
+  if(![...new Set(scopeRows.map(row=>row.resource_type))].includes(selectedType))typeFilter.value='';
   typeFilter.hidden=false;
   const rows=resourceFilteredRows(),empty=document.getElementById('emp'),table=document.getElementById('dt');
   const ready=resourceHistoryState==='ready';
+  document.getElementById('tlc').textContent=String(ready?rows.length:0);
   table.style.display=ready&&rows.length?'':'none';empty.style.display=ready&&rows.length?'none':'';
   if(!ready||!rows.length){empty.textContent=ready?(resourceRows.length?'No distributions match this filter.':'No resource distributions recorded.'):resourceHistoryMessage();document.getElementById('dtb').replaceChildren();return}
   const inventoryOn=window.LPCInventory?.enabled();
@@ -351,7 +353,7 @@ function renderResourceActivity(){
 function renderResourceHistory(){
   window.LPCInventory?.render();
   if(workflowMode==='resource'&&document.body.dataset.system!=='sar'){
-    document.getElementById('tlc').textContent=String(resourceRows.length);
+    document.getElementById('tlc').textContent=String(resourceHistoryState==='ready'?resourceFilteredRows().length:0);
     if(activeTab==='log')renderResourceActivity();
   }
   const status=document.getElementById('resourceHistoryStatus'),list=document.getElementById('resourceHistory');
@@ -359,7 +361,8 @@ function renderResourceHistory(){
   status.textContent=resourceHistoryMessage()+(resourceHistoryState==='ready'?' Showing latest 100; CSV includes all loaded records.':'');
   list.replaceChildren();
   if(resourceHistoryState!=='ready')return;
-  resourceRows.slice(0,100).forEach(record=>{
+  const scoped=window.LPCInventory?.filterRows(resourceRows)||resourceRows;
+  scoped.slice(0,100).forEach(record=>{
     const row=document.createElement('p');row.textContent=`${new Date(record.distributed_at).toLocaleString()} · ${record.name} · ${record.quantity} ${record.unit} ${record.resource_name}${record.notes?' · '+record.notes:''}`;list.append(row);
   });
 }
