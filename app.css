@@ -426,3 +426,15 @@ html[data-theme="dark"] .theme-toggle .theme-sun{display:none}
 .resource-item-row[open] > .resource-item-summary{margin-bottom:10px}
 .resource-item-summary:focus-visible{outline:2px solid var(--ui-accent);outline-offset:2px;border-radius:4px}
 .resource-item-body > .resource-item-heading{font-size:11px;color:var(--ui-muted)}
+
+/* Keep zone controls readable after a zone is selected in dark mode. */
+html[data-theme="dark"] #zoneBar #zs{
+ color-scheme:dark;background:var(--ui-input);color:var(--ui-text);
+ border:1px solid #64788e;box-shadow:none;
+}
+html[data-theme="dark"] #zoneBar.has-zone #zs{background:var(--ui-input);color:var(--ui-text);border-color:var(--ui-link)}
+html[data-theme="dark"] #zoneBar #zs option,
+html[data-theme="dark"] #zoneBar #zs optgroup{background:#131c27;color:#e8edf3}
+html[data-theme="dark"] #zoneBar #zs option:checked{background:#253140;color:#fff}
+html[data-theme="dark"] #zoneBar #zs:focus-visible{outline:2px solid var(--ui-link);outline-offset:2px;border-color:var(--ui-link)}
+html[data-theme="dark"] #zoneBar .zone-bar-select::after{color:var(--ui-link)}
