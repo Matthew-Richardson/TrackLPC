@@ -140,7 +140,6 @@ function resourceLocalDate(date=new Date()){
 function updateResourceModeUI(){
   const on=workflowMode==='resource';
   document.querySelector('#modal .mh h2').textContent=on?'Resource — aid distribution':'Checkpoint Scan';
-  document.getElementById('resourceManual').hidden=!on;
   document.getElementById('resourcePanel').hidden=true;
   document.getElementById('resourceSelection').hidden=!on;
   document.getElementById('resourceScanSummary').hidden=!on;
@@ -153,7 +152,6 @@ function updateResourceModeUI(){
 }
 function resetResourceForm(){
   const panel=document.getElementById('resourcePanel');if(panel){panel.hidden=true;panel.replaceChildren()}
-  const manual=document.getElementById('resourceManual');if(manual)manual.hidden=workflowMode!=='resource';
 }
 async function prepareResourceRecipient(){
   if(workflowMode!=='resource')return false;
@@ -163,7 +161,6 @@ async function prepareResourceRecipient(){
   window.LPCLiveScanner?.pause();wedge.setTarget(null);clearTimeout(manualAddressTimer);addressCheckSequence++;
   parsedDL={...parsedDL,firstName:fn,lastName:ln,fullAddress:addr,scanType:parsedDL?.scanType||'Manual'};
   document.getElementById('s1').style.display='none';document.getElementById('s2').style.display='none';
-  document.getElementById('resourceManual').hidden=true;
   document.getElementById('resourceScanSummary').hidden=true;
   const panel=document.getElementById('resourcePanel');panel.hidden=false;
   panel.innerHTML=`<p id="resourcePerson"></p>
