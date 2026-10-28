@@ -503,3 +503,12 @@ html[data-theme="dark"] #zoneBar .zone-bar-select::after{color:var(--ui-link)}
 
 html[data-theme="dark"] #modal .live-scanner-actions .b{color:var(--ui-link);border-color:var(--ui-link)}
 html[data-theme="dark"] #modal .live-scanner-actions .b:hover{color:var(--ui-text)}
+
+/* A subdued backdrop keeps attention on the active popup. */
+.mo{background:rgba(12,20,32,.80)}
+@supports ((backdrop-filter:blur(6px)) or (-webkit-backdrop-filter:blur(6px))){
+ .mo{background:rgba(12,20,32,.68);-webkit-backdrop-filter:blur(6px) saturate(.55);backdrop-filter:blur(6px) saturate(.55)}
+}
+.mo>.md{background:var(--ui-panel);border-color:#c1cbd7;box-shadow:0 18px 70px rgba(0,0,0,.38),0 0 0 1px rgba(255,255,255,.18)}
+html[data-theme="dark"] .mo{background:rgba(3,8,15,.78)}
+html[data-theme="dark"] .mo>.md{background:var(--ui-panel);border-color:#536579;box-shadow:0 18px 70px rgba(0,0,0,.65),0 0 0 1px rgba(255,255,255,.06)}
