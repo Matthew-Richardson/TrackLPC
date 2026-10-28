@@ -464,3 +464,17 @@ test('Resource Activity badge matches visible operation rows and updates for sea
  f.get('tsr').value='';operation='ROP-closed';f.run('renderResourceHistory()');assert.equal(f.get('tlc').textContent,'1');
  operation='ROP-empty';f.run('renderResourceHistory()');assert.equal(f.get('tlc').textContent,'0');assert.equal(f.get('dt').style.display,'none');assert.equal(f.get('dtb').children.length,0);
 });
+test('background Resource refresh keeps the last confirmed rows and Activity number until replacement data arrives',async()=>{
+ const f=fixture();f.run("workflowMode='resource';activeTab='log';resourceHistoryState='ready';resourceRows=[{name:'A'},{name:'B'}];window.LPC_RESOURCE_CONFIG.tableUrl='https://example.test/Resource/FeatureServer/0'");
+ f.context.resourceMetadata=async()=>metadataFixture();f.context.getAgolToken=async()=> 'token';let release;f.context.fetch=async()=>new Promise(resolve=>{release=resolve});
+ f.run('renderResourceHistory()');assert.equal(f.get('tlc').textContent,'2');const refresh=f.run('loadResourceHistory()');
+ for(let i=0;i<10;i++)await Promise.resolve();assert.equal(f.run('resourceHistoryState'),'refreshing');assert.equal(f.get('tlc').textContent,'2');assert.equal(f.get('dt').style.display,'');
+ release({ok:true,json:async()=>({features:[{attributes:{name:'A'}},{attributes:{name:'B'}},{attributes:{name:'C'}}]})});await refresh;assert.equal(f.get('tlc').textContent,'3');assert.equal(f.run('resourceHistoryState'),'ready');
+});
+test('checkpoint zone selection cannot clear Resource activity or overwrite its row count',async()=>{
+ const f=fixture();f.run("workflowMode='resource';activeTab='log';resourceHistoryState='ready';resourceRows=[{name:'A'},{name:'B'}];let zones=[{id:7,name:'Test zone',feature:{geometry:{}}}]");
+ f.context.EVAC_URL='https://example.test/evac';f.context.setLoading=()=>{};f.context.selLayer.addData=()=>{};f.context.renderLog=()=>f.run('renderResourceActivity()');f.context.fetch=async()=>({json:async()=>({features:[]})});
+ let clears=0;f.context.clearResourceActivity=()=>clears++;f.run('renderResourceHistory()');
+ f.run(html.slice(html.indexOf('async function selectZone('),html.indexOf('async function spQ(')));await f.run('selectZone(7,{fit:false})');
+ assert.equal(clears,0);assert.equal(f.run('resourceRows.length'),2);assert.equal(f.get('tlc').textContent,'2');
+});
