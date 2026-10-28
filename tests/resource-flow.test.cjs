@@ -293,3 +293,14 @@ test('full-screen display uses the rendered card image without printing or chang
  assert.equal(f.get('cardDisplayImage').src,'data:image/png;base64,TEST');
  f.run("openCardDisplay('cardPrintPreview')");assert.equal(opened,1);
 });
+
+test('SAR dialogs use the visible keyboard viewport and reset after dismissal',()=>{
+ const sar=fs.readFileSync('sar.js','utf8');new vm.Script(sar);
+ const properties={},root={clientHeight:667,dataset:{},style:{setProperty:(key,value)=>properties[key]=value}};
+ const viewport={height:340,offsetTop:70,addEventListener(){}};
+ const context=vm.createContext({window:{visualViewport:viewport,innerHeight:667,addEventListener(){}},document:{documentElement:root,activeElement:{matches:()=>true},addEventListener(){}},requestAnimationFrame(){}});
+ vm.runInContext(sar.slice(sar.indexOf('let viewportFrame=null;'),sar.indexOf("window.addEventListener('pagehide'")),context);
+ assert.equal(properties['--sar-viewport-height'],'340px');assert.equal(properties['--sar-viewport-top'],'70px');assert.equal(root.dataset.sarKeyboard,'true');
+ viewport.height=667;viewport.offsetTop=0;vm.runInContext('syncSARViewport()',context);
+ assert.equal(properties['--sar-viewport-height'],'667px');assert.equal(properties['--sar-viewport-top'],'0px');assert.equal(root.dataset.sarKeyboard,'false');
+});
