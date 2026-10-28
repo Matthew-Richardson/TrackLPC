@@ -23,8 +23,16 @@ window.LPCInventory=(()=>{
    let tables=[];if(!config.inventoryTableUrl||!config.operationsTableUrl){if(!service)throw new Error('Set the Resource service URL.');tables=(await resourceMetadata(service)).tables||[]}
    const pick=(override,name)=>override||(()=>{const found=tables.filter(t=>String(t.name).toLowerCase()===name.toLowerCase());if(found.length!==1)throw new Error('Shared inventory setup needed: add Resource_Inventory and Resource_Operations. Existing distribution entry remains available.');return service+'/'+found[0].id})();
    const urls={stock:pick(config.inventoryTableUrl,'Resource_Inventory'),operations:pick(config.operationsTableUrl,'Resource_Operations')};
-   for(const [kind,url] of Object.entries(urls)){
-     if(!/\/FeatureServer\/\d+$/i.test(url))throw new Error('Inventory table URLs must end in /FeatureServer/<table ID>.');
+   for(const [kind,source] of Object.entries(urls)){
+     let url=String(source).trim().replace(/\/$/,'');
+     if(/\/FeatureServer$/i.test(url)){
+       const serviceMetadata=await resourceMetadata(url),tables=serviceMetadata.tables||[],name=kind==='stock'?'Resource_Inventory':'Resource_Operations';
+       const matches=tables.filter(t=>String(t.name).toLowerCase()===name.toLowerCase());
+       const table=matches.length===1?matches[0]:tables.length===1?tables[0]:null;
+       if(!table||!Number.isInteger(table.id))throw new Error('Cannot identify '+name+'. Publish it as a nonspatial table or configure its exact /FeatureServer/<table ID> URL.');
+       url+='/'+table.id;
+     }
+     if(!/\/FeatureServer\/\d+$/i.test(url))throw new Error('Inventory URLs must end in /FeatureServer or /FeatureServer/<table ID>.');
      const m=await resourceMetadata(url),fields=new Map((m.fields||[]).map(f=>[f.name,f])),oid=(m.fields||[]).find(f=>f.type==='esriFieldTypeOID');
      const expected=kind==='stock'?{entry_id:'String',inventory_id:'String',record_type:'String',resource_type:'String',resource_name:'String',unit:'String',location:'String',quantity:'Double',recorded_at:'Date',operator_name:'String',notes:'String'}:{operation_id:'String',name:'String',status:'String',created_at:'Date',operator_name:'String'};
      if(m.geometryType||!oid||!/^[A-Za-z_][A-Za-z0-9_]*$/.test(oid.name)||Object.entries(expected).some(([n,t])=>fields.get(n)?.type!=='esriFieldType'+t))throw new Error('Check '+kind+' table fields in RESOURCE_GIS_SETUP.md.');
