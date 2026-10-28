@@ -66,9 +66,9 @@ $('sarRoot').innerHTML=`<div class="sar-shell">
  <div id="sarMemberView" hidden><div class="sar-members-toolbar"><div class="sar-field"><label for="sarMemberSearch">Find a member</label><input id="sarMemberSearch" type="search" placeholder="Name, division, phone, or member ID"/></div><div class="sar-actions"><button class="sar-btn" data-sar-action="export-members" type="button">Export members</button><button class="sar-btn primary" id="sarNewMember" data-sar-action="new-member" type="button">+ Add member</button></div></div><div class="sar-member-grid" id="sarMemberList"></div></div>
  <footer class="sar-footer">La Plata County Search &amp; Rescue · <a href="https://laplatasar.org/" target="_blank" rel="noopener noreferrer">laplatasar.org</a></footer>
 </div>
-<div class="mo sar-modal" id="sarCheckModal" role="dialog" aria-modal="true" aria-labelledby="sarCheckTitle"><div class="md"><div class="mh"><h2 id="sarCheckTitle">SAR Check-in / Out</h2><button type="button" class="mx" data-sar-action="close-check" aria-label="Close SAR check-in">×</button></div><p id="sarCheckEvent" class="sar-help"></p><div id="sarCheckContent"></div></div></div>
-<div class="mo sar-modal" id="sarEventModal"><div class="md"><div class="mh"><h2 id="sarEventModalTitle">Create event</h2><button type="button" class="mx" data-sar-action="close-event" aria-label="Close event form">×</button></div><form id="sarEventForm"><div class="sar-field"><label for="sarEventName">Event name</label><input id="sarEventName" maxlength="150" required placeholder="Meeting, training, or mission name"/></div><div class="sar-form-grid"><div class="sar-field"><label for="sarEventType">Event type</label><select id="sarEventType"><option>Meeting</option><option>Training</option><option>Field mission</option><option>Other</option></select></div><div class="sar-field"><label for="sarEventDate">Date/time (local)</label><input id="sarEventDate" type="datetime-local"/></div></div><div class="sar-field"><label for="sarEventLocation">Location (optional)</label><input id="sarEventLocation" maxlength="255" placeholder="Station, trailhead, or other meeting place"/></div><div class="sar-field"><label for="sarEventNotes">Notes (optional)</label><textarea id="sarEventNotes" maxlength="2000"></textarea></div><div class="sar-feedback" id="sarEventFormStatus" role="status"></div><button class="sar-btn primary" type="submit" id="sarEventSave">Save event</button></form></div></div>
-<div class="mo sar-modal" id="sarMemberModal"><div class="md"><div class="mh"><h2 id="sarMemberModalTitle">Add member</h2><button type="button" class="mx" data-sar-action="close-member" aria-label="Close member form">×</button></div><form id="sarMemberForm"><div class="sar-field"><label for="sarMemberName">Name</label><input id="sarMemberName" maxlength="150" required autocomplete="name"/></div><div class="sar-field"><label for="sarMemberDivision">Division</label><input id="sarMemberDivision" list="sarDivisions" maxlength="100" required placeholder="Enter division"/><datalist id="sarDivisions"></datalist></div><div class="sar-field"><label for="sarMemberPhone">Phone number</label><input id="sarMemberPhone" type="tel" maxlength="40" autocomplete="tel"/></div><div class="sar-field" id="sarMemberStatusWrap" hidden><label for="sarMemberStatus">Member status</label><select id="sarMemberStatus"><option>Active</option><option>Inactive</option></select></div><div class="sar-feedback" id="sarMemberFormStatus" role="status"></div><button class="sar-btn primary" type="submit" id="sarMemberSave">Save member &amp; create card</button><p class="sar-help" style="margin-top:10px">A saved member has one reusable card ID. Printing is optional.</p></form></div></div>
+<div class="mo sar-modal" id="sarCheckModal" role="dialog" aria-modal="true" aria-labelledby="sarCheckTitle"><div class="md"><div class="mh"><h2 id="sarCheckTitle">SAR Check-in / Out</h2><button type="button" class="mx" data-sar-action="close-check" aria-label="Close SAR check-in">×</button></div><p id="sarCheckEvent" class="sar-help"></p><div id="sarCheckContent"></div><div id="sarCheckFooter"></div></div></div>
+<div class="mo sar-modal" id="sarEventModal"><div class="md"><div class="mh"><h2 id="sarEventModalTitle">Create event</h2><button type="button" class="mx" data-sar-action="close-event" aria-label="Close event form">×</button></div><form id="sarEventForm"><div class="sar-field"><label for="sarEventName">Event name</label><input id="sarEventName" maxlength="150" required placeholder="Meeting, training, or mission name"/></div><div class="sar-form-grid"><div class="sar-field"><label for="sarEventType">Event type</label><select id="sarEventType"><option>Meeting</option><option>Training</option><option>Field mission</option><option>Other</option></select></div><div class="sar-field"><label for="sarEventDate">Date/time (local)</label><input id="sarEventDate" type="datetime-local"/></div></div><div class="sar-field"><label for="sarEventLocation">Location (optional)</label><input id="sarEventLocation" maxlength="255" placeholder="Station, trailhead, or other meeting place"/></div><div class="sar-field"><label for="sarEventNotes">Notes (optional)</label><textarea id="sarEventNotes" maxlength="2000"></textarea></div><div class="sar-feedback" id="sarEventFormStatus" role="status"></div></form><button class="sar-btn primary" type="submit" form="sarEventForm" id="sarEventSave">Save event</button></div></div>
+<div class="mo sar-modal" id="sarMemberModal"><div class="md"><div class="mh"><h2 id="sarMemberModalTitle">Add member</h2><button type="button" class="mx" data-sar-action="close-member" aria-label="Close member form">×</button></div><form id="sarMemberForm"><div class="sar-field"><label for="sarMemberName">Name</label><input id="sarMemberName" maxlength="150" required autocomplete="name"/></div><div class="sar-field"><label for="sarMemberDivision">Division</label><input id="sarMemberDivision" list="sarDivisions" maxlength="100" required placeholder="Enter division"/><datalist id="sarDivisions"></datalist></div><div class="sar-field"><label for="sarMemberPhone">Phone number</label><input id="sarMemberPhone" type="tel" maxlength="40" autocomplete="tel"/></div><div class="sar-field" id="sarMemberStatusWrap" hidden><label for="sarMemberStatus">Member status</label><select id="sarMemberStatus"><option>Active</option><option>Inactive</option></select></div><div class="sar-feedback" id="sarMemberFormStatus" role="status"></div></form><button class="sar-btn primary" type="submit" form="sarMemberForm" id="sarMemberSave">Save member &amp; create card</button><p class="sar-help" style="margin-top:10px">A saved member has one reusable card ID. Printing is optional.</p></div></div>
 <div class="mo sar-modal" id="sarCardModal"><div class="md"><div class="mh"><h2>Member card</h2><button type="button" class="mx" data-sar-action="close-card" aria-label="Close member card">×</button></div><canvas id="sarCardCanvas" class="sar-card-canvas" aria-label="SAR member card preview"></canvas><details class="workflow-optional"><summary>More card options &amp; print settings</summary><button class="sar-btn" data-sar-action="save-card" type="button">Save PNG</button><p class="sar-card-hint">CR-80 · Landscape printer paper · Actual size / 100% · No margins<br>The QR contains a member ID; member details are read from the SAR registry.</p></details><div class="sar-actions"><button class="sar-btn primary" data-sar-action="print-card" type="button">Print to ZC300</button><button class="sar-btn" data-sar-action="full-card" type="button">Full screen</button></div><div class="sar-feedback" id="sarCardStatus" role="status"></div></div></div>`;
 function connection(message){
  const box=$('sarConnection');
@@ -99,7 +99,7 @@ function renderDetail(){
  const e=event(),root=$('sarEventDetail'),checkModal=$('sarCheckModal');
  const keepDraft=checkModal.classList.contains('open')&&checkModal.dataset.eventId===e?.event_id;
  const note=keepDraft?$('sarAttendanceNotes')?.value||'':'',scanText=keepDraft?$('sarScanInput')?.value||'':'';
- if(!e){checkModal.classList.remove('open');$('sarCheckContent').replaceChildren();root.innerHTML='<div class="sar-empty"><strong>Start with an event</strong>Create or select an event to check members in and out.<br>No address or map is needed.</div>';return}
+ if(!e){checkModal.classList.remove('open');$('sarCheckContent').replaceChildren();$('sarCheckFooter').replaceChildren();root.innerHTML='<div class="sar-empty"><strong>Start with an event</strong>Create or select an event to check members in and out.<br>No address or map is needed.</div>';return}
  const latest=currentMap(),inside=[...latest.values()].filter(r=>r.direction==='IN').length,unique=new Set(state.attendance.map(r=>r.member_id)).size;
  root.innerHTML=`<div class="sar-detail"><div class="sar-event-head"><div><div class="sar-eyebrow">${esc(e.event_type)}</div><h2>${esc(e.name)}</h2><div class="sar-meta">${esc(fmt(e.event_date))}${e.location?' · '+esc(e.location):''}${e.notes?'\n'+esc(e.notes):''}</div></div><div class="sar-actions"><span class="sar-pill ${e.status==='Open'?'':'closed'}">${esc(e.status)}</span><button class="sar-btn" data-sar-action="edit-event" type="button">Edit event</button><button class="sar-btn" data-sar-action="toggle-event" type="button" ${state.busy?'disabled':''}>${e.status==='Open'?'Close event':'Reopen event'}</button></div></div>
  <div class="sar-metrics"><div><strong>${inside}</strong><span>Currently IN</span></div><div><strong>${unique}</strong><span>Unique attendees</span></div><div><strong>${state.attendance.filter(r=>r.direction==='IN').length}</strong><span>Total check-ins</span></div></div>
@@ -112,6 +112,7 @@ function renderDetail(){
  if(checkModal.dataset.eventId!==e.event_id)checkModal.classList.remove('open');
  checkModal.dataset.eventId=e.event_id;$('sarCheckEvent').textContent=e.name;
  $('sarCheckContent').replaceChildren(root.querySelector('.sar-checkin'));
+ $('sarCheckFooter').replaceChildren($('sarCheckContent').querySelector('.sar-check-actions'),$('sarCheckContent').querySelector('#sarFeedback'));
  $('sarAttendanceNotes').value=note;$('sarScanInput').value=scanText;
  updatePicked();
  $('sarMemberPick').addEventListener('change',()=>{state.memberId=$('sarMemberPick').value;state.pending=null;updatePicked();feedback('')});
@@ -185,7 +186,7 @@ function openEvent(edit=false){
  if(!enabled()||state.busy)return;stopCamera();state.editEvent=edit?event():null;const e=state.editEvent;
  $('sarEventForm').reset();$('sarEventModalTitle').textContent=e?'Edit event':'Create event';
  if(e){$('sarEventName').value=e.name;$('sarEventType').value=e.event_type;$('sarEventLocation').value=e.location||'';$('sarEventNotes').value=e.notes||'';if(e.event_date){const d=new Date(e.event_date);$('sarEventDate').value=new Date(d-d.getTimezoneOffset()*60000).toISOString().slice(0,16)}}
- $('sarEventFormStatus').textContent='';$('sarEventModal').classList.add('open');setScanTarget();$('sarEventName').focus();
+ $('sarEventFormStatus').textContent='';$('sarEventModal').classList.add('open');setScanTarget();$('sarEventModal').querySelector('.mx').focus({preventScroll:true});
 }
 async function saveEvent(e){
  e.preventDefault();if(state.busy||!enabled())return;
@@ -222,7 +223,7 @@ function openMember(id=''){
  if(!enabled()||state.busy)return;stopCamera();$('sarCheckModal').classList.remove('open');state.editMember=state.members.find(m=>m.member_id===id)||null;const m=state.editMember;
  $('sarMemberForm').reset();$('sarMemberModalTitle').textContent=m?'Edit member':'Add member';$('sarMemberSave').textContent=m?'Save member':'Save member & create card';$('sarMemberStatusWrap').hidden=!m;
  if(m){$('sarMemberName').value=m.name;$('sarMemberDivision').value=m.division;$('sarMemberPhone').value=m.phone||'';$('sarMemberStatus').value=m.status}
- $('sarMemberFormStatus').textContent='';$('sarMemberModal').classList.add('open');setScanTarget();$('sarMemberName').focus();
+ $('sarMemberFormStatus').textContent='';$('sarMemberModal').classList.add('open');setScanTarget();$('sarMemberModal').querySelector('.mx').focus({preventScroll:true});
 }
 async function saveMember(e){
  e.preventDefault();if(state.busy||!enabled())return;
@@ -355,6 +356,25 @@ $('sarRoot').addEventListener('click',async e=>{
  const handlers={'open-check':openCheck,'close-check':closeForms,'new-event':()=>openEvent(),'edit-event':()=>openEvent(true),'close-event':closeForms,'toggle-event':toggleEvent,'new-member':()=>openMember(),'add-for-event':()=>openMember(),'close-member':closeForms,'close-card':closeForms,'print-card':printCard,'full-card':()=>{if(state.card)openCardDisplay('sarCardCanvas')},'save-card':saveCard,'camera':toggleCamera,'preview':()=>preview(true),'exit-preview':()=>preview(false),'export-members':()=>exportCSV('members'),'export-attendance':()=>exportCSV('attendance'),'refresh-attendance':async()=>{try{await loadAttendance()}catch(e){feedback(e.message,true)}},'clear-member':()=>{state.memberId='';state.pending=null;stopCamera();updatePicked();$('sarMemberPick').value='';$('sarScanInput').value='';feedback('')}};
  try{await handlers[action]?.()}catch(e){if($('sarFeedback'))feedback(e.message,true);else connection(e.message)}
 });
+// iOS keyboards resize/pan the visual viewport without resizing the layout viewport.
+let viewportFrame=null;
+function syncSARViewport(){
+ viewportFrame=null;
+ const viewport=window.visualViewport,height=viewport?.height||window.innerHeight,top=viewport?.offsetTop||0;
+ const root=document.documentElement;
+ root.style.setProperty('--sar-viewport-height',height+'px');
+ root.style.setProperty('--sar-viewport-top',top+'px');
+ const editing=!!document.activeElement?.matches('input,textarea,select');
+ const reduced=height<Math.max(window.innerHeight,root.clientHeight)-100||height<500;
+ root.dataset.sarKeyboard=String(editing&&reduced);
+}
+function scheduleSARViewport(){if(viewportFrame===null)viewportFrame=requestAnimationFrame(syncSARViewport)}
+window.visualViewport?.addEventListener('resize',scheduleSARViewport);
+window.visualViewport?.addEventListener('scroll',scheduleSARViewport);
+window.addEventListener('resize',scheduleSARViewport);
+document.addEventListener('focusin',scheduleSARViewport);
+document.addEventListener('focusout',scheduleSARViewport);
+syncSARViewport();
 window.addEventListener('pagehide',stop);document.addEventListener('visibilitychange',()=>{if(document.hidden)stopCamera()});
 window.SAR={switchSystem,refresh,scan,stop,onLogin(){if(document.body.dataset.system==='sar'){refresh()}}};
 let initial='evac';try{initial=sessionStorage.getItem('eztag_system')==='sar'?'sar':'evac'}catch(e){}
