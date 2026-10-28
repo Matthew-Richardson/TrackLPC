@@ -438,3 +438,68 @@ html[data-theme="dark"] #zoneBar #zs optgroup{background:#131c27;color:#e8edf3}
 html[data-theme="dark"] #zoneBar #zs option:checked{background:#253140;color:#fff}
 html[data-theme="dark"] #zoneBar #zs:focus-visible{outline:2px solid var(--ui-link);outline-offset:2px;border-color:var(--ui-link)}
 html[data-theme="dark"] #zoneBar .zone-bar-select::after{color:var(--ui-link)}
+
+/* Compact stages: core fields and the next action share a phone viewport. */
+.workflow-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.workflow-fields .af{min-width:0}
+.workflow-optional{margin:8px 0;color:var(--ui-text)}
+.workflow-optional>summary{cursor:pointer;min-height:36px;padding:8px 2px;font-size:12px;color:var(--ui-muted)}
+.workflow-optional[open]>summary{margin-bottom:6px}
+.workflow-optional>summary:focus-visible{outline:2px solid var(--ui-accent);outline-offset:2px}
+@media(max-width:700px){
+ #modal .md,#cardModal .md{padding:10px 12px max(10px,env(safe-area-inset-bottom));max-height:100dvh;max-height:calc(100dvh - env(safe-area-inset-top));border-radius:12px 12px 0 0;scroll-padding-bottom:64px}
+ #modal .mh,#cardModal .mh{margin-bottom:8px}
+ #modal .mh h2,#cardModal .mh h2{font-size:17px}
+ #modal .zone-confirmed{padding:6px 8px;margin-bottom:6px;font-size:12px}
+ #modal .zone-confirmed .b{min-height:32px;padding:6px 8px;font-size:11px}
+ #modal .wedge-status,#cardModal .wedge-status{padding:6px 8px;margin-bottom:6px;font-size:10px;line-height:1.35}
+ #modal .live-scanner,#cardModal .live-scanner{min-height:0;margin-bottom:6px;border-radius:7px}
+ #modal .live-scanner video,#cardModal .live-scanner video{height:clamp(80px,15dvh,120px)}
+ #modal .live-scanner:not([data-running="true"]),#cardModal .live-scanner:not([data-running="true"]){background:transparent}
+ #modal .live-scanner:not([data-running="true"]) video,#cardModal .live-scanner:not([data-running="true"]) video,
+ #modal .live-scanner:not([data-running="true"]) .live-scanner-frame,#cardModal .live-scanner:not([data-running="true"]) .live-scanner-frame{display:none}
+ #modal .live-scanner:not([data-running="true"]) .live-scanner-label,#cardModal .live-scanner:not([data-running="true"]) .live-scanner-label{position:static;padding:3px;background:transparent;color:var(--ui-muted);font-size:10px}
+ #modal .live-scanner-actions,#cardModal .live-scanner-actions{margin-bottom:6px;justify-content:center}
+ #cardModal .live-scanner-actions .b{flex:0 1 240px;min-height:40px}
+ #modal .af input,#cardModal .af input{min-height:40px;padding:7px 9px;margin-bottom:7px;font-size:16px;line-height:1.4}
+ #modal .af label,#cardModal .af label{font-size:11px;margin-bottom:3px}
+ #modal .manual-address-row{margin-bottom:4px}
+ #modal .manual-address-enter{min-height:40px;padding:8px 22px}
+ #modal .ss{margin-bottom:5px;min-height:0}
+ #modal .ss:empty,#cardModal #cardDuplicateStatus:empty,#modal #resourceSetup:empty,#modal #resourceStatus:empty{display:none}
+ #modal .dv,#cardModal .dv{margin:5px 0}
+ #modal #pf,#cardModal #cardParsedInfo{display:none!important}
+ #modal .pf{padding:7px 9px;margin-bottom:7px}
+ #modal .pr{padding:2px 0}
+ #modal #s2 .db{margin:5px auto 8px}
+ #modal #s2 .dbtn{min-height:46px;padding:10px}
+ #modal #s2save,#modal #resourceSave,#cardModal #generateCardBtn{display:flex;align-items:center;justify-content:center;width:100%;max-width:360px;min-height:48px;margin:10px auto 6px;padding:11px 16px;font-size:16px}
+ #modal .next-scan-action,#modal #resourceNextPerson{min-height:40px;margin:5px auto 8px;padding:8px 12px}
+ #modal #resourceNextPerson.ready-next{min-height:48px;margin:8px auto}
+ #cardModal .card-scan-section{margin-bottom:6px}
+ #cardModal .card-scan-section h3,#cardModal .card-scan-section>p{display:none}
+ #cardModal #cardDuplicateStatus{margin:4px 0;font-size:11px}
+ #cardModal .card-address-entry{align-items:flex-start}
+ #cardModal .card-address-entry .b{min-height:40px}
+ #cardModal .card-preview{width:auto;max-width:160px;max-height:26dvh;margin:0 auto 8px;box-shadow:none;background:transparent}
+ #cardModal #cardPrintPreview{width:auto;max-width:100%;max-height:26dvh;margin:auto;object-fit:contain}
+ #cardModal .print-actions{margin-bottom:6px;gap:6px}
+ #cardModal .print-actions button,#cardModal #cardCheckinBtn{min-height:44px;margin-bottom:5px;padding:10px;font-size:13px}
+ #cardModal .rst{min-height:40px;margin-top:4px;padding:8px;font-size:12px}
+ #cardModal .card-checkin-status{font-size:11px;padding:6px;margin:4px 0}
+ #modal #resourcePerson,#modal #resourceItemSummary,#modal #resourceScanSummary{font-size:12px;line-height:1.4;margin:5px 0 8px}
+ #modal #resourceSetup,#modal #resourceStatus{font-size:11px;line-height:1.4;margin:6px 0}
+ #modal #resourceCardResult{padding-top:7px;margin:8px 0}
+ #modal #resourceCardResult .b{min-height:36px;padding:8px;font-size:11px}
+ #modal #resourcePanel>details{margin-top:8px;font-size:12px}
+ body[data-workflow="resource"] #resourceSelection{max-height:calc(100dvh - 240px);overflow-y:auto;overscroll-behavior:contain}
+ body[data-workflow="resource"] #resourceSelection>#resourceSelectionStatus:empty{display:none}
+ #resourceSelection .resource-grid{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:8px}
+ #resourceSelection .resource-item-row{padding:4px 0;margin-bottom:5px}
+ #resourceSelection details>summary{margin:2px 0 5px;padding:6px 2px}
+ #resourceSelection .resource-item-heading{margin-bottom:5px}
+ #resourceSelection .af input,#resourceSelection .af select{min-height:40px;margin-bottom:6px;padding:7px;font-size:16px}
+}
+
+html[data-theme="dark"] #modal .live-scanner-actions .b{color:var(--ui-link);border-color:var(--ui-link)}
+html[data-theme="dark"] #modal .live-scanner-actions .b:hover{color:var(--ui-text)}
