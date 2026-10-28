@@ -728,7 +728,14 @@ function rebuildZoneCatalog({fit=false}={}){
     sel.replaceChildren(first);
   });
   zones.forEach(z=>{const txt=[z.name,z.incident,z.status].filter(Boolean).join(' — ');allSelects.forEach(sel=>{const o=document.createElement('option');o.value=z.id;o.textContent=txt;sel.appendChild(o)})});
-  const b=evacLayer.getBounds();if(fit&&b.isValid())map.fitBounds(b,{padding:[20,20]});
+  // Esri FeatureLayer is not a Leaflet FeatureGroup: collect polygon bounds.
+  if(fit){
+    const bounds=L.latLngBounds([]);
+    evacLayer.eachFeature(layer=>{
+      if(typeof layer.getBounds==='function')bounds.extend(layer.getBounds());
+    });
+    if(bounds.isValid())map.fitBounds(bounds,{padding:[20,20]});
+  }
   // Permanent zone labels at polygon centroids
   evacLayer.eachFeature(function(l){
     var name=l.feature.properties.zonename;
