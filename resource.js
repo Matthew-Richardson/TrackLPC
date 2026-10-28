@@ -177,7 +177,7 @@ async function prepareResourceRecipient(){
     <p id="resourceSetup" role="status"></p>
     <form id="resourceForm">
       <p id="resourceItemSummary"></p>
-      <details class="workflow-optional"><summary>Date, phone &amp; notes</summary><div class="resource-grid">
+      <details class="workflow-optional" open><summary>Date, phone &amp; notes</summary><div class="resource-grid">
         <div class="af"><label for="resourceDate">Distributed at (local)</label><input id="resourceDate" type="datetime-local" required></div>
         <div class="af"><label for="resourceThrough">Covers through (local, optional)</label><input id="resourceThrough" type="datetime-local"></div>
       </div>
