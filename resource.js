@@ -86,13 +86,14 @@ function describeResourceItems(items){return items.map(i=>`${i.quantity} ${i.uni
 function beginResourceScan(){
   setupResourceSelection();
   const status=document.getElementById('resourceSelectionStatus');status.textContent='';
-  try{window.LPCInventory?.validateSelection();validateResourceItems(resourceDraftItems)}catch(err){
+  const inventoryOn=window.LPCInventory?.enabled?.();
+  try{window.LPCInventory?.validateSelection({allowEmpty:inventoryOn});if(!inventoryOn)validateResourceItems(resourceDraftItems)}catch(err){
     resourceDraftItems.forEach(item=>{try{validateResourceItems([item])}catch{item.collapsed=false}});renderResourceDraftItems();
     status.textContent=err.message;document.getElementById('resourceSelection').scrollIntoView({block:'nearest'});return false}
-  if(!document.getElementById('resourceSelectionForm').reportValidity())return false;
+  if(!inventoryOn&&!document.getElementById('resourceSelectionForm').reportValidity())return false;
   activeResourceItems=resourceDraftItems.map(item=>({...item}));
   const summary=document.getElementById('resourceScanSummary');summary.hidden=false;
-  summary.textContent='Resources per person: '+describeResourceItems(activeResourceItems);
+  summary.textContent=inventoryOn?'Choose resources and amounts after scanning or entering a person.':'Resources per person: '+describeResourceItems(activeResourceItems);
   return true;
 }
 function resourceURL(){return String(window.LPC_RESOURCE_CONFIG?.tableUrl||window.LPC_RESOURCE_CONFIG?.serviceUrl||'').trim().replace(/\/$/,'')}
@@ -166,7 +167,7 @@ function resetResourceForm(){
 }
 async function prepareResourceRecipient(){
   if(workflowMode!=='resource')return false;
-  try{validateResourceItems(activeResourceItems)}catch(err){document.getElementById('ss').textContent=err.message;return false}
+  try{if(!window.LPCInventory?.enabled?.())validateResourceItems(activeResourceItems)}catch(err){document.getElementById('ss').textContent=err.message;return false}
   const fn=document.getElementById('s1fn').value.trim(),ln=document.getElementById('s1ln').value.trim(),addr=document.getElementById('ai').value.trim();
   if(!fn||!ln||!addr){document.getElementById('ss').textContent='First name, last name, and address are required.';return false}
   window.LPCLiveScanner?.pause();wedge.setTarget(null);clearTimeout(manualAddressTimer);addressCheckSequence++;
@@ -226,6 +227,7 @@ async function saveResourceDistribution(e){
   let pending=form._pendingResource;
   if(!pending){
     try{
+      window.LPCInventory?.validateSelection?.();
       validateResourceItems(activeResourceItems);
       const common={date:read('resourceDate'),through:read('resourceThrough'),phone:read('resourcePhone'),notes:read('resourceNotes'),operator:operatorName};
       pending={person:{...parsedDL},zone:{id:'',name:'',incident:''},items:activeResourceItems.map(item=>({...item,...common,id:crypto.randomUUID()}))};
@@ -259,6 +261,7 @@ async function saveResourceDistribution(e){
     }
     if(document.getElementById('resourceForm')!==form)return;
     delete form._pendingResource;form.dataset.saved='true';
+    window.LPCInventory?.remember?.(pending.items);
     btn.textContent='Distribution saved';
     showResourceCardReady(pending.card,pending.cardCreated);
     status.textContent=`Saved ${pending.items.length} item${pending.items.length===1?'':'s'}.`;
