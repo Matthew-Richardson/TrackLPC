@@ -59,7 +59,7 @@ Dates are entered in the device's local time zone and stored as epoch millisecon
 
 ## County inventory and optional operations
 
-The Resource dashboard supports ongoing county inventory and named operations together. Supply is held by **resource + storage location + unit**. Each distribution consumes that supply once, whether it has an operation or is county routine assistance. Operations group activity; selecting one does not reserve, transfer, or subtract stock. Physical transfers between locations and inventory corrections are not implemented in this version.
+The Resource dashboard supports ongoing county inventory and named operations together. Supply is held by **resource + storage location + unit**. Each distribution consumes that supply once, whether it has an operation or is county routine assistance. Operations group activity; selecting one does not reserve, transfer, or subtract stock. Supply details and physical counts can be corrected using append-only revisions; older versions remain in the history. Partial stock transfers between locations are not automated.
 
 ### One-time shared-table setup
 
@@ -94,3 +94,22 @@ Two independent command-staff buttons follow the SAR in/out visual layout: **Ope
 ### Activity scope and counts
 
 The Activity badge counts the displayed resource-item rows after operation, location, resource, type and text filters. Selecting an operation shows only its records, including a selected closed operation. Countywide defaults to **Open operations**: all currently open operations plus routine distributions with no operation. **Open + closed** includes all records, including older records whose operation is no longer in the registry. Switching back to countywide via operation setup restores the open-operation view. These are reporting filters; physical supply balances always deduct all confirmed distributions, including closed operations. The scanner history follows the same operation/location/resource scope. CSV continues to include all loaded distribution records.
+
+### Supply editing and inactive versions
+
+County inventory now lists active supplies, plus a collapsed Inactive supplies group. Each supply supports Edit details, Update supply (a physical quantity-on-hand correction), Make inactive / Reactivate, and Revision & supply history. There is no delete action.
+
+All inventory changes use addFeatures, never updateFeatures or deleteFeatures. The original stock/receipt rows remain unchanged. The existing schema supports the new record_type values; no new fields or inventory Update permission are required:
+
+| record_type | Meaning |
+|---|---|
+| stock | Original starting supply, defining an inventory_id |
+| receipt | Additional stock received |
+| stock_update | New resource-name/category/location version; quantity is zero and does not change stock |
+| stock_count | Corrected supply baseline; quantity equals the entered physical on-hand count plus all confirmed issued quantities at correction time |
+| stock_inactive | New inactive version; keeps the balance and prevents further distribution/restocking |
+| stock_active | New active version; restores availability without adding supply |
+
+The newest metadata/status revision is the current version. Earlier definition/version rows are shown as superseded/inactive in the app; their stored attributes are not overwritten. Original rows need no backfill. Receipts remain immutable audit events. A stock_count baseline includes earlier receipts and corrections; only later receipts are added to it, and confirmed distributions are still subtracted once. Name/location/status edits do not reset the supply baseline and therefore cannot discard a concurrent receipt. Units remain fixed for an inventory_id; create a separate resource for a different unit or package size.
+
+A revision's entry_id is retained on uncertain saves and checked before retrying. This prevents duplicate revisions. Activity refreshes keep the last confirmed table/count while fetching a replacement, instead of flashing zero every polling cycle. Checkpoint zone updates no longer clear Resource history or its row counter.
