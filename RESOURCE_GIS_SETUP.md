@@ -113,3 +113,9 @@ All inventory changes use addFeatures, never updateFeatures or deleteFeatures. T
 The newest metadata/status revision is the current version. Earlier definition/version rows are shown as superseded/inactive in the app; their stored attributes are not overwritten. Original rows need no backfill. Receipts remain immutable audit events. A stock_count baseline includes earlier receipts and corrections; only later receipts are added to it, and confirmed distributions are still subtracted once. Name/location/status edits do not reset the supply baseline and therefore cannot discard a concurrent receipt. Units remain fixed for an inventory_id; create a separate resource for a different unit or package size.
 
 A revision's entry_id is retained on uncertain saves and checked before retrying. This prevents duplicate revisions. Activity refreshes keep the last confirmed table/count while fetching a replacement, instead of flashing zero every polling cycle. Checkpoint zone updates no longer clear Resource history or its row counter.
+
+### Standalone management popups
+
+Operation setup and County inventory open in a modal above the Resource Tracker dashboard, with background interaction disabled. Within County inventory, selecting Edit details, Update supply, Add a resource, Receive stock, Make inactive or Reactivate opens a focused page inside that popup. Management choices and the supply list are hidden while the form is open. Each form has a primary save action and a Close button; the popup header also provides Close. A successful save returns to Resource Tracker. Closing without submitting makes no database change. Existing frozen pending IDs are retained if a save response was uncertain, so reopening can resume the same attempt.
+
+Operation creation likewise opens its own focused form. The popups use native dialog focus trapping, backdrop separation and visible-viewport sizing for phone keyboards. Inventory writes remain append-only.
