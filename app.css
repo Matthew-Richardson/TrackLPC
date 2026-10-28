@@ -741,3 +741,69 @@ body[data-system="sar"] .sar-shell{width:100%;min-width:0;box-sizing:border-box}
 :is(#liveScanner,#cardLiveScanner,#sarCameraWrap) .live-scanner-frame{z-index:1}
 :is(#liveScanner,#cardLiveScanner,#sarCameraWrap) .live-scanner-label{z-index:2}
 @media(max-width:700px){:is(#liveScanner,#cardLiveScanner,#sarCameraWrap) .scanner-viewport{height:clamp(80px,15dvh,120px)}}
+
+/* County supply dashboard, with an optional operation using the same inventory. */
+#resourceInventory{color:var(--ui-text);min-width:0;max-width:100%}
+#resourceInventory [hidden]{display:none!important}
+#resourceInventory h2{font-size:18px;margin:0;color:var(--ui-accent-dark)}
+html[data-theme="dark"] #resourceInventory h2{color:var(--ui-link)}
+.ri-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.ri-heading .b{font-size:11px;min-height:36px}
+.ri-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0}
+.ri-metrics>div{background:var(--ui-bg);border:1px solid var(--ui-border);border-radius:9px;padding:12px;min-width:0}
+.ri-metrics strong{display:block;font-size:23px;color:var(--ui-accent-dark);overflow-wrap:anywhere}
+html[data-theme="dark"] .ri-metrics strong{color:var(--ui-link)}
+.ri-metrics span{display:block;font-size:11px;line-height:1.4;color:var(--ui-muted);margin-top:3px}
+.ri-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.ri-filters label,.ri-form label,.ri-quantities label{display:flex;flex-direction:column;gap:5px;font-size:12px;min-width:0;font-weight:600}
+#resourceInventory input,#resourceInventory select,.ri-recipient-selection input{width:100%;min-width:0;max-width:100%;min-height:42px;background:var(--ui-panel);color:var(--ui-text);border:1px solid var(--ui-border);border-radius:7px;padding:8px;font:inherit;box-sizing:border-box}
+#resourceInventory option{background:var(--ui-panel);color:var(--ui-text)}
+#resourceInventoryConfig{padding:10px 0;margin:8px 0;border-block:1px solid var(--ui-border)}
+#resourceInventoryConfig>summary{font-weight:650;color:var(--ui-text)}
+#riConfigForms>details{padding:8px 0}#resourceInventoryConfig a{font-size:12px;color:var(--ui-link,var(--ui-accent-dark))}
+.ri-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:8px 0}
+.ri-form .ba{grid-column:1/-1;justify-self:center;min-width:180px;justify-content:center;min-height:44px}
+.ri-form [role="status"]{grid-column:1/-1;font-size:12px;overflow-wrap:anywhere}
+.ri-operation-row{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:6px 0;font-size:13px;overflow-wrap:anywhere}
+.ri-stock-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:10px;margin:12px 0}
+.ri-stock-cards article{border:1px solid var(--ui-border);background:var(--ui-bg);padding:12px;border-radius:9px;min-width:0;overflow-wrap:anywhere;font-size:13px}
+.ri-stock-cards article>div{display:flex;flex-direction:column;gap:4px;margin-bottom:9px}
+.ri-stock-cards article span,.ri-stock-cards article small{font-size:11px;color:var(--ui-muted)}
+.ri-stock-cards progress{display:block;width:100%;height:8px;accent-color:var(--ui-accent);margin:9px 0}
+#riChoose h3{font-size:14px;margin:14px 0 4px}
+.ri-pills{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0}
+.ri-pill{min-height:42px;border-radius:20px;padding:9px 13px;border:1px solid var(--ui-border);background:var(--ui-panel);color:var(--ui-text);font:600 12px/1.3 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;cursor:pointer;max-width:100%;overflow-wrap:anywhere;text-align:center}
+.ri-pill[aria-pressed="true"]{background:var(--ui-accent);border-color:var(--ui-accent);color:#fff;box-shadow:0 0 0 2px var(--ui-accent-light)}
+html[data-theme="dark"] .ri-pill[aria-pressed="true"]{background:var(--ui-accent-dark);border-color:var(--ui-link);color:#fff}
+.ri-pill:disabled{opacity:.5;cursor:default}
+.ri-pill:focus-visible{outline:2px solid var(--ui-link,var(--ui-accent));outline-offset:3px}
+.ri-quantities{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:8px 0}
+.ri-recipient-selection{margin:10px 0!important;padding:8px;border:1px solid var(--ui-border);border-radius:8px}
+.ri-recipient-selection summary{font-size:12px;cursor:pointer}
+#riConnection[data-error="true"]{color:var(--ui-text);border-left:3px solid var(--ui-accent);padding-left:8px}
+body[data-workflow="resource"]:not([data-system="sar"]) #zoneBar{display:block;max-width:960px;width:calc(100% - 24px);margin:12px auto;padding:16px}
+body[data-workflow="resource"]:not([data-system="sar"]) #resourceSelection{max-height:none;overflow:visible}
+body[data-workflow="resource"] #zoneScanBtn{display:flex;align-items:center;justify-content:center;min-width:200px;min-height:46px;margin:14px auto 0}
+body[data-workflow="resource"]:not([data-system="sar"]) .ts{max-width:960px;width:calc(100% - 24px);margin:0 auto 12px}
+@media(max-width:700px){
+ .ri-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+ .ri-metrics>div{padding:10px}.ri-metrics strong{font-size:22px}
+ .ri-filters{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.ri-filters label:first-child{grid-column:1/-1}
+ #resourceInventory input,#resourceInventory select,.ri-recipient-selection input{font-size:16px}
+ body[data-workflow="resource"]:not([data-system="sar"]) #zoneBar{width:calc(100% - 16px);padding:10px;margin:8px auto}
+ .ri-quantities{grid-template-columns:minmax(0,1fr)}
+}
+#resourceSelection[data-inventory="true"]>strong{display:none}
+.ri-stock-detail{margin:10px 0}.ri-stock-detail>summary{font-weight:600;color:var(--ui-text)!important}
+#resourceSelectionForm[hidden],#resourceAddItem[hidden]{display:none!important}
+@media(max-width:700px){
+ body[data-workflow="resource"] #dt{display:block;width:100%;min-width:0;table-layout:fixed}
+ body[data-workflow="resource"] #dt thead{display:none}
+ body[data-workflow="resource"] #dt tbody{display:block;width:100%}
+ body[data-workflow="resource"] #dt tr{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;padding:12px;border-bottom:1px solid var(--ui-border);max-width:100%}
+ body[data-workflow="resource"] #dt td{display:block;min-width:0;max-width:100%;padding:0;border:0;white-space:normal;overflow-wrap:anywhere;font-size:12px}
+ body[data-workflow="resource"] #dt td:empty{display:none}
+ body[data-workflow="resource"] #dt td::before{content:attr(data-label);display:block;color:var(--ui-muted);font-size:10px;margin-bottom:3px}
+ body[data-workflow="resource"] #dt td:first-child,body[data-workflow="resource"] #dt td:nth-child(3),body[data-workflow="resource"] #dt td[data-label="Notes"],body[data-workflow="resource"] #dt td[data-label="Address"]{grid-column:1/-1}
+ body[data-workflow="resource"] #dt td[data-label="Name"]{font-weight:700}
+}
