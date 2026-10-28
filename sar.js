@@ -6,14 +6,14 @@ const $=id=>document.getElementById(id), esc=value=>String(value??'').replace(/[
 const cfg=window.EZTAG_SAR_CONFIG||{};
 const configured=['members','events','attendance'].every(k=>/^https:\/\/[^\s?#]+\/FeatureServer\/\d+\/?$/i.test(cfg[k]||''));
 const fields={members:['member_id','name','division','phone','status','created_at','created_by','updated_at'],events:['event_id','name','event_type','event_date','location','notes','status','created_at','created_by','updated_at'],attendance:['record_id','event_id','member_id','member_name','division','direction','check_time','operator_name','notes']};
-const state={preview:false,tab:'events',events:[],members:[],attendance:[],eventId:'',memberId:'',loading:false,busy:false,ready:false,attendanceReady:false,attendanceError:'',loadVersion:0,attendanceVersion:0,pending:null,editEvent:null,editMember:null,card:null};
+const state={preview:false,tab:'events',events:[],members:[],attendance:[],eventId:'',memberId:'',direction:'',loading:false,busy:false,ready:false,attendanceReady:false,attendanceError:'',loadVersion:0,attendanceVersion:0,pending:null,editEvent:null,editMember:null,card:null};
 let cameraStream=null,cameraTimer=null,cameraVersion=0,refreshTimer=null;
 const uid=prefix=>prefix+'-'+crypto.randomUUID();
 const enabled=()=>configured?state.ready:state.preview;
 const event=()=>state.events.find(e=>e.event_id===state.eventId);
 const member=()=>state.members.find(m=>m.member_id===state.memberId);
 const fmt=value=>value?new Date(value).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'Date not set';
-function feedback(message,error=false){$('sarFeedback').textContent=message;$('sarFeedback').classList.toggle('error',error)}
+function feedback(message,error=false){const box=$('sarCheckModal')?.classList.contains('open')?$('sarFeedback'):($('sarEventFeedback')||$('sarFeedback'));if(!box)return;box.textContent=message;box.classList.toggle('error',error)}
 function sql(value){return String(value).replace(/'/g,"''")}
 function normalized(value){return String(value||'').trim().toLocaleUpperCase().replace(/\s+/g,' ')}
 async function request(kind,method,params={}){
@@ -60,9 +60,10 @@ async function update(kind,original,changes){
   return {...original,...changes};
 }
 $('sarRoot').innerHTML=`<div class="sar-shell">
+ <div id="sarDashboard" aria-label="Selected event attendance" hidden></div>
 
  <div id="sarConnection" class="sar-notice" role="status"></div>
- <div id="sarEventView" class="sar-event-layout"><aside class="sar-panel"><div class="sar-panel-heading"><h2>Events</h2><button class="sar-btn primary" id="sarNewEvent" data-sar-action="new-event" type="button">+ Create</button></div><div class="sar-event-list" id="sarEventList"></div></aside><section class="sar-panel"><div id="sarEventDetail"></div></section></div>
+ <div id="sarEventView" class="sar-event-layout"><aside class="sar-panel"><div class="sar-panel-heading"><h2>Event configuration</h2><button class="sar-btn primary" id="sarNewEvent" data-sar-action="new-event" type="button">+ Create</button></div><div class="sar-event-list" id="sarEventList"></div></aside><section class="sar-panel"><div id="sarEventDetail"></div></section></div>
  <div id="sarMemberView" hidden><div class="sar-members-toolbar"><div class="sar-field"><label for="sarMemberSearch">Find a member</label><input id="sarMemberSearch" type="search" placeholder="Name, division, phone, or member ID"/></div><div class="sar-actions"><button class="sar-btn" data-sar-action="export-members" type="button">Export members</button><button class="sar-btn primary" id="sarNewMember" data-sar-action="new-member" type="button">+ Add member</button></div></div><div class="sar-member-grid" id="sarMemberList"></div></div>
  <footer class="sar-footer">La Plata County Search &amp; Rescue · <a href="https://laplatasar.org/" target="_blank" rel="noopener noreferrer">laplatasar.org</a></footer>
 </div>
@@ -99,24 +100,33 @@ function renderDetail(){
  const e=event(),root=$('sarEventDetail'),checkModal=$('sarCheckModal');
  const keepDraft=checkModal.classList.contains('open')&&checkModal.dataset.eventId===e?.event_id;
  const note=keepDraft?$('sarAttendanceNotes')?.value||'':'',scanText=keepDraft?$('sarScanInput')?.value||'':'';
- if(!e){checkModal.classList.remove('open');$('sarCheckContent').replaceChildren();$('sarCheckFooter').replaceChildren();root.innerHTML='<div class="sar-empty"><strong>Start with an event</strong>Create or select an event to check members in and out.<br>No address or map is needed.</div>';return}
+ const step=keepDraft&&checkModal.dataset.step==='review'&&member()?'review':'identify';
+ if(!e){$('sarDashboard').hidden=true;$('sarDashboard').replaceChildren();checkModal.classList.remove('open');$('sarCheckContent').replaceChildren();$('sarCheckFooter').replaceChildren();root.innerHTML='<div class="sar-empty"><strong>Start with an event</strong>Create or select an event to check members in and out.<br>No address or map is needed.</div>';return}
  const latest=currentMap(),inside=[...latest.values()].filter(r=>r.direction==='IN').length,unique=new Set(state.attendance.map(r=>r.member_id)).size;
  root.innerHTML=`<div class="sar-detail"><div class="sar-event-head"><div><div class="sar-eyebrow">${esc(e.event_type)}</div><h2>${esc(e.name)}</h2><div class="sar-meta">${esc(fmt(e.event_date))}${e.location?' · '+esc(e.location):''}${e.notes?'\n'+esc(e.notes):''}</div></div><div class="sar-actions"><span class="sar-pill ${e.status==='Open'?'':'closed'}">${esc(e.status)}</span><button class="sar-btn" data-sar-action="edit-event" type="button">Edit event</button><button class="sar-btn" data-sar-action="toggle-event" type="button" ${state.busy?'disabled':''}>${e.status==='Open'?'Close event':'Reopen event'}</button></div></div>
  <div class="sar-metrics"><div><strong>${inside}</strong><span>Currently IN</span></div><div><strong>${unique}</strong><span>Unique attendees</span></div><div><strong>${state.attendance.filter(r=>r.direction==='IN').length}</strong><span>Total check-ins</span></div></div>
+ <div id="sarEventFeedback" class="sar-feedback" role="status"></div>
  <div class="sar-launch-actions"><button class="sar-btn primary" data-sar-action="open-check" type="button" ${e.status!=='Open'||!enabled()?'disabled':''}>Scan / Enter</button></div>
- <div class="sar-checkin"><h3>Member check-in / out</h3><p class="sar-help">Scan a SAR member card or choose a saved member. A scan selects the member; confirm IN or OUT below.</p>
- <div class="sar-check-grid"><div class="sar-field"><label for="sarScanInput">Scan member QR / enter member ID</label><input id="sarScanInput" type="text" autocomplete="off" placeholder="Scanner ready — scan a member card" ${e.status!=='Open'||!enabled()?'disabled':''}/></div><div class="sar-field"><label for="sarMemberPick">Choose member</label><select id="sarMemberPick" ${e.status!=='Open'||!enabled()?'disabled':''}><option value="">Select a member…</option>${state.members.filter(m=>m.status==='Active').sort((a,b)=>a.name.localeCompare(b.name)).map(m=>`<option value="${esc(m.member_id)}" ${m.member_id===state.memberId?'selected':''}>${esc(m.name)} · ${esc(m.division)}</option>`).join('')}</select></div></div>
- <div class="sar-actions"><button class="sar-btn" data-sar-action="camera" type="button" ${e.status!=='Open'||!enabled()?'disabled':''}>Start camera</button><button class="sar-btn" data-sar-action="add-for-event" type="button" ${e.status!=='Open'||!enabled()?'disabled':''}>+ Add member</button></div><div class="sar-scan-video" id="sarCameraWrap"><div class="scanner-viewport"><video id="sarCameraVideo" playsinline muted aria-label="SAR member card scanner"></video><div class="live-scanner-frame"></div></div><p class="live-scanner-label">Hold member QR inside frame</p></div>
- <div class="sar-picked" id="sarPicked"></div><div class="sar-field"><label for="sarAttendanceNotes">Check-in/out note (optional)</label><input id="sarAttendanceNotes" maxlength="1000" placeholder="Assignment or attendance note"/></div><div class="sar-actions sar-check-actions"><button class="sar-btn primary" id="sarInBtn" data-sar-direction="IN" type="button">Check IN</button><button class="sar-btn out" id="sarOutBtn" data-sar-direction="OUT" type="button">Check OUT</button><button class="sar-btn" data-sar-action="clear-member" type="button">Clear</button></div><div id="sarFeedback" class="sar-feedback" role="status">${e.status==='Open'?'':'This event is closed. Reopen it to record attendance.'}</div></div>
+ <div class="sar-checkin">
+ <div id="sarIdentifyStep"><p class="sar-help">Scan a SAR member card or choose a saved member.</p>
+ <div class="sar-check-grid"><div class="sar-field"><label for="sarScanInput">Scan QR / enter member ID</label><input id="sarScanInput" type="text" autocomplete="off" placeholder="SAR member ID" ${e.status!=='Open'||!enabled()?'disabled':''}/></div><div class="sar-field"><label for="sarMemberPick">Choose member</label><select id="sarMemberPick" ${e.status!=='Open'||!enabled()?'disabled':''}><option value="">Select a member…</option>${state.members.filter(m=>m.status==='Active').sort((a,b)=>a.name.localeCompare(b.name)).map(m=>`<option value="${esc(m.member_id)}" ${m.member_id===state.memberId?'selected':''}>${esc(m.name)} · ${esc(m.division)}</option>`).join('')}</select></div></div>
+ <div class="sar-actions sar-identify-tools"><button class="sar-btn scanner-camera-button" data-sar-action="camera" type="button" ${e.status!=='Open'||!enabled()?'disabled':''}>Start camera</button><button class="sar-btn" data-sar-action="add-for-event" type="button" ${e.status!=='Open'||!enabled()?'disabled':''}>+ Add member</button></div>
+ <div class="sar-scan-video" id="sarCameraWrap"><div class="scanner-viewport"><video id="sarCameraVideo" playsinline muted aria-label="SAR member card scanner"></video><div class="live-scanner-frame"></div></div><p class="live-scanner-label">Hold member QR inside frame</p></div></div>
+ <div id="sarReviewStep" hidden><div class="sar-picked" id="sarPicked"></div>
+ <div class="sar-field"><label>Direction</label><div class="sar-direction-options" role="group" aria-label="Check-in direction"><button class="sar-btn" id="sarInBtn" data-sar-direction="IN" type="button" aria-pressed="false">IN</button><button class="sar-btn" id="sarOutBtn" data-sar-direction="OUT" type="button" aria-pressed="false">OUT</button></div></div>
+ <div class="sar-field"><label for="sarAttendanceNotes">Notes (optional)</label><input id="sarAttendanceNotes" maxlength="1000" placeholder="Assignment or attendance note"/></div></div>
+ <div id="sarCheckActions"><div id="sarIdentifyActions"><button class="sar-btn primary" id="sarContinueBtn" data-sar-action="review-member" type="button">Continue</button></div><div id="sarReviewActions" hidden><button class="sar-btn primary" id="sarSaveAttendance" data-sar-action="save-attendance" type="button" disabled>Save record</button><button class="sar-btn sar-back-action" data-sar-action="clear-member" type="button">Choose another member</button></div></div><div id="sarFeedback" class="sar-feedback" role="status">${e.status==='Open'?'':'This event is closed. Reopen it to record attendance.'}</div></div>
  <div class="sar-attendance-head"><h3>Attendance log</h3><div class="sar-actions"><button class="sar-btn" data-sar-action="refresh-attendance" type="button">Refresh</button><button class="sar-btn" data-sar-action="export-attendance" type="button">Export CSV</button></div></div><div class="sar-table-wrap"><table class="sar-table"><thead><tr><th>Name / division</th><th>Direction</th><th>Time</th><th>Note / operator</th></tr></thead><tbody>${[...state.attendance].sort((a,b)=>b.check_time-a.check_time||Number(b.OBJECTID||0)-Number(a.OBJECTID||0)).map(r=>`<tr><td>${esc(r.member_name)}<small>${esc(r.division)}</small></td><td><span class="sar-pill ${r.direction==='OUT'?'closed':''}">${esc(r.direction)}</span></td><td>${esc(fmt(r.check_time))}</td><td>${esc(r.notes)}<small>${esc(r.operator_name)}</small></td></tr>`).join('')||'<tr><td colspan="4">No attendance recorded for this event.</td></tr>'}</tbody></table></div></div>`;
  if(checkModal.dataset.eventId!==e.event_id)checkModal.classList.remove('open');
  checkModal.dataset.eventId=e.event_id;$('sarCheckEvent').textContent=e.name;
+ $('sarDashboard').hidden=state.tab!=='events';$('sarDashboard').replaceChildren(root.querySelector('.sar-metrics'));
  $('sarCheckContent').replaceChildren(root.querySelector('.sar-checkin'));
- $('sarCheckFooter').replaceChildren($('sarCheckContent').querySelector('.sar-check-actions'),$('sarCheckContent').querySelector('#sarFeedback'));
+ $('sarCheckFooter').replaceChildren($('sarCheckContent').querySelector('#sarCheckActions'),$('sarCheckContent').querySelector('#sarFeedback'));
  $('sarAttendanceNotes').value=note;$('sarScanInput').value=scanText;
- updatePicked();
- $('sarMemberPick').addEventListener('change',()=>{state.memberId=$('sarMemberPick').value;state.pending=null;updatePicked();feedback('')});
- $('sarScanInput').addEventListener('keydown',e=>{if(e.key==='Enter'){const raw=e.target.value.trim();if(raw.length>10&&((!raw.startsWith('{')&&raw.startsWith('SAR-MEM-'))||raw.endsWith('}'))){e.preventDefault();e.stopPropagation();scan(raw)}}});
+ setCheckStep(step);
+ $('sarMemberPick').addEventListener('change',()=>{state.memberId=$('sarMemberPick').value;state.direction='';state.pending=null;$('sarScanInput').value='';updatePicked();feedback('')});
+ $('sarScanInput').addEventListener('input',()=>{if($('sarScanInput').value.trim()){state.memberId='';state.direction='';state.pending=null;$('sarMemberPick').value=''}updatePicked()});
+ $('sarScanInput').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();e.stopPropagation();reviewMember()}});
 }
 function updatePicked(){
  if(!$('sarPicked'))return;
@@ -124,20 +134,48 @@ function updatePicked(){
  $('sarPicked').textContent=m?`${m.name} · ${m.division}${m.phone?' · '+m.phone:''} · ${isIn?'Currently IN':'Currently OUT'}`:'Select or scan a member to continue.';
  const locked=!enabled()||state.loading||!state.attendanceReady||state.busy||event()?.status!=='Open'||!m||m.status!=='Active';
  $('sarInBtn').disabled=locked||isIn;$('sarOutBtn').disabled=locked||!isIn;
+ if((state.direction==='IN'&&isIn)||(state.direction==='OUT'&&!isIn))state.direction='';
+ ['IN','OUT'].forEach(direction=>{const button=$(direction==='IN'?'sarInBtn':'sarOutBtn'),selected=direction===state.direction;button.setAttribute('aria-pressed',String(selected));button.classList.toggle('selected',selected)});
+ $('sarSaveAttendance').disabled=locked||!state.direction;$('sarSaveAttendance').textContent=state.busy?'Saving…':'Save record';
+ $('sarContinueBtn').disabled=!enabled()||state.loading||!state.attendanceReady||state.busy||event()?.status!=='Open'||(!m&&!$('sarScanInput').value.trim());
  const toggle=$('sarEventDetail').querySelector('[data-sar-action="toggle-event"]');if(toggle)toggle.disabled=state.busy||state.loading;
 }
+function setCheckStep(step){
+ if(!$('sarIdentifyStep'))return;
+ const review=step==='review'&&!!member();
+ $('sarCheckModal').dataset.step=review?'review':'identify';
+ $('sarIdentifyStep').hidden=review;$('sarReviewStep').hidden=!review;
+ $('sarIdentifyActions').hidden=review;$('sarReviewActions').hidden=!review;
+ $('sarCheckTitle').textContent=review?'Confirm IN / OUT':'SAR Check-in / Out';
+ if(review){stopCamera();if($('sarCheckModal').contains(document.activeElement)&&document.activeElement?.matches('input,select,textarea'))document.activeElement.blur()}
+ $('sarCheckContent').scrollTop=0;updatePicked();setScanTarget();
+}
+async function reviewMember(){
+ const raw=$('sarScanInput').value.trim();if(raw){await scan(raw);return}
+ if(!member()){feedback('Choose a member or scan their card.',true);return}
+ try{await loadAttendance({renderAfter:false});state.direction='';setCheckStep('review');feedback('')}catch(e){feedback(e.message,true)}
+}
+function pickDirection(direction){
+ const button=$(direction==='IN'?'sarInBtn':'sarOutBtn');if(button.disabled||state.busy)return;
+ state.direction=direction;updatePicked();feedback('');
+}
+function resetCheckin(){
+ state.memberId='';state.direction='';state.pending=null;stopCamera();
+ $('sarMemberPick').value='';$('sarScanInput').value='';$('sarAttendanceNotes').value='';feedback('');setCheckStep('identify');
+}
+
 function renderMembers(){
  const q=normalized($('sarMemberSearch').value);
  const rows=state.members.filter(m=>!q||[m.name,m.division,m.phone,m.member_id].some(v=>normalized(v).includes(q))).sort((a,b)=>a.name.localeCompare(b.name));
  $('sarMemberList').innerHTML=rows.length?rows.map(m=>`<article class="sar-member-tile ${m.status==='Active'?'':'inactive'}"><h3>${esc(m.name)}</h3><p>${esc(m.division)}<br>${esc(m.phone||'No phone entered')} · ${esc(m.status)}</p><div class="sar-actions"><button class="sar-btn" type="button" data-sar-card="${esc(m.member_id)}">View card</button><button class="sar-btn" type="button" data-sar-edit-member="${esc(m.member_id)}">Edit</button></div><div class="sar-id">${esc(m.member_id)}</div></article>`).join(''):'<div class="sar-empty"><strong>No members found</strong>Add members to create reusable cards.</div>';
 }
-function setScanTarget(){try{wedge.setTarget(document.body.dataset.system==='sar'&&state.tab==='events'&&event()?.status==='Open'&&!document.querySelector('.sar-modal.open:not(#sarCheckModal)')&&enabled()?'sar':null)}catch(e){/* Evac scanner may still be initializing. */}}
+function setScanTarget(){try{wedge.setTarget(document.body.dataset.system==='sar'&&state.tab==='events'&&event()?.status==='Open'&&$('sarCheckModal').classList.contains('open')&&$('sarCheckModal').dataset.step!=='review'&&!document.querySelector('.sar-modal.open:not(#sarCheckModal)')&&enabled()?'sar':null)}catch(e){/* Evac scanner may still be initializing. */}}
 function stopCamera(){cameraVersion++;clearTimeout(cameraTimer);cameraStream?.getTracks().forEach(t=>t.stop());cameraStream=null;const wrap=$('sarCameraWrap');if(wrap)wrap.classList.remove('active');const button=$('sarCheckContent')?.querySelector('[data-sar-action="camera"]');if(button)button.textContent='Start camera'}
 function stop(){stopCamera();clearInterval(refreshTimer);refreshTimer=null;try{wedge.setTarget(null)}catch(e){}}
 function openCheck(){
  if(!enabled()||state.busy||event()?.status!=='Open')return;
  const modal=$('sarCheckModal'),opening=!modal.classList.contains('open');
- modal.classList.add('open');setScanTarget();if(opening)modal.querySelector('.mx').focus({preventScroll:true});
+ modal.classList.add('open');if(opening){state.direction='';setCheckStep('identify')}setScanTarget();if(opening)modal.querySelector('.mx').focus({preventScroll:true});
 }
 function closeForms(){stopCamera();document.querySelectorAll('.sar-modal').forEach(m=>m.classList.remove('open'));setScanTarget()}
 function switchSystem(mode){
@@ -251,8 +289,8 @@ async function scan(raw){
    const rows=state.preview?state.members.filter(m=>m.member_id===id):await query('members',`member_id='${sql(id)}'`);
    if(rows.length!==1)throw new Error(rows.length?'Duplicate member IDs found. Contact the table owner.':'Member card was not found.');
    const m=rows[0];if(m.status!=='Active')throw new Error('This member is inactive. Review the member registry.');
-   state.members=state.members.filter(x=>x.member_id!==id).concat(m);state.memberId=id;state.pending=null;
-   await loadAttendance({renderAfter:false});$('sarMemberPick').value=id;updatePicked();$('sarScanInput').value='';stopCamera();feedback('');
+   state.members=state.members.filter(x=>x.member_id!==id).concat(m);state.memberId=id;state.direction='';state.pending=null;
+   await loadAttendance({renderAfter:false});$('sarMemberPick').value=id;updatePicked();$('sarScanInput').value='';setCheckStep('review');feedback('');
  }catch(e){feedback(e.message,true)}
 }
 async function record(direction){
@@ -280,7 +318,7 @@ async function afterRecord(row){
  state.pending=null;
  state.attendance=state.attendance.filter(r=>r.record_id!==row.record_id).concat(row);
  const message=`${state.preview?'Preview: ':''}${row.member_name} checked ${row.direction} · ${fmt(row.check_time)}.`;
- state.memberId='';$('sarAttendanceNotes').value='';$('sarScanInput').value='';renderDetail();setScanTarget();feedback(message);
+ state.memberId='';state.direction='';$('sarAttendanceNotes').value='';$('sarScanInput').value='';renderDetail();setScanTarget();feedback(message);
 }
 async function toggleCamera(){
  if(cameraStream){stopCamera();return}
@@ -351,9 +389,9 @@ $('sarRoot').addEventListener('click',async e=>{
  if(button.dataset.sarEvent){await selectEvent(button.dataset.sarEvent);return}
  if(button.dataset.sarCard){await viewCard(button.dataset.sarCard);return}
  if(button.dataset.sarEditMember){openMember(button.dataset.sarEditMember);return}
- if(button.dataset.sarDirection){await record(button.dataset.sarDirection);return}
+ if(button.dataset.sarDirection){pickDirection(button.dataset.sarDirection);return}
  const action=button.dataset.sarAction;
- const handlers={'open-check':openCheck,'close-check':closeForms,'new-event':()=>openEvent(),'edit-event':()=>openEvent(true),'close-event':closeForms,'toggle-event':toggleEvent,'new-member':()=>openMember(),'add-for-event':()=>openMember(),'close-member':closeForms,'close-card':closeForms,'print-card':printCard,'full-card':()=>{if(state.card)openCardDisplay('sarCardCanvas')},'save-card':saveCard,'camera':toggleCamera,'preview':()=>preview(true),'exit-preview':()=>preview(false),'export-members':()=>exportCSV('members'),'export-attendance':()=>exportCSV('attendance'),'refresh-attendance':async()=>{try{await loadAttendance()}catch(e){feedback(e.message,true)}},'clear-member':()=>{state.memberId='';state.pending=null;stopCamera();updatePicked();$('sarMemberPick').value='';$('sarScanInput').value='';feedback('')}};
+ const handlers={'review-member':reviewMember,'save-attendance':()=>record(state.direction),'open-check':openCheck,'close-check':closeForms,'new-event':()=>openEvent(),'edit-event':()=>openEvent(true),'close-event':closeForms,'toggle-event':toggleEvent,'new-member':()=>openMember(),'add-for-event':()=>openMember(),'close-member':closeForms,'close-card':closeForms,'print-card':printCard,'full-card':()=>{if(state.card)openCardDisplay('sarCardCanvas')},'save-card':saveCard,'camera':toggleCamera,'preview':()=>preview(true),'exit-preview':()=>preview(false),'export-members':()=>exportCSV('members'),'export-attendance':()=>exportCSV('attendance'),'refresh-attendance':async()=>{try{await loadAttendance()}catch(e){feedback(e.message,true)}},'clear-member':resetCheckin};
  try{await handlers[action]?.()}catch(e){if($('sarFeedback'))feedback(e.message,true);else connection(e.message)}
 });
 // iOS keyboards resize/pan the visual viewport without resizing the layout viewport.
