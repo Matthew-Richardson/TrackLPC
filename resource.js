@@ -20,7 +20,7 @@ let resourceHistoryState='idle',resourceHistoryError='';
 let resourceDraftItems=[],activeResourceItems=[],resourceDraftSequence=0;
 function newResourceDraft(presetId='water-case'){
   const preset=RESOURCE_PRESETS.find(p=>p[0]===presetId)||RESOURCE_PRESETS[0];
-  return {key:++resourceDraftSequence,preset:preset[0],type:preset[1],name:preset[2],unit:preset[3],quantity:preset[4]};
+  return {key:++resourceDraftSequence,preset:preset[0],type:preset[1],name:preset[2],unit:preset[3],quantity:preset[4],collapsed:false};
 }
 function setupResourceSelection(){
   const section=document.getElementById('resourceSelection');
@@ -31,8 +31,12 @@ function setupResourceSelection(){
       <button class="b" id="resourceAddItem" type="button">Add another item</button>
       <p id="resourceSelectionStatus" role="status" aria-live="polite"></p>`;
     document.getElementById('resourceSelectionForm').onsubmit=e=>{e.preventDefault();openModal()};
+    document.getElementById('resourceSelectionForm').addEventListener('invalid',e=>{
+      const row=e.target.closest('.resource-item-row');if(row)row.open=true;
+    },true);
     document.getElementById('resourceAddItem').onclick=()=>{
       if(resourceDraftItems.length>=50){document.getElementById('resourceSelectionStatus').textContent='Use up to 50 items per person.';return}
+      resourceDraftItems.forEach(item=>item.collapsed=true);
       resourceDraftItems.push(newResourceDraft());renderResourceDraftItems();
     };
     renderResourceDraftItems();
@@ -42,8 +46,10 @@ function renderResourceDraftItems(){
   const list=document.getElementById('resourceItemRows');list.replaceChildren();
   resourceDraftItems.forEach((item,index)=>{
     const prefix='resourceItem'+item.key;
-    const row=document.createElement('div');row.className='resource-item-row';
-    row.innerHTML=`<div class="resource-item-heading"><strong>Item ${index+1}</strong><button class="b" id="${prefix}Remove" type="button" aria-label="Remove item ${index+1}">Remove</button></div>
+    const row=document.createElement('details');row.className='resource-item-row';row.open=!item.collapsed;
+    row.ontoggle=()=>{if(row.isConnected!==false)item.collapsed=!row.open};
+    row.innerHTML=`<summary class="resource-item-summary"><strong>Item ${index+1}</strong><span id="${prefix}Summary"></span></summary>
+      <div class="resource-item-body"><div class="resource-item-heading"><span>Edit item</span><button class="b" id="${prefix}Remove" type="button" aria-label="Remove item ${index+1}">Remove</button></div>
       <div class="resource-grid">
         <div class="af"><label for="${prefix}Preset">Resource</label><select id="${prefix}Preset"></select></div>
         <div class="af"><label for="${prefix}Quantity">Quantity per person</label><input id="${prefix}Quantity" type="number" min="0.001" step="any" required></div>
@@ -52,15 +58,17 @@ function renderResourceDraftItems(){
         <div class="af"><label for="${prefix}Type">Type</label><input id="${prefix}Type" maxlength="80" required></div>
         <div class="af"><label for="${prefix}Name">Resource / package description</label><input id="${prefix}Name" maxlength="150" required></div>
         <div class="af"><label for="${prefix}Unit">Unit</label><input id="${prefix}Unit" maxlength="40" required></div>
-      </div></details>`;
+      </div></details></div>`;
     list.append(row);
+    const updateSummary=()=>{document.getElementById(prefix+'Summary').textContent=[item.quantity,item.unit,item.name||'Custom resource'].filter(v=>String(v??'').trim()).join(' ')};
+    updateSummary();
     const select=document.getElementById(prefix+'Preset');
     RESOURCE_PRESETS.forEach(p=>{const o=document.createElement('option');o.value=p[0];o.textContent=p[0]==='custom'?'Custom resource':p[2];select.append(o)});
     select.value=item.preset;
     select.onchange=()=>{const replacement=newResourceDraft(select.value);Object.assign(item,replacement,{key:item.key});renderResourceDraftItems()};
     ['quantity','type','name','unit'].forEach(field=>{
       const input=document.getElementById(prefix+field[0].toUpperCase()+field.slice(1));input.value=item[field];
-      input.oninput=()=>{item[field]=input.value};
+      input.oninput=()=>{item[field]=input.value;updateSummary()};
     });
     document.getElementById(prefix+'Remove').onclick=()=>{resourceDraftItems=resourceDraftItems.filter(i=>i.key!==item.key);renderResourceDraftItems()};
   });
@@ -77,7 +85,9 @@ function describeResourceItems(items){return items.map(i=>`${i.quantity} ${i.uni
 function beginResourceScan(){
   setupResourceSelection();
   const status=document.getElementById('resourceSelectionStatus');status.textContent='';
-  try{validateResourceItems(resourceDraftItems)}catch(err){status.textContent=err.message;document.getElementById('resourceSelection').scrollIntoView({block:'nearest'});return false}
+  try{validateResourceItems(resourceDraftItems)}catch(err){
+    resourceDraftItems.forEach(item=>{try{validateResourceItems([item])}catch{item.collapsed=false}});renderResourceDraftItems();
+    status.textContent=err.message;document.getElementById('resourceSelection').scrollIntoView({block:'nearest'});return false}
   if(!document.getElementById('resourceSelectionForm').reportValidity())return false;
   activeResourceItems=resourceDraftItems.map(item=>({...item}));
   const summary=document.getElementById('resourceScanSummary');summary.hidden=false;
