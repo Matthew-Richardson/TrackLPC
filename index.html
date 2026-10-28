@@ -270,7 +270,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
 }
 </style>
 <link rel="stylesheet" href="sar.css"/>
-<link rel="stylesheet" href="app.css?v=scanner-guidance-20261027"/>
+<link rel="stylesheet" href="app.css?v=compact-scan-review-20261027"/>
 </head>
 <body>
 
@@ -1045,6 +1045,7 @@ let manualAddressTimer=null,addressCheckSequence=0;
 function resetModal({resumeScanner=true,statusText=''}={}){
   clearTimeout(manualAddressTimer);addressCheckSequence++;
   lastCheck=null;parsedDL=null;selectedDir=null;
+  document.getElementById('modal').dataset.addressReview='false';
   document.querySelectorAll('#modal .workflow-optional').forEach(d=>d.open=false);
   resetResourceForm();
   document.getElementById('s1').style.display='';document.getElementById('s2').style.display='none';
@@ -1059,7 +1060,7 @@ function resetModal({resumeScanner=true,statusText=''}={}){
   document.getElementById('s2res').style.display='none';document.getElementById('s2save').disabled=true;document.getElementById('s2save').textContent='Save record';
   document.querySelectorAll('.dbtn').forEach(b=>b.classList.remove('sel'));
   const ws=document.getElementById('wedgeStatusCP');
-  ws.className='wedge-status listening';ws.textContent=statusText?statusText+' — scan the next DL or card':'Scanner ready — scan a DL or re-entry card';
+  ws.className='wedge-status listening';ws.textContent='Scanner ready — scan a DL or re-entry card';
   if(resumeScanner&&(workflowMode==='resource'||checkpointZoneConfirmed&&selZone)&&document.getElementById('modal').classList.contains('open'))window.LPCLiveScanner?.start();
 }
 
@@ -1081,27 +1082,27 @@ async function doCheck({autoAdvance=true}={}){
     const p=new URLSearchParams({SingleLine:addr,f:'json',outFields:'Match_addr,Score',maxLocations:1,location:'-107.88,37.28',distance:80000});
     const r=await fetch(`${GEOCODE_URL}?${p}`);const j=await r.json();
     if(requestId!==addressCheckSequence||document.getElementById('ai').value.trim()!==addr)return;
-    if(!j.candidates?.length){showS1('re','Could not geocode','Edit the address, then press Enter to check again.',addr);showS1ResolutionActions();document.getElementById('ss').textContent='Address not found';return false}
+    if(!j.candidates?.length){showS1('re','Could not geocode','Edit the address, then press Enter to check again.',addr);showS1ResolutionActions();return false}
     const c=j.candidates[0],lng=c.location.x,lat=c.location.y,ma=c.attributes?.Match_addr||addr,sc=c.attributes?.Score||0;
     if(scanMarker)map.removeLayer(scanMarker);
     scanMarker=L.circleMarker([lat,lng],{radius:8,color:'#ef4444',fillColor:'#ef4444',fillOpacity:.9,weight:2}).addTo(map);
     const inside=pip([lng,lat],selGeom);
     lastCheck={inside,addr:ma,lat,lng,score:sc};
-    if(sc<70){showS1('re','Low confidence',`Score: ${sc}/100. Edit the address to retry.`,ma);showS1ResolutionActions();document.getElementById('ss').textContent='Address needs review';return false}
+    if(sc<70){showS1('re','Low confidence',`Score: ${sc}/100. Edit the address to retry.`,ma);showS1ResolutionActions();return false}
     if(inside){
       hideS1ResolutionActions();
       showS1('ri','INSIDE ZONE','Address verified for '+(selZone?.name||'the selected zone')+'.',ma);
-      document.getElementById('ss').textContent='Address verified inside '+(selZone?.name||'zone');
+      
       if(autoAdvance)goStep2();
       return true;
     }
-    showS1('ro','OUTSIDE ZONE','Edit the address, override the zone check, or scan another person.',ma);showS1ResolutionActions({allowOverride:true});document.getElementById('ss').textContent='Address is outside '+(selZone?.name||'the selected zone');return false;
+    showS1('ro','OUTSIDE ZONE','Edit the address, override the zone check, or scan another person.',ma);showS1ResolutionActions({allowOverride:true});return false;
   }catch(e){
     if(requestId!==addressCheckSequence)return false;
-    console.error(e);showS1('re','Geocode failed','Network error. Edit the address to retry.',addr);showS1ResolutionActions();document.getElementById('ss').textContent='Address check failed';return false;
+    console.error(e);showS1('re','Geocode failed','Network error. Edit the address to retry.',addr);showS1ResolutionActions();return false;
   }
 }
-function showS1(cls,v,d,a){const r=document.getElementById('s1res');r.style.display='block';r.className='res '+cls;
+function showS1(cls,v,d,a){document.getElementById('modal').dataset.addressReview='true';document.getElementById('ss').textContent='';window.LPCLiveScanner?.pause();const r=document.getElementById('s1res');r.style.display='block';r.className='res '+cls;
   document.getElementById('s1rv').textContent=v;document.getElementById('s1rd').textContent=d;document.getElementById('s1ra').textContent=a}
 function showS1ResolutionActions({allowOverride=false}={}){
   document.getElementById('s1ResolutionActions').style.display='grid';
@@ -1124,6 +1125,7 @@ function overrideZoneCheck(){
 const manualAddressInput=document.getElementById('ai');
 const manualAddressEnter=document.getElementById('manualAddressEnter');
 manualAddressInput.addEventListener('input',()=>{
+  document.getElementById('modal').dataset.addressReview='false';
   clearTimeout(manualAddressTimer);addressCheckSequence++;lastCheck=null;
   document.getElementById('s1res').style.display='none';
   document.getElementById('ss').textContent='';
@@ -1147,6 +1149,7 @@ manualAddressInput.addEventListener('keydown',e=>{
 // ---- STEP 2 ----
 function goStep2(){
   if(!lastCheck||lastCheck.score<70||(!lastCheck.inside&&!lastCheck.override))return;
+  document.getElementById('s1res').style.display='none';document.getElementById('ss').textContent='';
   window.LPCLiveScanner?.pause();
   const firstName=document.getElementById('s1fn').value.trim();
   const lastName=document.getElementById('s1ln').value.trim();
@@ -2520,7 +2523,7 @@ function ray(px,py,ring){let ins=false;for(let i=0,j=ring.length-1;i<ring.length
 </script>
 
 <script src="sar-config.js"></script>
-<script src="sar.js?v=scanner-guidance-20261027"></script>
+<script src="sar.js?v=compact-scan-review-20261027"></script>
 
 <script type="module">
 // ---- BARCODE DETECTOR (phone camera) ----
@@ -2587,7 +2590,7 @@ window.LPCLiveScanner=(()=>{
   const frameCtx=frame.getContext('2d',{willReadFrequently:true});
   let stream=null,running=false,paused=false,busy=false,timer=null,lastFingerprint='';
 
-  function setUI(message,isRunning=false){label.textContent=message;video.closest('.live-scanner').dataset.running=String(isRunning);button.title=message;button.textContent=isRunning?'Stop camera':'Start camera'}
+  function setUI(message,isRunning=false){label.textContent=isRunning?'Hold DL barcode or QR inside frame':message;video.closest('.live-scanner').dataset.running=String(isRunning);button.title=message;button.textContent=isRunning?'Stop camera':'Start camera'}
   function schedule(delay=260){clearTimeout(timer);if(running&&!paused)timer=setTimeout(scanFrame,delay)}
   async function scanFrame(){
     if(!running||paused||busy||video.readyState<2){schedule();return}
@@ -2684,7 +2687,7 @@ window.LPCCardLiveScanner=(()=>{
   const frameCtx=frame.getContext('2d',{willReadFrequently:true});
   let stream=null,running=false,paused=false,busy=false,timer=null,lastFingerprint='';
 
-  function setUI(message,isRunning=false){label.textContent=message;video.closest('.live-scanner').dataset.running=String(isRunning);button.title=message;button.textContent=isRunning?'Stop camera':'Start camera'}
+  function setUI(message,isRunning=false){label.textContent=isRunning?'Hold DL barcode or QR inside frame':message;video.closest('.live-scanner').dataset.running=String(isRunning);button.title=message;button.textContent=isRunning?'Stop camera':'Start camera'}
   function schedule(delay=260){clearTimeout(timer);if(running&&!paused)timer=setTimeout(scanFrame,delay)}
   async function scanFrame(){
     if(!running||paused||busy||video.readyState<2){schedule();return}
