@@ -314,7 +314,9 @@ function resourceFilteredRows(){
   const scoped=window.LPCInventory?.filterRows(rows)||rows;
   return query?scoped.filter(row=>['name','address','phone','resource_type','resource_name','unit','notes','operator_name','card_id'].some(key=>String(row[key]??'').toLowerCase().includes(query))):scoped;
 }
+function resourceHistoryAvailable(){return resourceHistoryState==='ready'||resourceHistoryState==='refreshing'}
 function resourceHistoryMessage(){
+  if(resourceHistoryState==='refreshing')return 'Refreshing distributions… showing the last confirmed activity.';
   if(resourceHistoryState==='loading')return 'Loading resource distributions…';
   if(resourceHistoryState==='error')return 'Could not load distributions: '+resourceHistoryError;
   if(resourceHistoryState==='idle')return 'Resource distributions have not loaded yet. Use Refresh to load activity.';
@@ -332,8 +334,8 @@ function renderResourceActivity(){
   if(![...new Set(scopeRows.map(row=>row.resource_type))].includes(selectedType))typeFilter.value='';
   typeFilter.hidden=false;
   const rows=resourceFilteredRows(),empty=document.getElementById('emp'),table=document.getElementById('dt');
-  const ready=resourceHistoryState==='ready';
-  document.getElementById('tlc').textContent=String(ready?rows.length:0);
+  const ready=resourceHistoryAvailable();
+  document.getElementById('tlc').textContent=ready?String(rows.length):resourceHistoryState==='error'?'—':resourceHistoryState==='loading'?'…':'0';
   table.style.display=ready&&rows.length?'':'none';empty.style.display=ready&&rows.length?'none':'';
   if(!ready||!rows.length){empty.textContent=ready?(resourceRows.length?'No distributions match this filter.':'No resource distributions recorded.'):resourceHistoryMessage();document.getElementById('dtb').replaceChildren();return}
   const inventoryOn=window.LPCInventory?.enabled();
@@ -353,14 +355,14 @@ function renderResourceActivity(){
 function renderResourceHistory(){
   window.LPCInventory?.render();
   if(workflowMode==='resource'&&document.body.dataset.system!=='sar'){
-    document.getElementById('tlc').textContent=String(resourceHistoryState==='ready'?resourceFilteredRows().length:0);
+    document.getElementById('tlc').textContent=resourceHistoryAvailable()?String(resourceFilteredRows().length):resourceHistoryState==='error'?'—':resourceHistoryState==='loading'?'…':'0';
     if(activeTab==='log')renderResourceActivity();
   }
   const status=document.getElementById('resourceHistoryStatus'),list=document.getElementById('resourceHistory');
   if(!status||!list)return;
   status.textContent=resourceHistoryMessage()+(resourceHistoryState==='ready'?' Showing latest 100; CSV includes all loaded records.':'');
   list.replaceChildren();
-  if(resourceHistoryState!=='ready')return;
+  if(!resourceHistoryAvailable())return;
   const scoped=window.LPCInventory?.filterRows(resourceRows)||resourceRows;
   scoped.slice(0,100).forEach(record=>{
     const row=document.createElement('p');row.textContent=`${new Date(record.distributed_at).toLocaleString()} · ${record.name} · ${record.quantity} ${record.unit} ${record.resource_name}${record.notes?' · '+record.notes:''}`;list.append(row);
@@ -368,7 +370,8 @@ function renderResourceHistory(){
 }
 async function loadResourceHistory(){
   const version=++resourceHistoryVersion,url=resourceURL();
-  resourceRows=[];resourceHistoryState='loading';resourceHistoryError='';
+  const keepSnapshot=resourceHistoryAvailable();
+  if(!keepSnapshot)resourceRows=[];resourceHistoryState=keepSnapshot?'refreshing':'loading';resourceHistoryError='';
   if(!url){resourceHistoryState='error';resourceHistoryError='Resource GIS table is not connected.';renderResourceHistory();return}
   renderResourceHistory();
   try{
