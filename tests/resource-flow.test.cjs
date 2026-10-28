@@ -29,7 +29,7 @@ test('all scripts parse, map tab and confirmation markup are absent',()=>{
 });
 test('selecting Resource waits for explicit scanner launch',()=>{
  const f=fixture();f.loadFunction('setWorkflowMode','openModal');f.loadFunction('openModal','closeModal');
- f.run("setWorkflowMode('resource')");assert(!f.get('modal').classList.contains('open'));assert.equal(f.get('zoneScanBtn').textContent,'Distribute resources');
+ f.run("setWorkflowMode('resource')");assert(!f.get('modal').classList.contains('open'));assert.equal(f.get('zoneScanBtn').textContent,'Scan / Enter');
  f.run('openModal()');assert(f.get('modal').classList.contains('open'));assert.equal(f.get('heading').textContent,'Resource — aid distribution');assert(f.calls.includes('scanner'));
  f.run("setWorkflowMode('scan')");assert(!f.get('modal').classList.contains('open'));assert.equal(f.get('zoneScanBtn').textContent,'Check in');
 });
