@@ -617,3 +617,26 @@ html[data-theme="dark"] #resourceSelection .resource-item-summary:focus-visible{
  #modal .live-scanner:not([data-running="true"]) .scanner-viewport,
  #cardModal .live-scanner:not([data-running="true"]) .scanner-viewport{display:none}
 }
+
+/* Use the camera's lower margin for guidance without adding form height. */
+.scanner-viewport .live-scanner-frame{inset:12% 8% 22px}
+#modal .live-scanner[data-running="true"] .live-scanner-label,
+#cardModal .live-scanner[data-running="true"] .live-scanner-label,
+#sarCameraWrap.active .live-scanner-label{
+ position:absolute;inset:auto 4px 4px;display:block;margin:0;padding:2px 4px;
+ border-radius:4px;background:rgba(9,14,22,.82);color:#fff;font-size:10px;line-height:1.2;text-align:center;
+}
+#modal .wedge-status.listening,#cardModal .wedge-status.listening{display:none}
+/* Once checked, prioritize address review and the override decision. */
+#modal[data-address-review="true"] #liveScanner,
+#modal[data-address-review="true"] #s1>.live-scanner-actions,
+#modal[data-address-review="true"] #s1dv,
+#modal[data-address-review="true"] #manualAddressEnter,
+#modal[data-address-review="true"] .wedge-status.captured{display:none!important}
+@media(max-width:700px){
+ #modal[data-address-review="true"] #s1res{margin:6px 0 8px;padding:9px 10px}
+ #modal[data-address-review="true"] #s1res .vd{font-size:14px}
+ #modal[data-address-review="true"] #s1res .dt,#modal[data-address-review="true"] #s1res .ae{font-size:11px;line-height:1.35}
+ #modal[data-address-review="true"] #s1ResolutionActions{margin-top:8px;gap:6px}
+ #modal[data-address-review="true"] #zoneOverrideBtn{min-height:46px;padding:10px 12px}
+}
