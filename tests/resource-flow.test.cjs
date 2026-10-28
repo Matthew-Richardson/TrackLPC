@@ -237,6 +237,9 @@ test('real Check-in form resets, opens, verifies typed addresses, and advances t
  // Outside-zone addresses stay at step 1 for review instead of proceeding.
  f.context.pip=()=>false;f.get('ai').value='20 Outside St';await f.run('doCheck()');
  assert.equal(f.get('s2').style.display,'none');assert.equal(f.get('zoneOverrideBtn').style.display,'');
+ assert.equal(f.get('modal').dataset.addressReview,'true');assert.equal(f.get('ss').textContent,'');
+ f.run(html.slice(html.indexOf('const manualAddressInput='),html.indexOf('// ---- STEP 2 ----')));
+ f.get('ai').listeners.input();assert.equal(f.get('modal').dataset.addressReview,'false');assert.equal(f.get('zoneOverrideBtn').style.display,'none');
 });
 
 
@@ -303,4 +306,13 @@ test('SAR dialogs use the visible keyboard viewport and reset after dismissal',(
  assert.equal(properties['--sar-viewport-height'],'340px');assert.equal(properties['--sar-viewport-top'],'70px');assert.equal(root.dataset.sarKeyboard,'true');
  viewport.height=667;viewport.offsetTop=0;vm.runInContext('syncSARViewport()',context);
  assert.equal(properties['--sar-viewport-height'],'667px');assert.equal(properties['--sar-viewport-top'],'0px');assert.equal(root.dataset.sarKeyboard,'false');
+});
+
+
+test('the previous check-in confirmation appears once when preparing the next scan',()=>{
+ const f=fixture();f.run('let lastCheck=null,selectedDir=null;');f.loadFunction('resetModal','startNextCheckpointScan');
+ f.run("resetModal({resumeScanner:false,statusText:'Saved IN — Jane Example'})");
+ assert.equal(f.get('ss').textContent,'Saved IN — Jane Example');
+ assert(!f.get('wedgeStatusCP').textContent.includes('Saved IN'));
+ assert.equal(f.get('modal').dataset.addressReview,'false');
 });
