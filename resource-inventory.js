@@ -39,18 +39,20 @@ window.LPCInventory=(()=>{
    state.selected=new Map(rows);try{window.localStorage?.setItem(preferenceKey(),JSON.stringify(rows))}catch{/* Shared records are saved independently of device preferences. */}
  }
  function setConfiguration(open,kind='county'){
-   const county=open&&kind==='county',ops=open&&kind==='operations';
+   const county=open&&kind==='county',ops=open&&kind==='operations',dialog=$('riManagementDialog');
+   dialog.dataset.kind=kind;
    $('resourceInventoryConfig').hidden=!county;$('riOperationConfig').hidden=!ops;
    if(county&&!pending)setCountyAction(null);
+   if(ops){const resume=pending?.kind==='operations';dialog.dataset.page=resume?'new-operation':'operations';$('riDialogTitle').textContent=resume?'Create operation':'Operation setup';$('riNewOperation').hidden=!resume}
    $('riCountySetup').setAttribute('aria-expanded',String(county));$('riOperationSetup').setAttribute('aria-expanded',String(ops));$('riSelectedOperation').setAttribute('aria-expanded',String(ops));
-   if(!open)$(kind==='operations'?'riOperationSetup':'riCountySetup').focus({preventScroll:true});
+   if(open){if(!dialog.open)dialog.showModal()}else{if(dialog.open)dialog.close();$(kind==='operations'?'riOperationSetup':'riCountySetup').focus({preventScroll:true})}
  }
  function setCountyAction(action){
+   const dialog=$('riManagementDialog');dialog.dataset.page=action||'county';
+   $('riDialogTitle').textContent=action==='stock'?'Add a resource':action==='receipt'?'Receive stock':action==='revise'?'Edit supply details':action==='count'?'Update supply':action==='deactivate'?'Make supply inactive':action==='activate'?'Reactivate supply':'County inventory';
    $('riAddStock').hidden=action!=='stock';$('riReceiveStock').hidden=action!=='receipt';
-   $('riAddStockAction').setAttribute('aria-pressed',String(action==='stock'));$('riReceiveStockAction').setAttribute('aria-pressed',String(action==='receipt'));
    if($('riSupplyEditor'))$('riSupplyEditor').hidden=!['revise','count','deactivate','activate'].includes(action);
    if($('riSupplyLists'))$('riSupplyLists').hidden=!!action;
-   if($('riViewSupplies'))$('riViewSupplies').setAttribute('aria-pressed',String(!action));
  }
  function chooseOperation(id){
    if(resourceSaving||$('resourceForm')?._pendingResource)return;
@@ -115,7 +117,7 @@ window.LPCInventory=(()=>{
    $('riEditDetails').hidden=mode!=='revise';$('riEditQuantity').hidden=mode!=='count';
    const title=mode==='revise'?'Edit supply details':mode==='count'?'Update quantity on hand':mode==='deactivate'?'Make supply inactive':'Reactivate supply';
    $('riSupplyEditTitle').textContent=title;$('riSupplyEditContext').textContent=stock.resource_name+' · '+stock.location+' · '+fmt(stock.remaining)+' '+stock.unit+' on hand';
-   $('riSupplyEditSave').textContent=mode==='revise'?'Save new revision':mode==='count'?'Save updated count':mode==='deactivate'?'Make inactive':'Reactivate';
+   $('riSupplyEditSave').textContent=mode==='deactivate'?'Make inactive':mode==='activate'?'Reactivate':'Save';
    form.querySelector('[role="status"]').textContent='';setCountyAction(mode);
  }
  function renderSupplies(stocks){
@@ -166,29 +168,42 @@ window.LPCInventory=(()=>{
    const host=document.createElement('div');host.id='resourceInventory';section.prepend(host);
    host.innerHTML=`<div class="ri-heading"><h2>Resource Tracker</h2><button id="riSelectedOperation" class="ri-selected-operation sar-selected-event" type="button" aria-label="Select or change operation" aria-expanded="false" aria-controls="riOperationConfig"></button><div class="ri-setup-actions"><button class="b" id="riOperationSetup" type="button" aria-expanded="false" aria-controls="riOperationConfig">Operation setup</button><button class="b" id="riCountySetup" type="button" aria-expanded="false" aria-controls="resourceInventoryConfig">County inventory</button><button class="b" id="riRefresh" type="button">Refresh</button></div></div>
     <p id="riConnection" class="resource-help" role="status"></p><div id="riMetrics" class="ri-metrics"></div>
-    <section id="riOperationConfig" hidden aria-label="Operation setup"><div class="ri-config-heading"><div><span class="ri-command-label">Command staff</span><h3>Operation setup</h3></div><button class="b" id="riOperationDone" type="button">Done</button></div>
+    <section id="riOperationConfig" hidden aria-label="Operation setup"><div class="ri-config-heading"><div><span class="ri-command-label">Command staff</span><h3>Operation setup</h3></div><button class="b" id="riOperationDone" type="button">Close</button></div>
       <p class="resource-help">Choose an open operation to track its distributions, or create one. County supplies stay shared.</p><div class="ri-panel-actions"><button class="b ba" id="riCreateOperation" type="button">New operation</button><button class="b" id="riCountyOperation" type="button">Countywide / no operation</button></div>
       <div id="riNewOperation" hidden><form id="riOperationForm" class="ri-form"><label>Operation name<input name="name" maxlength="150" required placeholder="Flood assistance"></label><button class="b ba" type="submit">Create &amp; use operation</button><button class="b" id="riCancelOperation" type="button">Cancel</button><p role="status"></p></form></div>
       <h4 class="ri-section-label">Open operations</h4><div id="riOpenOperations"></div><details id="riClosedOperationsGroup"><summary>Closed operations</summary><div id="riClosedOperations"></div></details>
     </section>
-    <section id="resourceInventoryConfig" hidden aria-label="County inventory"><div class="ri-config-heading"><div><span class="ri-command-label">Command staff</span><h3>County inventory</h3></div><button class="b" id="riCountyDone" type="button">Done</button></div>
-      <p class="resource-help">Manage the supplies physically stored across the county. Choose what you need to do.</p><div class="ri-panel-actions"><button class="b" id="riViewSupplies" type="button" aria-pressed="true">Supplies</button><button class="b" id="riAddStockAction" type="button" aria-pressed="false">Add a resource</button><button class="b" id="riReceiveStockAction" type="button" aria-pressed="false">Receive stock</button></div>
-      <div id="riConfigForms"><section id="riSupplyEditor" hidden><h4 id="riSupplyEditTitle"></h4><p id="riSupplyEditContext" class="resource-help"></p><p class="resource-help">This saves a new revision. Earlier rows remain in the table and history.</p><form id="riSupplyEditForm" class="ri-form"><input name="stock" type="hidden"><input name="mode" type="hidden"><div id="riEditDetails" class="ri-edit-details"><label>Resource name<input name="name" maxlength="150"></label><label>Category<input name="type" maxlength="80"></label><label>Storage location<input name="location" maxlength="150"></label><label>Unit<input name="unit" readonly></label></div><label id="riEditQuantity">Physical quantity on hand<input name="quantity" type="number" min="0" step="any"></label><label>Reason / notes (optional)<input name="notes" maxlength="2000"></label><button id="riSupplyEditSave" class="b ba" type="submit">Save new revision</button><button id="riSupplyEditCancel" class="b" type="button">Back to supplies</button><p role="status"></p></form></section><section id="riAddStock" hidden><h4 class="ri-section-label">1. Choose a resource</h4><div id="riCommonResources" class="ri-pills"></div><h4 class="ri-section-label">2. Enter location &amp; starting supply</h4><form id="riStockForm" class="ri-form"><input name="stock" type="hidden" value=""><label>Resource name<input name="name" maxlength="150" required placeholder="Bottled water cases"></label><label>Category<input name="type" maxlength="80" required placeholder="Water"></label><label>Storage location<input name="location" maxlength="150" required placeholder="County warehouse"></label><label>Unit (case, box, each)<input name="unit" maxlength="40" required placeholder="case"></label><label>Starting supply<input name="quantity" type="number" min="0" step="any" required></label><label>Notes (optional)<input name="notes" maxlength="2000"></label><button class="b ba" type="submit">Save starting supply</button><p role="status"></p></form></section>
+    <section id="resourceInventoryConfig" hidden aria-label="County inventory"><div class="ri-config-heading"><div><span class="ri-command-label">Command staff</span><h3>County inventory</h3></div><button class="b" id="riCountyDone" type="button">Close</button></div>
+      <p class="resource-help">Manage the supplies physically stored across the county. Choose what you need to do.</p><div class="ri-panel-actions"><button class="b" id="riAddStockAction" type="button">Add a resource</button><button class="b" id="riReceiveStockAction" type="button">Receive stock</button></div>
+      <div id="riConfigForms"><section id="riSupplyEditor" hidden><h4 id="riSupplyEditTitle"></h4><p id="riSupplyEditContext" class="resource-help"></p><p class="resource-help">This saves a new revision. Earlier rows remain in the table and history.</p><form id="riSupplyEditForm" class="ri-form"><input name="stock" type="hidden"><input name="mode" type="hidden"><div id="riEditDetails" class="ri-edit-details"><label>Resource name<input name="name" maxlength="150"></label><label>Category<input name="type" maxlength="80"></label><label>Storage location<input name="location" maxlength="150"></label><label>Unit<input name="unit" readonly></label></div><label id="riEditQuantity">Physical quantity on hand<input name="quantity" type="number" min="0" step="any"></label><label>Reason / notes (optional)<input name="notes" maxlength="2000"></label><button id="riSupplyEditSave" class="b ba" type="submit">Save</button><button id="riSupplyEditCancel" class="b" type="button">Close</button><p role="status"></p></form></section><section id="riAddStock" hidden><h4 class="ri-section-label">1. Choose a resource</h4><div id="riCommonResources" class="ri-pills"></div><h4 class="ri-section-label">2. Enter location &amp; starting supply</h4><form id="riStockForm" class="ri-form"><input name="stock" type="hidden" value=""><label>Resource name<input name="name" maxlength="150" required placeholder="Bottled water cases"></label><label>Category<input name="type" maxlength="80" required placeholder="Water"></label><label>Storage location<input name="location" maxlength="150" required placeholder="County warehouse"></label><label>Unit (case, box, each)<input name="unit" maxlength="40" required placeholder="case"></label><label>Starting supply<input name="quantity" type="number" min="0" step="any" required></label><label>Notes (optional)<input name="notes" maxlength="2000"></label><button class="b ba" type="submit">Save starting supply</button><p role="status"></p></form></section>
       <section id="riReceiveStock" hidden><h4 class="ri-section-label">1. Choose the resource &amp; storage location</h4><div id="riReceiptChoices" class="ri-choice-list"></div><p id="riReceiptPrompt" class="resource-help">Choose a supply above to enter the delivery amount.</p><button id="riChangeReceipt" class="b" type="button" hidden>Choose a different supply</button><form id="riReceiptForm" class="ri-form"><input name="stock" id="riRestockChoice" type="hidden"><p id="riReceiptSelected" class="ri-form-context"></p><label>Quantity received<input name="quantity" type="number" min="0.001" step="any" required></label><label>Notes (optional)<input name="notes" maxlength="2000"></label><button class="b ba" type="submit">Add stock</button><p role="status"></p></form></section></div>
       <section id="riSupplyLists"><h4 class="ri-section-label">Active supplies</h4><div id="riActiveSupplies" class="ri-supply-list"></div><details id="riInactiveGroup"><summary>Inactive supplies</summary><div id="riInactiveSupplies" class="ri-supply-list"></div></details></section>
       <a href="https://github.com/Matthew-Richardson/TrackLPC/blob/main/RESOURCE_GIS_SETUP.md" target="_blank" rel="noopener">Shared inventory setup guide</a>
     </section>
     <details id="riFilters" class="ri-dashboard-filters"><summary>Filter dashboard &amp; activity</summary><div id="riActivityScope" class="ri-activity-scope" aria-label="Countywide activity scope"><h4 class="ri-section-label">Countywide activity</h4><button class="ri-pill" id="riOpenActivity" type="button" aria-pressed="true">Open operations</button><button class="ri-pill" id="riAllActivity" type="button" aria-pressed="false">Open + closed</button></div><h4 class="ri-section-label">Location</h4><div id="riLocationChoices" class="ri-pills"></div><h4 class="ri-section-label">Resource</h4><div id="riResourceChoices" class="ri-pills"></div></details>
     <p class="resource-help ri-scan-help">Scan or enter a person, then choose resources and amounts inside check-in.</p>`;
+   const dialog=document.createElement('dialog');dialog.id='riManagementDialog';dialog.className='ri-management-dialog';dialog.setAttribute('aria-labelledby','riDialogTitle');
+   dialog.innerHTML='<div class="ri-dialog-header"><h2 id="riDialogTitle">Resource setup</h2><button class="b" type="button" id="riDialogClose" autofocus>Close</button></div><div class="ri-dialog-content" id="riDialogContent"></div>';
+   document.body.append(dialog);$('riDialogContent').append($('riOperationConfig'),$('resourceInventoryConfig'));
+   $('riDialogClose').onclick=()=>setConfiguration(false,dialog.dataset.kind||'county');
+   dialog.addEventListener('cancel',e=>{e.preventDefault();setConfiguration(false,dialog.dataset.kind||'county')});
+   for(const id of ['riOperationSetup','riCountySetup','riSelectedOperation'])$(id).setAttribute('aria-haspopup','dialog');
+   for(const [id,kind] of [['riStockForm','county'],['riReceiptForm','county'],['riOperationForm','operations'],['riSupplyEditForm','county']]){
+     const form=$(id),actions=document.createElement('div');actions.className='ri-form-actions';
+     const save=form.querySelector('button[type="submit"]');let close=form.querySelector('button[type="button"]');
+     if(!close){close=document.createElement('button');close.type='button';close.className='b';close.textContent='Close'}
+     close.textContent='Close';close.onclick=()=>setConfiguration(false,kind);actions.append(save,close);form.append(actions);
+   }
+   const fitDialog=()=>{const view=window.visualViewport;dialog.style.setProperty('--ri-visible-height',(view?.height||window.innerHeight)+'px');dialog.style.setProperty('--ri-visible-top',(view?.offsetTop||0)+'px')};
+   window.visualViewport?.addEventListener('resize',fitDialog);window.visualViewport?.addEventListener('scroll',fitDialog);window.addEventListener('resize',fitDialog);fitDialog();
    $('riOpenActivity').onclick=()=>setActivityScope('open');$('riAllActivity').onclick=()=>setActivityScope('all');
    $('riSelectedOperation').onclick=()=>setConfiguration($('riOperationConfig').hidden,'operations');
    $('riOperationSetup').onclick=()=>setConfiguration($('riOperationConfig').hidden,'operations');
    $('riCountySetup').onclick=()=>setConfiguration($('resourceInventoryConfig').hidden,'county');
    $('riOperationDone').onclick=()=>setConfiguration(false,'operations');$('riCountyDone').onclick=()=>setConfiguration(false,'county');
-   $('riCreateOperation').onclick=()=>{$('riNewOperation').hidden=false;$('riOperationForm').elements.namedItem('name').focus({preventScroll:true})};
-   $('riCancelOperation').onclick=()=>{$('riNewOperation').hidden=true};$('riCountyOperation').onclick=()=>chooseOperation('');
-   $('riViewSupplies').onclick=()=>{if(!pending)setCountyAction(null)};
-   $('riSupplyEditCancel').onclick=()=>{if(!pending)setCountyAction(null)};
+   $('riCreateOperation').onclick=()=>{$('riManagementDialog').dataset.page='new-operation';$('riDialogTitle').textContent='Create operation';$('riNewOperation').hidden=false};
+   $('riCancelOperation').onclick=()=>setConfiguration(false,'operations');$('riCountyOperation').onclick=()=>chooseOperation('');
+   $('riSupplyEditCancel').onclick=()=>setConfiguration(false,'county');
    $('riChangeReceipt').onclick=()=>{$('riRestockChoice').value='';render()};
    $('riAddStockAction').onclick=()=>setCountyAction('stock');$('riReceiveStockAction').onclick=()=>setCountyAction('receipt');
    for(const preset of RESOURCE_PRESETS){const button=document.createElement('button');button.type='button';button.className='ri-pill';button.textContent=preset[0]==='custom'?'Custom resource':preset[2];button.onclick=()=>{const form=$('riStockForm');for(const [field,value] of [['name',preset[2]],['type',preset[1]],['unit',preset[3]]])form.elements.namedItem(field).value=value};$('riCommonResources').append(button)}
