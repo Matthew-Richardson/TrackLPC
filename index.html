@@ -270,7 +270,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
 }
 </style>
 <link rel="stylesheet" href="sar.css"/>
-<link rel="stylesheet" href="app.css?v=keyboard-viewport-20261027"/>
+<link rel="stylesheet" href="app.css?v=scanner-guidance-20261027"/>
 </head>
 <body>
 
@@ -423,8 +423,10 @@ body[data-workflow="card"] #cardManageView{display:flex}
   <!-- STEP 1: scan + check -->
   <div id="s1">
     <div class="live-scanner" id="liveScanner">
+      <div class="scanner-viewport">
       <video id="scannerVideo" playsinline muted aria-label="Live barcode scanner camera"></video>
       <div class="live-scanner-frame"></div>
+      </div>
       <div class="live-scanner-label" id="liveScannerLabel">Starting camera — hold a QR code or DL barcode in the frame</div>
     </div>
     <div class="live-scanner-actions">
@@ -478,8 +480,10 @@ body[data-workflow="card"] #cardManageView{display:flex}
     <p>Hold a driver's license or LPC card in the phone camera, or use the DS8101, to auto-fill the form.</p>
     <div class="wedge-status" id="wedgeStatusCard">Scanner ready — scan a DL or re-entry card</div>
     <div class="live-scanner" id="cardLiveScanner">
+      <div class="scanner-viewport">
       <video id="cardScannerVideo" playsinline muted aria-label="Live custom-card barcode scanner camera"></video>
       <div class="live-scanner-frame"></div>
+      </div>
       <div class="live-scanner-label" id="cardLiveScannerLabel">Starting camera — hold a QR code or DL barcode in the frame</div>
     </div>
     <div class="live-scanner-actions">
@@ -2516,7 +2520,7 @@ function ray(px,py,ring){let ins=false;for(let i=0,j=ring.length-1;i<ring.length
 </script>
 
 <script src="sar-config.js"></script>
-<script src="sar.js?v=keyboard-viewport-20261027"></script>
+<script src="sar.js?v=scanner-guidance-20261027"></script>
 
 <script type="module">
 // ---- BARCODE DETECTOR (phone camera) ----
@@ -2583,7 +2587,7 @@ window.LPCLiveScanner=(()=>{
   const frameCtx=frame.getContext('2d',{willReadFrequently:true});
   let stream=null,running=false,paused=false,busy=false,timer=null,lastFingerprint='';
 
-  function setUI(message,isRunning=false){label.textContent=message;video.parentElement.dataset.running=String(isRunning);button.title=message;button.textContent=isRunning?'Stop camera':'Start camera'}
+  function setUI(message,isRunning=false){label.textContent=message;video.closest('.live-scanner').dataset.running=String(isRunning);button.title=message;button.textContent=isRunning?'Stop camera':'Start camera'}
   function schedule(delay=260){clearTimeout(timer);if(running&&!paused)timer=setTimeout(scanFrame,delay)}
   async function scanFrame(){
     if(!running||paused||busy||video.readyState<2){schedule();return}
@@ -2680,7 +2684,7 @@ window.LPCCardLiveScanner=(()=>{
   const frameCtx=frame.getContext('2d',{willReadFrequently:true});
   let stream=null,running=false,paused=false,busy=false,timer=null,lastFingerprint='';
 
-  function setUI(message,isRunning=false){label.textContent=message;video.parentElement.dataset.running=String(isRunning);button.title=message;button.textContent=isRunning?'Stop camera':'Start camera'}
+  function setUI(message,isRunning=false){label.textContent=message;video.closest('.live-scanner').dataset.running=String(isRunning);button.title=message;button.textContent=isRunning?'Stop camera':'Start camera'}
   function schedule(delay=260){clearTimeout(timer);if(running&&!paused)timer=setTimeout(scanFrame,delay)}
   async function scanFrame(){
     if(!running||paused||busy||video.readyState<2){schedule();return}
