@@ -512,3 +512,54 @@ html[data-theme="dark"] #modal .live-scanner-actions .b:hover{color:var(--ui-tex
 .mo>.md{background:var(--ui-panel);border-color:#c1cbd7;box-shadow:0 18px 70px rgba(0,0,0,.38),0 0 0 1px rgba(255,255,255,.18)}
 html[data-theme="dark"] .mo{background:rgba(3,8,15,.78)}
 html[data-theme="dark"] .mo>.md{background:var(--ui-panel);border-color:#536579;box-shadow:0 18px 70px rgba(0,0,0,.65),0 0 0 1px rgba(255,255,255,.06)}
+
+/* SAR uses the same focused action dialogs as OEM workflows. */
+.sar-launch-actions{display:flex;justify-content:center;margin:14px 0 20px}
+.sar-launch-actions>.sar-btn.primary,.sar-modal #sarMemberSave,.sar-modal #sarEventSave{
+ display:flex;align-items:center;justify-content:center;width:100%;max-width:360px;min-height:50px;margin:12px auto;padding:13px 18px;font-size:16px;font-weight:750;text-align:center;
+}
+#sarCheckModal .sar-checkin{padding:0;margin:0;background:transparent;border:0}
+#sarCheckModal .sar-checkin h3{display:none}
+#sarCheckModal .sar-check-actions{justify-content:center;gap:10px}
+#sarCheckModal .sar-check-actions .sar-btn[data-sar-direction]{flex:1;min-height:50px;font-size:17px;font-weight:750;max-width:175px}
+#sarCheckModal .sar-check-actions .sar-btn[data-sar-action="clear-member"]{flex-basis:100%;max-width:200px;margin:2px auto;background:transparent;color:var(--ui-muted);border-color:var(--ui-border)}
+#sarCheckModal .sar-check-actions .sar-btn.out{border:2px solid var(--ui-accent);background:var(--ui-panel);color:var(--ui-accent-dark)}
+html[data-theme="dark"] #sarCheckModal .sar-check-actions .sar-btn.out{color:var(--ui-link);border-color:var(--ui-link)}
+#sarCheckModal .sar-checkin>.sar-actions:not(.sar-check-actions){justify-content:center}
+#sarCheckModal .sar-checkin>.sar-actions:not(.sar-check-actions) .sar-btn{min-height:40px}
+#sarCheckModal .sar-picked{overflow-wrap:anywhere;min-height:0;padding:8px 0}
+#sarCheckModal .sar-feedback:empty,.sar-modal .sar-feedback:empty{display:none}
+#sarCardModal .sar-actions{justify-content:center;max-width:360px;margin:8px auto;gap:8px}
+#sarCardModal .sar-actions>.sar-btn{flex:1;min-height:46px;justify-content:center;text-align:center}
+#sarCardModal .sar-actions>.sar-btn.primary{font-size:15px;font-weight:750}
+.sar-modal .sar-btn:focus-visible{outline:2px solid var(--ui-link,var(--ui-accent));outline-offset:3px}
+@media(max-width:700px){
+ .sar-modal .md{padding:10px 12px max(10px,env(safe-area-inset-bottom));max-height:calc(100dvh - env(safe-area-inset-top));border-radius:12px 12px 0 0;scroll-padding-bottom:60px}
+ .sar-modal .mh{margin-bottom:8px}
+ .sar-modal .mh h2{font-size:17px}
+ .sar-modal .sar-field{gap:3px;margin-bottom:8px}
+ .sar-modal .sar-field label{font-size:11px;margin-bottom:0}
+ .sar-modal .sar-field input,.sar-modal .sar-field select{font-size:16px;min-height:40px;padding:7px 9px;line-height:1.4}
+ .sar-modal .sar-field textarea{font-size:16px;min-height:54px;padding:7px 9px}
+ .sar-modal .sar-help{margin:4px 0;font-size:11px;line-height:1.35}
+ .sar-modal .sar-feedback{margin:5px 0;min-height:0;font-size:12px;line-height:1.4}
+ .sar-modal #sarMemberSave,.sar-modal #sarEventSave{min-height:48px;margin:10px auto 6px;font-size:15px}
+ #sarCheckModal .sar-check-grid{grid-template-columns:minmax(0,1fr);gap:0;margin-top:8px}
+ #sarCheckEvent{font-weight:650;color:var(--ui-text);overflow-wrap:anywhere}
+ #sarCheckModal .sar-scan-video{margin:6px 0}
+ #sarCheckModal .sar-scan-video video{height:clamp(70px,13dvh,100px);max-height:100px;object-fit:cover}
+ #sarCheckModal .sar-picked{font-size:12px;line-height:1.4;padding:7px 0}
+ #sarCheckModal .sar-check-actions .sar-btn[data-sar-direction]{min-height:48px;font-size:16px}
+ #sarCheckModal .sar-check-actions .sar-btn[data-sar-action="clear-member"]{min-height:36px;padding:7px}
+ #sarCardModal .sar-card-canvas{max-height:30dvh;max-width:190px;margin:0 auto 8px;border-radius:7px;box-shadow:none}
+ #sarCardModal .workflow-optional{margin:5px 0}
+ #sarCardModal .sar-card-hint{font-size:11px;margin-bottom:8px}
+ #sarMemberModal .sar-form-grid,#sarEventModal .sar-form-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+ body[data-system="sar"] #sarNewMember{min-height:44px;min-width:160px;justify-content:center}
+}
+@media(max-width:700px){
+ #sarCheckModal .sar-checkin:has(.sar-scan-video.active)>.sar-help,
+ #sarCheckModal .sar-checkin:has(.sar-scan-video.active) .sar-check-grid>.sar-field:first-child{display:none}
+}
+/* Keep the page behind an open workflow from scrolling. */
+html:has(.mo.open),body:has(.mo.open){overflow:hidden!important;overscroll-behavior:none}
