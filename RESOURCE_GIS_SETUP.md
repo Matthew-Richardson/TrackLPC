@@ -1,6 +1,6 @@
 # Resource distribution GIS setup
 
-Resource is a workflow inside **LPC Evac**, alongside Checkpoint and Custom Card. Choose resources and quantities, then use **Distribute resources** to open the scanner. Resource has no map, zone selection, or address-to-zone check. Checkpoint retains the evacuation zone map.
+Resource is a workflow inside **LPC Evac**, alongside Checkpoint and Custom Card. Choose resources and quantities, then use **Scan / Enter** to open the scanner. Resource has no map, zone selection, or address-to-zone check. Checkpoint retains the evacuation zone map.
 
 ## Create the table
 
@@ -55,4 +55,32 @@ Dates are entered in the device's local time zone and stored as epoch millisecon
 - Resource history loads all pages across zones, displays the latest 100 distributions in the scanner history, and exports all loaded records. Refresh history before exporting updates from other operators.
 - Saves require an authenticated ArcGIS session and a configured table. There is no local/offline queue. Batch saves request `rollbackOnFailure=true`. After an uncertain or partial response, retry checks every retained item ID and writes only missing lines. Recipient, zone, quantities, dates, and notes are frozen for that pending attempt. Keep the screen open and retry until the result is confirmed. The next-person control stays disabled during an unresolved save.
 - Custom-card registry creation must succeed before new distribution rows are submitted. If the resource service fails afterwards, the reusable card can already exist; retry reuses that card.
-- After success, the save control is disabled to prevent repeating the same distribution. Use Scan another person for the next recipient. To change the resource selections, close the scanner and edit them above the map.
+- After success, the save control is disabled to prevent repeating the same distribution. Use Scan another person for the next recipient. To change the resource selections, close the scanner and edit the resource selections on the dashboard.
+
+## County inventory and optional operations
+
+The Resource dashboard supports ongoing county inventory and named operations together. Supply is held by **resource + storage location + unit**. Each distribution consumes that supply once, whether it has an operation or is county routine assistance. Operations group activity; selecting one does not reserve, transfer, or subtract stock. Physical transfers between locations and inventory corrections are not implemented in this version.
+
+### One-time shared-table setup
+
+1. Add the two nonspatial tables in `resource-inventory-table-definition.json` to the **existing private LPCOEM_Resource FeatureServer** with its administrative `addToDefinition` endpoint. The supplied IDs are **1 and 2**; change them to unused IDs if these are occupied. Keep the existing distribution table and its data.
+2. Keep the exact table names **Resource_Inventory** and **Resource_Operations**. The app discovers their actual IDs. Alternatively, set `inventoryTableUrl` and `operationsTableUrl` in `resource-config.js` to exact table URLs.
+3. Enable Query/Create for Resource_Inventory. Enable Query/Create/Update for Resource_Operations, so an operation can be closed or reopened. Enable pagination and ordering. Share with the same authorized operations group as the distribution table. Keep the service private. Enable editor tracking.
+4. Verify **unique indexes** exist on `Resource_Inventory.entry_id` and `Resource_Operations.operation_id`. These protect retries from duplicate supplies or operations. Retain the unique index on distribution_id.
+5. Refresh Resource Tracker. Under **Resource & operation configuration**, add each resource's type, description, unit, physical location, and starting quantity. Starting quantity means **the stock physically on hand now**, at the time you configure it. Historical untracked distributions are not deducted from newly configured stock.
+6. Use **Receive more stock** to append a receipt for an existing resource/location. Use a new stock entry for a different location or unit. Supply entries are immutable in the app; receipts preserve the audit history.
+7. Optionally create an operation. Choose **County inventory / no operation** for routine assistance, or select a named operation before scanning. Closed operations remain visible for history and can be reopened; new distributions against a closed operation are blocked.
+
+Until both tables are connected and validated, the existing resource entry workflow remains available, and the dashboard shows a setup message. Inventory totals are never stored only on one phone, and failed history reads are shown as unavailable rather than zero supply.
+
+### Stored relationships and metrics
+
+No fields need to be added to the existing Resource_Distributions table. A tracked resource's opaque `RINV-…` inventory_id is stored in its existing **preset_id** field. An optional `ROP-…` operation_id is stored in **incident**. Legacy preset_id and incident values are preserved. Stock entries and operations hold their readable names. CSV adds readable Location and Operation columns; distribution rows retain their original IDs for audit and retry checks.
+
+- **Resource_Inventory** is an append-only ledger. A starting-supply row has record_type `stock` and entry_id equal to inventory_id. Restocks have record_type `receipt`, a unique entry_id, and the same inventory_id. Both carry quantity, recorded_at, operator_name, and optional notes. The starting row defines resource_type, resource_name, unit, and location.
+- **Resource_Operations** contains operation_id, name, status (`Open` / `Closed`), created_at, and operator_name, plus the system OID.
+- Remaining supply = starting quantity + receipts − confirmed linked distribution quantities, across **all operations**. Per-resource percentage = remaining / total received. Different units/resources are never combined into a single percentage. Select a resource in the dashboard to aggregate its locations; expand **Supply by resource & location** for individual balances.
+- People served counts distinct card_id values in the selected scope, falling back to name/address for older records. It counts cardholders/recipient records, not household members. Low/empty supply means 20% or less remaining. Operation/location/resource selectors also filter Activity.
+- Resource pills select one or more configured supplies. Enter a quantity for each, then use Scan / Enter. The recipient review includes **Change resources for this person**, before saving. Phone, Date, Covers through, and Notes remain expanded. Zebra input uses the existing Checkpoint/Resource route.
+- Availability is refreshed before a write. Insufficient observed supply blocks the save and permits changing the quantities before any distribution write. Once a write may have been submitted, the existing frozen-ID retry flow checks which lines already exist and submits only missing ones. Stock is calculated from those confirmed rows; retries never append a second stock deduction.
+- Counts are shared and refresh with activity polling, but separate FeatureServer client calls are **not an atomic inventory reservation**. Simultaneous operators can both pass a pre-save availability check. An overdrawn balance is displayed rather than hidden; strict concurrent stock enforcement would require a transactional server-side reservation service.
