@@ -274,3 +274,22 @@ test('incomplete collapsed resources reopen for correction before scanning',()=>
  assert.equal(f.run('beginResourceScan()'),false);assert.equal(f.get('resourceItemRows').children[0].open,true);
  assert.match(f.get('resourceSelectionStatus').textContent,/greater than zero/);
 });
+
+test('opening a registry card previews it without starting a print job',async()=>{
+ const f=fixture();let shown=null,prints=0;
+ f.context.resetCardModal=()=>{};f.context.switchCardView=()=>{};
+ f.context.showCardPreview=async card=>{shown=card};f.context.printCard=async()=>{prints++};
+ f.run(html.slice(html.indexOf('async function viewRegistryCard('),html.indexOf('async function generateCard(')));
+ f.context.card={fn:'Jane',ln:'Example',addr:'10 Test St',phone:'',reason:'',cardId:'LPC-TEST'};
+ await f.run('viewRegistryCard(card)');assert.equal(shown.cardId,'LPC-TEST');assert.equal(prints,0);
+});
+test('full-screen display uses the rendered card image without printing or changing the card',()=>{
+ const f=fixture();let opened=0;
+ f.get('cardPrintPreview').width=638;f.get('cardPrintPreview').height=1013;
+ f.get('cardPrintPreview').toDataURL=()=> 'data:image/png;base64,TEST';
+ f.get('cardDisplay').showModal=()=>{opened++;f.get('cardDisplay').open=true};
+ f.run(html.slice(html.indexOf('function openCardDisplay('),html.indexOf('async function viewRegistryCard(')));
+ f.run("openCardDisplay('cardPrintPreview')");assert.equal(opened,1);
+ assert.equal(f.get('cardDisplayImage').src,'data:image/png;base64,TEST');
+ f.run("openCardDisplay('cardPrintPreview')");assert.equal(opened,1);
+});
