@@ -75,3 +75,28 @@ test('stored selections ignore removed resources and invalid quantities',async()
 test('unavailable device storage does not block distribution defaults between recipients',async()=>{
  const f=fixture([stock('RINV-a','Water','case',20)]);Object.defineProperty(f.context.window,'localStorage',{get(){throw Error('Storage blocked')}});await f.api.refresh();assert.doesNotThrow(()=>f.api.remember([{preset:'RINV-a',quantity:2}]));f.api.validateSelection();assert.equal(f.context.resourceDraftItems[0].quantity,2);
 });
+function setupFixture(){
+ const nodes=new Map(),get=id=>{if(!nodes.has(id))nodes.set(id,{hidden:true,attrs:{},setAttribute(k,v){this.attrs[k]=v},focus(){this.focused=true}});return nodes.get(id)};
+ const calls=[],context=vm.createContext({$:get,state:{operation:'',operations:[{operation_id:'ROP-test',status:'Open'}]},resourceSaving:false,syncDraft:()=>calls.push('sync'),render:()=>calls.push('render'),renderResourceHistory:()=>calls.push('history')});
+ vm.runInContext(source.slice(source.indexOf(' function setConfiguration('),source.indexOf(' function syncDraft(')),context);
+ return {get,calls,context,run:s=>vm.runInContext(s,context)};
+}
+test('operation and county setup open independently, with only one visible at a time',()=>{
+ const f=setupFixture();f.run("setConfiguration(true,'operations')");assert.equal(f.get('riOperationConfig').hidden,false);assert.equal(f.get('resourceInventoryConfig').hidden,true);assert.equal(f.get('riOperationSetup').attrs['aria-expanded'],'true');
+ f.run("setConfiguration(true,'county')");assert.equal(f.get('riOperationConfig').hidden,true);assert.equal(f.get('resourceInventoryConfig').hidden,false);assert.equal(f.get('riOperationSetup').attrs['aria-expanded'],'false');
+ f.run("setConfiguration(false,'county')");assert.equal(f.get('resourceInventoryConfig').hidden,true);assert.equal(f.get('riCountySetup').focused,true);
+});
+test('selecting an operation collapses setup, syncs recipient choices, and filters activity',()=>{
+ const f=setupFixture();f.run("setConfiguration(true,'operations');chooseOperation('ROP-test')");assert.equal(f.context.state.operation,'ROP-test');assert.equal(f.get('riOperationConfig').hidden,true);assert.deepEqual(f.calls,['sync','render','history']);
+ f.run("chooseOperation('')");assert.equal(f.context.state.operation,'');
+ f.run("chooseOperation('missing')");assert.equal(f.context.state.operation,'');assert.equal(f.calls.length,6);
+});
+test('operation selection cannot change a distribution while its save is unresolved',()=>{
+ const f=setupFixture();f.context.resourceSaving=true;f.run("chooseOperation('ROP-test')");assert.equal(f.context.state.operation,'');
+ f.context.resourceSaving=false;f.get('resourceForm')._pendingResource={};f.run("chooseOperation('ROP-test')");assert.equal(f.context.state.operation,'');assert.equal(f.calls.length,0);
+});
+test('county setup guides one action at a time and resets after completion',()=>{
+ const f=setupFixture();f.run("setCountyAction('stock')");assert.equal(f.get('riAddStock').hidden,false);assert.equal(f.get('riReceiveStock').hidden,true);
+ f.run("setCountyAction('receipt')");assert.equal(f.get('riAddStock').hidden,true);assert.equal(f.get('riReceiveStock').hidden,false);assert.equal(f.get('riReceiveStockAction').attrs['aria-pressed'],'true');
+ f.run('setCountyAction(null)');assert.equal(f.get('riAddStock').hidden,true);assert.equal(f.get('riReceiveStock').hidden,true);
+});
