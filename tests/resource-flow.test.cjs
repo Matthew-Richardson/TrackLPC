@@ -12,7 +12,8 @@ function fixture(){
   querySelectorAll(){return []} reportValidity(){return true} scrollIntoView(){} focus(){this.focused=true}
  }
  const get=id=>{if(!elements.has(id))elements.set(id,new Element());return elements.get(id)};
- const doc={getElementById:get,createElement:()=>new Element(),createDocumentFragment:()=>new Element(),querySelector:()=>get('heading'),querySelectorAll:()=>[],body:{dataset:{}}};
+ // The removed manual Continue button must behave like an absent DOM element.
+ const doc={getElementById:id=>id==='resourceManual'?null:get(id),createElement:()=>new Element(),createDocumentFragment:()=>new Element(),querySelector:()=>get('heading'),querySelectorAll:()=>[],body:{dataset:{}}};
  const calls=[];
  context=vm.createContext({console,document:doc,window:{LPC_RESOURCE_CONFIG:{tableUrl:''},LPCLiveScanner:{stop(){},pause(){},start(){calls.push('scanner')}}},crypto:require('node:crypto').webcrypto,URL,Blob,URLSearchParams,Date,setTimeout,clearTimeout,requestAnimationFrame:f=>f(),titleCase:s=>s,escapeHTML:s=>s,csvCell:s=>String(s),map:{invalidateSize(){}},wedge:{setTarget:x=>calls.push(x)},syncWorkflowButtons(){},closeCardModal(){},loadCardRegistry(){},fetchLog:async()=>{},switchTab(){},refreshAll(){},setInterval:()=>1,LOG_URL:'https://example.test/checkpoint',computeCurrentInside:()=>[],renderLog(){},renderTableHeader(headers){get('dth').headers=headers},makeElement(tag,options){const node=new Element();node.textContent=options?.text??'';return node},resetModal(){},closeModal(){get('modal').classList.remove('open')},updateCounts(){},renderTable(){},selLayer:{clearLayers(){}},clearInterval(){}});
  vm.runInContext(`let workflowMode='scan',checkpointZoneConfirmed=true,selZone={id:7,name:'TEST-7',incident:'Exercise'},selZoneId=7,selGeom={},parsedDL=null,operatorName='Test operator',manualAddressTimer=null,addressCheckSequence=0,pData=[],aData=[],logData=[],currentInsideRows=[],activeTab='parcels',logTimer=null;`,context);
