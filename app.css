@@ -890,3 +890,7 @@ html[data-theme="dark"] .ri-operation-choice[aria-pressed="true"],html[data-them
  #resourceInventory .ri-heading .ri-setup-actions{flex-wrap:wrap;gap:5px}
  #resourceInventory .ri-heading .ri-setup-actions>.b{font-size:10px;padding:7px 6px}
 }
+.ri-activity-scope{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin:10px 0}
+.ri-activity-scope[hidden]{display:none!important}
+.ri-activity-scope .ri-pill{min-height:34px;padding:7px 11px;font-size:11px}
+.ri-activity-scope>span{flex:1 1 100%;font-size:10px;color:var(--ui-muted)}
