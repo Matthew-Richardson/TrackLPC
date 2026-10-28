@@ -149,7 +149,7 @@ function resourceLocalDate(date=new Date()){
 }
 function updateResourceModeUI(){
   const on=workflowMode==='resource';
-  document.querySelector('#modal .mh h2').textContent=on?'Resource — aid distribution':'Checkpoint Scan';
+  document.querySelector('#modal .mh h2').textContent=on?'Resource Tracker':'Checkpoint Scan';
   document.getElementById('resourcePanel').hidden=true;
   document.getElementById('resourceSelection').hidden=!on;
   document.getElementById('resourceScanSummary').hidden=!on;
