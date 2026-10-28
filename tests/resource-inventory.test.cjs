@@ -100,3 +100,21 @@ test('county setup guides one action at a time and resets after completion',()=>
  f.run("setCountyAction('receipt')");assert.equal(f.get('riAddStock').hidden,true);assert.equal(f.get('riReceiveStock').hidden,false);assert.equal(f.get('riReceiveStockAction').attrs['aria-pressed'],'true');
  f.run('setCountyAction(null)');assert.equal(f.get('riAddStock').hidden,true);assert.equal(f.get('riReceiveStock').hidden,true);
 });
+test('active countywide activity combines open operations and routine assistance, excluding closed and unknown operations',async()=>{
+ const records=[dist('open-a','RINV-a',1,'ROP-a'),dist('open-b','RINV-a',2,'ROP-b'),dist('routine','RINV-a',3),dist('closed','RINV-a',4,'ROP-closed'),dist('legacy','RINV-a',5,'Old incident')];
+ const f=fixture([stock('RINV-a','Water','case',100)],records,[{operation_id:'ROP-a',status:'Open'},{operation_id:'ROP-b',status:'Open'},{operation_id:'ROP-closed',status:'Closed'}]);await f.api.refresh();
+ assert.deepEqual(Array.from(f.api.filterRows(records),r=>r.distribution_id),['open-a','open-b','routine']);
+ // Historical closed-operation distributions still reduce physical supply.
+ assert.equal(f.api.balances([stock('RINV-a','Water','case',100)],records)[0].remaining,85);
+});
+test('countywide open + closed includes historical activity and can return to open-only reporting',async()=>{
+ const records=[dist('open','RINV-a',1,'ROP-a'),dist('closed','RINV-a',2,'ROP-b'),dist('legacy','RINV-a',3,'Missing operation'),dist('routine','RINV-a',4)];
+ const f=fixture([],records,[{operation_id:'ROP-a',status:'Open'},{operation_id:'ROP-b',status:'Closed'}]);await f.api.refresh();f.api.setActivityScope('all');assert.equal(f.api.filterRows(records).length,4);
+ f.api.setActivityScope('open');assert.deepEqual(Array.from(f.api.filterRows(records),r=>r.distribution_id),['open','routine']);
+});
+test('a selected closed operation shows only its own activity regardless of countywide scope',()=>{
+ const f=setupFixture();Object.assign(f.context.state,{ready:true,activityScope:'open',location:'',resource:'',operations:[{operation_id:'ROP-closed',status:'Closed'}]});f.context.allStocks=()=>[];
+ f.run(source.slice(source.indexOf(' function filterRows('),source.indexOf(' function describe(')));
+ f.run("chooseOperation('ROP-closed')");f.context.rows=[dist('closed','RINV-a',1,'ROP-closed'),dist('other','RINV-a',2,'ROP-other')];
+ assert.deepEqual(Array.from(f.run('filterRows(rows)'),r=>r.distribution_id),['closed']);f.run("chooseOperation('')");assert.equal(f.context.state.activityScope,'open');
+});
