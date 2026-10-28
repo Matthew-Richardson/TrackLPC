@@ -452,3 +452,7 @@ test('inventory retries check stock for only missing distribution lines',async()
  return {ok:true,json:async()=>({features:opts.body.get('outFields')==='distribution_id'?[...saved].map(id=>({attributes:{distribution_id:id}})):[]})}};
  await f.run('saveResourceDistribution({preventDefault(){}})');await f.run('saveResourceDistribution({preventDefault(){}})');assert.deepEqual(checks,[2,1]);assert.equal(f.get('resourceForm').dataset.saved,'true');
 });
+test('tracked resource check-in opens with no items and defers resource choice until recipient review',()=>{
+ const f=fixture();f.context.window.LPCInventory={enabled:()=>true,mount(){},validateSelection:options=>assert.equal(options.allowEmpty,true)};
+ f.run("workflowMode='resource';setupResourceSelection();resourceDraftItems=[]");assert.equal(f.run('beginResourceScan()'),true);assert.equal(f.run('activeResourceItems.length'),0);assert.match(f.get('resourceScanSummary').textContent,/after scanning/);
+});
