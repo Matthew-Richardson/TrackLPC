@@ -41,6 +41,7 @@ function setupResourceSelection(){
     };
     renderResourceDraftItems();
   }
+  window.LPCInventory?.mount(section);
 }
 function renderResourceDraftItems(){
   const list=document.getElementById('resourceItemRows');list.replaceChildren();
@@ -85,7 +86,7 @@ function describeResourceItems(items){return items.map(i=>`${i.quantity} ${i.uni
 function beginResourceScan(){
   setupResourceSelection();
   const status=document.getElementById('resourceSelectionStatus');status.textContent='';
-  try{validateResourceItems(resourceDraftItems)}catch(err){
+  try{window.LPCInventory?.validateSelection();validateResourceItems(resourceDraftItems)}catch(err){
     resourceDraftItems.forEach(item=>{try{validateResourceItems([item])}catch{item.collapsed=false}});renderResourceDraftItems();
     status.textContent=err.message;document.getElementById('resourceSelection').scrollIntoView({block:'nearest'});return false}
   if(!document.getElementById('resourceSelectionForm').reportValidity())return false;
@@ -201,6 +202,7 @@ async function prepareResourceRecipient(){
   document.getElementById('resourceSave').disabled=!resourceURL();
   document.getElementById('resourceSave').textContent=`Save ${activeResourceItems.length} item${activeResourceItems.length===1?'':'s'}`;
   document.getElementById('resourceSetup').textContent=resourceURL()?'':'GIS setup required: connect Resource_Distributions in resource-config.js before saving. See RESOURCE_GIS_SETUP.md in GitHub.';
+  window.LPCInventory?.mountRecipient(panel);
   await loadResourceHistory();return true;
 }
 function resourceAttributes(person,zone,fields,cardId){
@@ -210,7 +212,7 @@ function resourceAttributes(person,zone,fields,cardId){
   if(through!==null&&through<distributed)throw new Error('Covers through must be after the distribution date.');
   if(!fields.type.trim()||!fields.name.trim()||!fields.unit.trim())throw new Error('Type, resource description, and unit are required.');
   return {distribution_id:fields.id,card_id:cardId,name:[person.firstName,person.lastName].filter(Boolean).map(titleCase).join(' '),
-    address:person.fullAddress,phone:fields.phone,zone_id:String(zone.id),zone_name:zone.name,incident:zone.incident||'',
+    address:person.fullAddress,phone:fields.phone,zone_id:String(zone.id),zone_name:zone.name,incident:fields.operationId||zone.incident||'',
     resource_type:fields.type.trim(),resource_name:fields.name.trim(),preset_id:fields.preset,quantity,unit:fields.unit.trim(),
     distributed_at:distributed,covers_through:through,recorded_at:Date.now(),operator_name:fields.operator,scan_type:person.scanType,notes:fields.notes};
 }
@@ -242,12 +244,15 @@ async function saveResourceDistribution(e){
     if(!Array.isArray(existing.features)||existing.exceededTransferLimit)throw new Error('Could not verify all pending items.');
     const savedIds=new Set(existing.features.map(f=>f.attributes?.distribution_id));
     const missing=pending.items.filter(item=>!savedIds.has(item.id));
+    if(savedIds.size)pending._writeStarted=true;
     if(missing.length){
+      await window.LPCInventory?.checkStock(missing);
       const person=pending.person;
       const saved=await ensurePersonCard({fn:person.firstName,ln:person.lastName,addr:person.fullAddress,phone:pending.items[0].phone,reason:'',cardId:person.cardId||''});
       person.cardId=saved.card.cardId;pending.card=saved.card;pending.cardCreated=saved.created;
       if(document.getElementById('resourceForm')===form&&parsedDL)parsedDL.cardId=person.cardId;
       const features=missing.map(item=>({attributes:resourceAttributes(person,pending.zone,item,person.cardId)}));
+      pending._writeStarted=true;
       const response=await fetch(tableUrl+'/applyEdits',{method:'POST',body:new URLSearchParams({f:'json',token,rollbackOnFailure:'true',adds:JSON.stringify(features)})});
       const result=await response.json();
       if(!response.ok||result.error||result.addResults?.length!==features.length||result.addResults.some(r=>!r.success))throw new Error(result.error?.message||result.addResults?.find(r=>r.error)?.error?.description||'GIS did not confirm every item.');
@@ -260,10 +265,14 @@ async function saveResourceDistribution(e){
     next.classList.add('ready-next');
     next.scrollIntoView({behavior:'smooth',block:'nearest'});
     await loadResourceHistory();
-  }catch(err){status.textContent='Distribution not confirmed: '+err.message+' Retry to confirm.'}
+  }catch(err){
+    if(!pending._writeStarted){delete form._pendingResource;form.querySelectorAll('input,select,textarea').forEach(el=>el.disabled=false);status.textContent=err.message}
+    else status.textContent='Distribution not confirmed: '+err.message+' Retry to confirm.';
+  }
   finally{
     resourceSaving=false;
     if(document.getElementById('resourceForm')===form){btn.disabled=form.dataset.saved==='true';next.disabled=!!form._pendingResource;}
+    window.LPCInventory?.render();
   }
 }
 function showResourceCardReady(card,created){
@@ -299,7 +308,8 @@ function resourceFilteredRows(){
   const query=document.getElementById('tsr').value.toLowerCase().trim();
   const type=document.getElementById('resourceActivityType').value;
   const rows=type?resourceRows.filter(row=>row.resource_type===type):resourceRows;
-  return query?rows.filter(row=>['name','address','phone','resource_type','resource_name','unit','notes','operator_name','card_id'].some(key=>String(row[key]??'').toLowerCase().includes(query))):rows;
+  const scoped=window.LPCInventory?.filterRows(rows)||rows;
+  return query?scoped.filter(row=>['name','address','phone','resource_type','resource_name','unit','notes','operator_name','card_id'].some(key=>String(row[key]??'').toLowerCase().includes(query))):scoped;
 }
 function resourceHistoryMessage(){
   if(resourceHistoryState==='loading')return 'Loading resource distributions…';
@@ -321,18 +331,22 @@ function renderResourceActivity(){
   const ready=resourceHistoryState==='ready';
   table.style.display=ready&&rows.length?'':'none';empty.style.display=ready&&rows.length?'none':'';
   if(!ready||!rows.length){empty.textContent=ready?(resourceRows.length?'No distributions match this filter.':'No resource distributions recorded.'):resourceHistoryMessage();document.getElementById('dtb').replaceChildren();return}
-  renderTableHeader(['Distributed','Name','Resource','Quantity','Unit','Address','Phone','Notes','Operator']);
+  const inventoryOn=window.LPCInventory?.enabled();
+  const headers=['Distributed','Name','Resource','Quantity','Unit',...(inventoryOn?['Location','Operation']:[]),'Address','Phone','Notes','Operator'];
+  renderTableHeader(headers);
   const fragment=document.createDocumentFragment();
   rows.forEach(record=>{
     const row=document.createElement('tr');
     const date=record.distributed_at==null?'':new Date(record.distributed_at).toLocaleString();
-    [date,record.name,record.resource_name,record.quantity,record.unit,record.address,record.phone,record.notes,record.operator_name].forEach(value=>row.appendChild(makeElement('td',{text:value??''})));
+    const detail=inventoryOn?window.LPCInventory.describe(record):null;
+    [date,record.name,record.resource_name,record.quantity,record.unit,...(detail?[detail.location,detail.operation]:[]),record.address,record.phone,record.notes,record.operator_name].forEach((value,index)=>{const cell=makeElement('td',{text:value??''});cell.dataset.label=headers[index];row.appendChild(cell)});
     fragment.appendChild(row);
   });
   document.getElementById('dtb').replaceChildren(fragment);
   document.getElementById('csv').disabled=false;
 }
 function renderResourceHistory(){
+  window.LPCInventory?.render();
   if(workflowMode==='resource'&&document.body.dataset.system!=='sar'){
     document.getElementById('tlc').textContent=String(resourceRows.length);
     if(activeTab==='log')renderResourceActivity();
@@ -369,8 +383,8 @@ async function loadResourceHistory(){
 }
 function exportResourceHistory(){
   if(!resourceRows.length)return;
-  const fields=['distribution_id','card_id','name','address','phone','zone_id','zone_name','incident','resource_type','resource_name','preset_id','quantity','unit','distributed_at','covers_through','recorded_at','operator_name','scan_type','notes'];
-  const rows=[fields.map(csvCell).join(','),...resourceRows.map(a=>fields.map(k=>csvCell(k.endsWith('_at')||k==='covers_through'?a[k]==null?'':new Date(a[k]).toISOString():a[k])).join(','))];
+  const fields=['location','operation','distribution_id','card_id','name','address','phone','zone_id','zone_name','incident','resource_type','resource_name','preset_id','quantity','unit','distributed_at','covers_through','recorded_at','operator_name','scan_type','notes'];
+  const rows=[fields.map(csvCell).join(','),...resourceRows.map(a=>fields.map(k=>csvCell(k==='location'||k==='operation'?window.LPCInventory?.describe(a)?.[k]||'':k.endsWith('_at')||k==='covers_through'?a[k]==null?'':new Date(a[k]).toISOString():a[k])).join(','))];
   const url=URL.createObjectURL(new Blob([rows.join('\r\n')],{type:'text/csv;charset=utf-8'})),link=document.createElement('a');link.href=url;link.download='LPC_Resource_Distributions.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 
