@@ -418,3 +418,11 @@ html[data-theme="dark"] .theme-toggle .theme-sun{display:none}
 #modal button:focus-visible,#zoneScanBtn:focus-visible{outline:3px solid var(--ui-accent);outline-offset:3px}
 #zoneScanBtn{display:flex;align-items:center;justify-content:center;min-height:48px;min-width:180px;padding:12px 20px;font-size:15px;font-weight:750;text-align:center;margin-inline:auto}
 #zoneScanBtn:disabled{opacity:.45;cursor:not-allowed}
+
+/* Resource item summaries keep multi-item lists compact. */
+.resource-item-row > .resource-item-summary{cursor:pointer;padding:10px 4px;color:var(--ui-text);font-size:13px;line-height:1.5;overflow-wrap:anywhere}
+.resource-item-summary strong{margin-right:10px;color:var(--ui-accent-dark)}
+.resource-item-summary span{color:var(--ui-muted)}
+.resource-item-row[open] > .resource-item-summary{margin-bottom:10px}
+.resource-item-summary:focus-visible{outline:2px solid var(--ui-accent);outline-offset:2px;border-radius:4px}
+.resource-item-body > .resource-item-heading{font-size:11px;color:var(--ui-muted)}
