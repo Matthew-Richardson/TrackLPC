@@ -63,7 +63,7 @@ $('sarRoot').innerHTML=`<div class="sar-shell">
  <div id="sarDashboard" aria-label="Selected event attendance" hidden></div>
 
  <div id="sarConnection" class="sar-notice" role="status"></div>
- <div id="sarEventView" class="sar-event-layout"><aside class="sar-panel"><div class="sar-panel-heading"><h2>Event configuration</h2><button class="sar-btn primary" id="sarNewEvent" data-sar-action="new-event" type="button">+ Create</button></div><div class="sar-event-list" id="sarEventList"></div></aside><section class="sar-panel"><div id="sarEventDetail"></div></section></div>
+ <div id="sarEventView" class="sar-event-workspace"><div id="sarSelectedEvent" class="sar-selected-event" hidden></div><details id="sarEventConfig" class="sar-event-config" open><summary>Event configuration</summary><div class="sar-config-body"><div class="sar-panel-heading"><h2>Open events</h2><button class="sar-btn primary" id="sarNewEvent" data-sar-action="new-event" type="button">+ Create</button></div><div class="sar-event-list" id="sarEventList"></div><details id="sarClosedEvents" class="sar-closed-events" hidden><summary id="sarClosedEventsTitle">Closed events</summary><div class="sar-event-list" id="sarClosedEventList"></div></details><div id="sarSelectedEventTools"></div></div></details><section class="sar-panel"><div id="sarEventDetail"></div></section></div>
  <div id="sarMemberView" hidden><div class="sar-members-toolbar"><div class="sar-field"><label for="sarMemberSearch">Find a member</label><input id="sarMemberSearch" type="search" placeholder="Name, division, phone, or member ID"/></div><div class="sar-actions"><button class="sar-btn" data-sar-action="export-members" type="button">Export members</button><button class="sar-btn primary" id="sarNewMember" data-sar-action="new-member" type="button">+ Add member</button></div></div><div class="sar-member-grid" id="sarMemberList"></div></div>
  <footer class="sar-footer">La Plata County Search &amp; Rescue · <a href="https://laplatasar.org/" target="_blank" rel="noopener noreferrer">laplatasar.org</a></footer>
 </div>
@@ -90,18 +90,23 @@ function render(){
  $('sarEventView').hidden=state.tab!=='events';$('sarMemberView').hidden=state.tab!=='members';
  document.querySelectorAll('[data-sar-tab]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.sarTab===state.tab)));
  $('sarNewEvent').disabled=!enabled()||state.loading;$('sarNewMember').disabled=!enabled()||state.loading;
- const events=[...state.events].sort((a,b)=>Number(b.created_at)-Number(a.created_at));
- $('sarEventList').innerHTML=events.length?events.map(e=>`<button class="sar-event-item" type="button" data-sar-event="${esc(e.event_id)}" aria-pressed="${e.event_id===state.eventId}"><strong>${esc(e.name)}</strong><span>${esc(e.event_type)} · ${esc(e.status)}</span><span>${esc(fmt(e.event_date))}</span></button>`).join(''):'<div class="sar-empty">No events yet.<br>Create a meeting, training, or field mission.</div>';
+ const events=[...state.events].sort((a,b)=>Number(b.created_at)-Number(a.created_at)),open=events.filter(e=>e.status!=='Closed'),closed=events.filter(e=>e.status==='Closed');
+ $('sarEventList').innerHTML=open.length?eventButtons(open):'<div class="sar-empty">No open events. Create an event to begin.</div>';
+ $('sarClosedEventList').innerHTML=eventButtons(closed);$('sarClosedEvents').hidden=!closed.length;
+ $('sarClosedEventsTitle').textContent=`Closed events (${closed.length})`;
+ if(!event())$('sarEventConfig').open=true;
  renderDetail();renderMembers();
  const divisions=[...new Set(state.members.map(m=>m.division).filter(Boolean))].sort();$('sarDivisions').replaceChildren(...divisions.map(d=>new Option(d,d)));
  setScanTarget();
 }
+function eventButtons(events){return events.map(e=>`<button class="sar-event-item" type="button" data-sar-event="${esc(e.event_id)}" aria-pressed="${e.event_id===state.eventId}"><strong>${esc(e.name)}</strong><span>${esc(e.event_type)} · ${esc(e.status)}</span><span>${esc(fmt(e.event_date))}</span></button>`).join('')}
 function renderDetail(){
  const e=event(),root=$('sarEventDetail'),checkModal=$('sarCheckModal');
  const keepDraft=checkModal.classList.contains('open')&&checkModal.dataset.eventId===e?.event_id;
  const note=keepDraft?$('sarAttendanceNotes')?.value||'':'',scanText=keepDraft?$('sarScanInput')?.value||'':'';
  const step=keepDraft&&checkModal.dataset.step==='review'&&member()?'review':'identify';
- if(!e){$('sarDashboard').hidden=true;$('sarDashboard').replaceChildren();checkModal.classList.remove('open');$('sarCheckContent').replaceChildren();$('sarCheckFooter').replaceChildren();root.innerHTML='<div class="sar-empty"><strong>Start with an event</strong>Create or select an event to check members in and out.<br>No address or map is needed.</div>';return}
+ if(!e){$('sarSelectedEvent').hidden=true;$('sarSelectedEventTools').replaceChildren();$('sarEventConfig').open=true;$('sarDashboard').hidden=true;$('sarDashboard').replaceChildren();checkModal.classList.remove('open');$('sarCheckContent').replaceChildren();$('sarCheckFooter').replaceChildren();root.innerHTML='<div class="sar-empty"><strong>Start with an event</strong>Create or select an event to check members in and out.<br>No address or map is needed.</div>';return}
+ $('sarSelectedEvent').hidden=false;$('sarSelectedEvent').innerHTML=`<span class="sar-selected-label">Selected event</span><strong>${esc(e.name)}</strong><span class="sar-pill ${e.status==='Open'?'':'closed'}">${esc(e.status)}</span>`;
  const latest=currentMap(),inside=[...latest.values()].filter(r=>r.direction==='IN').length,unique=new Set(state.attendance.map(r=>r.member_id)).size;
  root.innerHTML=`<div class="sar-detail"><div class="sar-event-head"><div><div class="sar-eyebrow">${esc(e.event_type)}</div><h2>${esc(e.name)}</h2><div class="sar-meta">${esc(fmt(e.event_date))}${e.location?' · '+esc(e.location):''}${e.notes?'\n'+esc(e.notes):''}</div></div><div class="sar-actions"><span class="sar-pill ${e.status==='Open'?'':'closed'}">${esc(e.status)}</span><button class="sar-btn" data-sar-action="edit-event" type="button">Edit event</button><button class="sar-btn" data-sar-action="toggle-event" type="button" ${state.busy?'disabled':''}>${e.status==='Open'?'Close event':'Reopen event'}</button></div></div>
  <div class="sar-metrics"><div><strong>${inside}</strong><span>Currently IN</span></div><div><strong>${unique}</strong><span>Unique attendees</span></div><div><strong>${state.attendance.filter(r=>r.direction==='IN').length}</strong><span>Total check-ins</span></div></div>
@@ -119,6 +124,7 @@ function renderDetail(){
  <div class="sar-attendance-head"><h3>Attendance log</h3><div class="sar-actions"><button class="sar-btn" data-sar-action="refresh-attendance" type="button">Refresh</button><button class="sar-btn" data-sar-action="export-attendance" type="button">Export CSV</button></div></div><div class="sar-table-wrap"><table class="sar-table"><thead><tr><th>Name / division</th><th>Direction</th><th>Time</th><th>Note / operator</th></tr></thead><tbody>${[...state.attendance].sort((a,b)=>b.check_time-a.check_time||Number(b.OBJECTID||0)-Number(a.OBJECTID||0)).map(r=>`<tr><td>${esc(r.member_name)}<small>${esc(r.division)}</small></td><td><span class="sar-pill ${r.direction==='OUT'?'closed':''}">${esc(r.direction)}</span></td><td>${esc(fmt(r.check_time))}</td><td>${esc(r.notes)}<small>${esc(r.operator_name)}</small></td></tr>`).join('')||'<tr><td colspan="4">No attendance recorded for this event.</td></tr>'}</tbody></table></div></div>`;
  if(checkModal.dataset.eventId!==e.event_id)checkModal.classList.remove('open');
  checkModal.dataset.eventId=e.event_id;$('sarCheckEvent').textContent=e.name;
+ $('sarSelectedEventTools').replaceChildren(root.querySelector('.sar-event-head'));
  $('sarDashboard').hidden=state.tab!=='events';$('sarDashboard').replaceChildren(root.querySelector('.sar-metrics'));
  $('sarCheckContent').replaceChildren(root.querySelector('.sar-checkin'));
  $('sarCheckFooter').replaceChildren($('sarCheckContent').querySelector('#sarCheckActions'),$('sarCheckContent').querySelector('#sarFeedback'));
@@ -138,7 +144,7 @@ function updatePicked(){
  ['IN','OUT'].forEach(direction=>{const button=$(direction==='IN'?'sarInBtn':'sarOutBtn'),selected=direction===state.direction;button.setAttribute('aria-pressed',String(selected));button.classList.toggle('selected',selected)});
  $('sarSaveAttendance').disabled=locked||!state.direction;$('sarSaveAttendance').textContent=state.busy?'Saving…':'Save record';
  $('sarContinueBtn').disabled=!enabled()||state.loading||!state.attendanceReady||state.busy||event()?.status!=='Open'||(!m&&!$('sarScanInput').value.trim());
- const toggle=$('sarEventDetail').querySelector('[data-sar-action="toggle-event"]');if(toggle)toggle.disabled=state.busy||state.loading;
+ const toggle=$('sarSelectedEventTools').querySelector('[data-sar-action="toggle-event"]');if(toggle)toggle.disabled=state.busy||state.loading;
 }
 function setCheckStep(step){
  if(!$('sarIdentifyStep'))return;
@@ -161,7 +167,7 @@ function pickDirection(direction){
 }
 function resetCheckin(){
  state.memberId='';state.direction='';state.pending=null;stopCamera();
- $('sarMemberPick').value='';$('sarScanInput').value='';$('sarAttendanceNotes').value='';feedback('');setCheckStep('identify');
+ $('sarMemberPick').value='';$('sarScanInput').value='';$('sarAttendanceNotes').value='';feedback('');setCheckStep('identify');startCheckCamera();
 }
 
 function renderMembers(){
@@ -172,12 +178,13 @@ function renderMembers(){
 function setScanTarget(){try{wedge.setTarget(document.body.dataset.system==='sar'&&state.tab==='events'&&event()?.status==='Open'&&$('sarCheckModal').classList.contains('open')&&$('sarCheckModal').dataset.step!=='review'&&!document.querySelector('.sar-modal.open:not(#sarCheckModal)')&&enabled()?'sar':null)}catch(e){/* Evac scanner may still be initializing. */}}
 function stopCamera(){cameraVersion++;clearTimeout(cameraTimer);cameraStream?.getTracks().forEach(t=>t.stop());cameraStream=null;const wrap=$('sarCameraWrap');if(wrap)wrap.classList.remove('active');const button=$('sarCheckContent')?.querySelector('[data-sar-action="camera"]');if(button)button.textContent='Start camera'}
 function stop(){stopCamera();clearInterval(refreshTimer);refreshTimer=null;try{wedge.setTarget(null)}catch(e){}}
+function startCheckCamera(){if($('sarCheckModal').classList.contains('open')&&$('sarCheckModal').dataset.step==='identify'&&enabled()&&!state.busy&&event()?.status==='Open'&&!cameraStream)void toggleCamera()}
 function openCheck(){
  if(!enabled()||state.busy||event()?.status!=='Open')return;
  const modal=$('sarCheckModal'),opening=!modal.classList.contains('open');
- modal.classList.add('open');if(opening){state.direction='';setCheckStep('identify')}setScanTarget();if(opening)modal.querySelector('.mx').focus({preventScroll:true});
+ modal.classList.add('open');if(opening){state.direction='';setCheckStep('identify')}setScanTarget();if(opening){modal.querySelector('.mx').focus({preventScroll:true});startCheckCamera()}
 }
-function closeForms(){stopCamera();document.querySelectorAll('.sar-modal').forEach(m=>m.classList.remove('open'));setScanTarget()}
+function closeForms(){stopCamera();document.querySelectorAll('.sar-modal').forEach(m=>m.classList.remove('open'));setScanTarget();$('sarRoot').scrollTop=0}
 function switchSystem(mode){
  const sar=mode==='sar';stop();window.LPCLiveScanner?.stop();window.LPCCardLiveScanner?.stop();
  ['modal','cardModal'].forEach(id=>$(id).classList.remove('open'));closeForms();
@@ -217,7 +224,7 @@ async function loadAttendance({renderAfter=true}={}){
 async function selectEvent(id){
  if(state.busy)return;stopCamera();state.eventId=id;state.memberId='';state.attendance=[];state.pending=null;state.attendanceReady=false;state.attendanceError='';state.loading=true;render();
  try{if(state.preview){state.attendance=previewAttendance.filter(r=>r.event_id===id);state.attendanceReady=true}else await loadAttendance({renderAfter:false})}
- catch(e){state.attendanceError=e.message}finally{state.loading=false;render();if(state.attendanceError)feedback(state.attendanceError,true)}
+ catch(e){state.attendanceError=e.message}finally{state.loading=false;render();if(state.attendanceError)feedback(state.attendanceError,true);$('sarEventConfig').open=false;$('sarRoot').scrollTop=0}
 }
 let previewAttendance=[];
 function openEvent(edit=false){
@@ -254,7 +261,7 @@ async function toggleEvent(){
    if(!state.preview){await loadAttendance({renderAfter:false});if(e.status==='Open'&&[...currentMap().values()].some(r=>r.direction==='IN'))throw new Error('Members are still checked IN. Refresh and check them out before closing.');}
    const changes={status:e.status==='Open'?'Closed':'Open',updated_at:Date.now()};
    const saved=state.preview?{...e,...changes}:await update('events',e,changes);
-   state.events=state.events.map(x=>x.event_id===saved.event_id?saved:x);stopCamera();render();
+   state.events=state.events.map(x=>x.event_id===saved.event_id?saved:x);stopCamera();if(saved.status==='Closed')$('sarClosedEvents').open=false;$('sarEventConfig').open=false;render();$('sarRoot').scrollTop=0;
  }catch(e){feedback(e.message,true)}finally{state.busy=false;updatePicked()}
 }
 function openMember(id=''){
@@ -318,12 +325,12 @@ async function afterRecord(row){
  state.pending=null;
  state.attendance=state.attendance.filter(r=>r.record_id!==row.record_id).concat(row);
  const message=`${state.preview?'Preview: ':''}${row.member_name} checked ${row.direction} · ${fmt(row.check_time)}.`;
- state.memberId='';state.direction='';$('sarAttendanceNotes').value='';$('sarScanInput').value='';renderDetail();setScanTarget();feedback(message);
+ state.memberId='';state.direction='';$('sarAttendanceNotes').value='';$('sarScanInput').value='';renderDetail();setScanTarget();feedback(message);requestAnimationFrame(startCheckCamera);
 }
 async function toggleCamera(){
  if(cameraStream){stopCamera();return}
  if(!enabled()||!event()||event().status!=='Open'||state.busy)return;
- const version=++cameraVersion;
+ const version=++cameraVersion;const button=$('sarCheckContent').querySelector('[data-sar-action="camera"]');if(button)button.textContent='Starting camera…';
  try{
    const Native=window.BarcodeDetector,Poly=window.BarcodeDetectionAPI?.BarcodeDetector;
    const formats=Native?await Native.getSupportedFormats():[];
