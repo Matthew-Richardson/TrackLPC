@@ -2,5 +2,8 @@
 // Optional tableUrl override: paste an exact /FeatureServer/<table ID> URL.
 window.LPC_RESOURCE_CONFIG = {
   serviceUrl: 'https://services2.arcgis.com/ilLrLpXfElYxSy9y/arcgis/rest/services/LPCOEM_Resource/FeatureServer',
-  tableUrl: ''
+  tableUrl: '',
+  // Optional overrides; otherwise discovered by exact table names in serviceUrl.
+  inventoryTableUrl: '',
+  operationsTableUrl: ''
 };
