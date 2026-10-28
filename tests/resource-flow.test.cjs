@@ -323,7 +323,7 @@ function sarFlowFixture(){
  f.context.state={tab:'events',preview:true,members:[m],memberId:m.member_id,direction:'',loading:false,attendanceReady:true,busy:false,pending:null};
  f.context.$=f.get;f.context.member=()=>f.context.state.members.find(x=>x.member_id===f.context.state.memberId);f.context.event=()=>evt;
  f.context.enabled=()=>true;f.context.currentMap=()=>new Map();f.context.setScanTarget=()=>{};f.context.stopCamera=()=>{};f.context.feedback=()=>{};f.context.openCheck=()=>{};f.context.loadAttendance=async()=>{};
- f.get('sarEventDetail').querySelector=()=>null;f.get('sarCheckModal').contains=()=>false;
+ f.get('sarEventDetail').querySelector=()=>null;f.get('sarSelectedEventTools').querySelector=()=>null;f.get('sarCheckModal').contains=()=>false;f.context.startCheckCamera=()=>{};
  f.context.document.body.dataset.system='sar';
  f.run(sar.slice(sar.indexOf('function updatePicked('),sar.indexOf('function renderMembers(')));
  return {...f,sar,m,evt};
@@ -351,4 +351,22 @@ test('SAR event-configuration feedback stays visible outside the check-in popup'
  f.run(sar.slice(sar.indexOf('function feedback('),sar.indexOf('function sql(')));
  f.run("feedback('Check out remaining members first.',true)");assert.equal(f.get('sarEventFeedback').textContent,'Check out remaining members first.');
  f.get('sarCheckModal').classList.add('open');f.run("feedback('Attendance saved.')");assert.equal(f.get('sarFeedback').textContent,'Attendance saved.');
+});
+
+test('SAR opening check-in requests the camera once and review never restarts it',()=>{
+ const f=sarFlowFixture();let requests=0;
+ f.context.toggleCamera=()=>{requests++};f.get('sarCheckModal').querySelector=()=>f.get('closeButton');
+ f.run('let cameraStream=null;');
+ f.run(f.sar.slice(f.sar.indexOf('function startCheckCamera('),f.sar.indexOf('function closeForms(')));
+ f.run('openCheck()');assert.equal(requests,1);assert.equal(f.get('sarCheckModal').dataset.step,'identify');
+ f.run('openCheck()');assert.equal(requests,1);
+ f.run("setCheckStep('review');startCheckCamera()");assert.equal(requests,1);
+ f.get('sarCheckModal').classList.remove('open');f.run('startCheckCamera()');assert.equal(requests,1);
+});
+test('closing a SAR event collapses its configuration and closed-event history',async()=>{
+ const f=sarFlowFixture();f.context.state.events=[f.evt];f.context.render=()=>{};
+ f.get('sarEventConfig').open=true;f.get('sarClosedEvents').open=true;
+ f.run(f.sar.slice(f.sar.indexOf('async function toggleEvent('),f.sar.indexOf('function openMember(')));
+ await f.run('toggleEvent()');assert.equal(f.context.state.events[0].status,'Closed');
+ assert.equal(f.get('sarEventConfig').open,false);assert.equal(f.get('sarClosedEvents').open,false);
 });
