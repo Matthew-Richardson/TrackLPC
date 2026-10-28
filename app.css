@@ -581,3 +581,26 @@ html[data-theme="dark"] #resourceSelection .resource-item-summary strong{color:v
 html[data-theme="dark"] #resourceSelection .resource-item-summary span{color:var(--ui-text);font-weight:500}
 html[data-theme="dark"] #resourceSelection .resource-item-summary::marker{color:var(--ui-link)}
 html[data-theme="dark"] #resourceSelection .resource-item-summary:focus-visible{outline-color:var(--ui-link)}
+
+/* Fit SAR dialogs to the visible area above the phone keyboard. */
+@media(max-width:700px){
+ .sar-modal{--sar-edge-top:max(6px,env(safe-area-inset-top));--sar-edge-bottom:max(6px,env(safe-area-inset-bottom));top:var(--sar-viewport-top,0px);bottom:auto;height:var(--sar-viewport-height,100dvh);padding:var(--sar-edge-top) 0 var(--sar-edge-bottom);box-sizing:border-box}
+ .sar-modal .md{display:flex;flex-direction:column;overflow:hidden;max-height:calc(var(--sar-viewport-height,100dvh) - var(--sar-edge-top) - var(--sar-edge-bottom));padding:10px 12px;border-radius:12px}
+ .sar-modal .mh,.sar-modal #sarMemberSave,.sar-modal #sarEventSave,#sarCheckEvent,#sarCheckFooter{flex:0 0 auto}
+ #sarMemberForm,#sarEventForm,#sarCheckContent{min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain;-webkit-overflow-scrolling:touch;scroll-padding:8px 0 12px}
+ #sarCheckFooter{background:var(--ui-panel);padding-top:5px}
+ #sarCheckFooter .sar-check-actions{justify-content:center}
+ #sarCheckFooter .sar-feedback{margin:4px 0 0}
+ html[data-sar-keyboard="true"] .sar-modal .mh{margin-bottom:5px}
+ html[data-sar-keyboard="true"] .sar-modal .sar-help,
+ html[data-sar-keyboard="true"] #sarCheckContent .sar-checkin>.sar-actions:not(.sar-check-actions),
+ html[data-sar-keyboard="true"] #sarCheckContent .sar-scan-video{display:none}
+ html[data-sar-keyboard="true"] .sar-modal .sar-field{margin-bottom:5px}
+ html[data-sar-keyboard="true"] #sarCheckContent .sar-check-grid{margin-top:2px}
+ html[data-sar-keyboard="true"] #sarCheckContent .sar-picked{padding:4px 0}
+ html[data-sar-keyboard="true"] .sar-modal #sarMemberSave,
+ html[data-sar-keyboard="true"] .sar-modal #sarEventSave{margin:6px auto 0;min-height:44px}
+ html[data-sar-keyboard="true"] #sarCheckFooter .sar-check-actions .sar-btn[data-sar-action="clear-member"]{display:none}
+}
+
+@media(max-width:700px){html[data-sar-keyboard="true"] .sar-modal{--sar-edge-bottom:6px}}
