@@ -563,3 +563,14 @@ html[data-theme="dark"] #sarCheckModal .sar-check-actions .sar-btn.out{color:var
 }
 /* Keep the page behind an open workflow from scrolling. */
 html:has(.mo.open),body:has(.mo.open){overflow:hidden!important;overscroll-behavior:none}
+
+/* Full-viewport card display for photography; uses the original card pixels. */
+#cardDisplay{position:fixed;inset:0;width:100vw;height:100dvh;max-width:none;max-height:none;margin:0;border:0;padding:max(6px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));background:#090e16;color:#fff;overflow:hidden;box-sizing:border-box}
+#cardDisplay[open]{display:grid;grid-template-rows:auto minmax(0,1fr);gap:6px}
+#cardDisplay::backdrop{background:#090e16}
+.card-display-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;font:600 12px/1.2 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#cad5e2}
+#closeCardDisplay{display:flex;align-items:center;justify-content:center;flex:0 0 44px;width:44px;height:44px;border:1px solid #536579;border-radius:8px;background:#1b232e;color:#fff;font-size:26px;cursor:pointer}
+#closeCardDisplay:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.card-display-stage{display:flex;align-items:center;justify-content:center;min-width:0;min-height:0;overflow:hidden}
+#cardDisplayImage{display:block;width:100%;height:100%;min-width:0;min-height:0;object-fit:contain}
+html:has(#cardDisplay[open]),body:has(#cardDisplay[open]){overflow:hidden!important;overscroll-behavior:none}
