@@ -604,3 +604,16 @@ html[data-theme="dark"] #resourceSelection .resource-item-summary:focus-visible{
 }
 
 @media(max-width:700px){html[data-sar-keyboard="true"] .sar-modal{--sar-edge-bottom:6px}}
+
+/* Scanner guidance sits below the camera, never inside the aiming outline. */
+.scanner-viewport{position:relative;overflow:hidden;border-radius:9px;background:#111827}
+.scanner-viewport video{display:block;width:100%;object-fit:cover}
+#modal .live-scanner,#cardModal .live-scanner{min-height:0;background:transparent;overflow:visible;border-radius:0}
+#modal .live-scanner-label,#cardModal .live-scanner-label,#sarCameraWrap .live-scanner-label{
+ position:static;inset:auto;display:block;margin:0;padding:6px 2px 2px;border-radius:0;background:transparent;color:var(--ui-muted);font-size:11px;line-height:1.4;text-align:center;pointer-events:none;
+}
+#sarCameraWrap video{border-radius:0}
+@media(max-width:700px){
+ #modal .live-scanner:not([data-running="true"]) .scanner-viewport,
+ #cardModal .live-scanner:not([data-running="true"]) .scanner-viewport{display:none}
+}
