@@ -57,3 +57,21 @@ test('ambiguous separate services and spatial layers do not guess an inventory t
   await f.api.refresh();assert.equal(f.api.enabled(),false);assert.equal(f.calls.length,0);
  }
 });
+test('inventory allows identifying a person before choosing resources, but save still needs a selection',async()=>{
+ const f=fixture([stock('RINV-a','Water','case',20)]);await f.api.refresh();assert.doesNotThrow(()=>f.api.validateSelection({allowEmpty:true}));assert.throws(()=>f.api.validateSelection(),/at least one resource/);
+});
+test('last saved resources and amounts restore on this device without storing recipient data',async()=>{
+ const store=new Map(),storage={getItem:k=>store.get(k)||null,setItem:(k,v)=>store.set(k,v)};
+ const f=fixture([stock('RINV-a','Water','case',20)]);f.context.window.localStorage=storage;await f.api.refresh();
+ f.api.remember([{preset:'RINV-a',quantity:'3',phone:'PRIVATE',address:'PRIVATE',name:'PRIVATE'}]);
+ assert.equal([...store.values()][0],'[["RINV-a",3]]');
+ const next=fixture([stock('RINV-a','Water','case',20)]);next.context.window.localStorage=storage;await next.api.refresh();next.api.validateSelection();assert.equal(next.context.resourceDraftItems.length,1);assert.equal(next.context.resourceDraftItems[0].quantity,3);
+ // Polling does not discard a remembered selection.
+ await next.api.refresh();next.api.validateSelection();assert.equal(next.context.resourceDraftItems[0].preset,'RINV-a');
+});
+test('stored selections ignore removed resources and invalid quantities',async()=>{
+ const f=fixture([stock('RINV-a','Water','case',20)]);f.context.window.localStorage={getItem:()=>JSON.stringify([['removed',4],['RINV-a',-3],['RINV-a',2]])};await f.api.refresh();f.api.validateSelection();assert.equal(f.context.resourceDraftItems.length,1);assert.equal(f.context.resourceDraftItems[0].quantity,2);
+});
+test('unavailable device storage does not block distribution defaults between recipients',async()=>{
+ const f=fixture([stock('RINV-a','Water','case',20)]);Object.defineProperty(f.context.window,'localStorage',{get(){throw Error('Storage blocked')}});await f.api.refresh();assert.doesNotThrow(()=>f.api.remember([{preset:'RINV-a',quantity:2}]));f.api.validateSelection();assert.equal(f.context.resourceDraftItems[0].quantity,2);
+});
