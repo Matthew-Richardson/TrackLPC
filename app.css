@@ -907,3 +907,15 @@ html[data-theme="dark"] .ri-operation-choice[aria-pressed="true"],html[data-them
 #riEditQuantity,#riSupplyEditCancel{grid-column:1/-1}
 #riSupplyEditTitle{font-size:15px;margin:14px 0 6px}
 #riSupplyEditor[hidden],#riSupplyLists[hidden],#riEditDetails[hidden],#riEditQuantity[hidden],#riInactiveGroup[hidden]{display:none!important}
+
+/* Compact operation selector immediately below the Resource Tracker title. */
+#resourceInventory .ri-heading{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"title actions" "operation operation";gap:7px 10px}
+#resourceInventory .ri-heading h2{grid-area:title;min-width:0;margin:0}
+#resourceInventory .ri-heading .ri-setup-actions{grid-area:actions;max-width:100%;margin:0;justify-self:end}
+#riSelectedOperation{grid-area:operation;display:flex;align-items:center;flex-wrap:nowrap;gap:8px;width:100%;min-width:0;max-width:100%;margin:0;padding:9px 11px;min-height:40px;box-sizing:border-box}
+#riSelectedOperation>strong{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.ri-selector-status{flex:0 0 auto;font-size:10px;color:var(--ui-muted)}
+.ri-selector-chevron{flex:0 0 18px;width:18px;height:18px;fill:none;stroke:var(--ui-text);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#riFilters .ri-activity-scope{margin:0 0 12px}
+#riFilters .ri-activity-scope>h4{flex:1 1 100%;margin:12px 0 2px}
+@media(max-width:700px){#resourceInventory .ri-heading{grid-template-columns:minmax(0,1fr);grid-template-areas:"title" "operation" "actions";gap:7px}}
