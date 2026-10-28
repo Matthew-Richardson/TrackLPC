@@ -76,7 +76,7 @@ test('unavailable device storage does not block distribution defaults between re
  const f=fixture([stock('RINV-a','Water','case',20)]);Object.defineProperty(f.context.window,'localStorage',{get(){throw Error('Storage blocked')}});await f.api.refresh();assert.doesNotThrow(()=>f.api.remember([{preset:'RINV-a',quantity:2}]));f.api.validateSelection();assert.equal(f.context.resourceDraftItems[0].quantity,2);
 });
 function setupFixture(){
- const nodes=new Map(),get=id=>{if(!nodes.has(id))nodes.set(id,{hidden:true,attrs:{},setAttribute(k,v){this.attrs[k]=v},focus(){this.focused=true}});return nodes.get(id)};
+ const nodes=new Map(),get=id=>{if(!nodes.has(id))nodes.set(id,{hidden:true,open:false,dataset:{},attrs:{},showModal(){this.open=true},close(){this.open=false},setAttribute(k,v){this.attrs[k]=v},focus(){this.focused=true}});return nodes.get(id)};
  const calls=[],context=vm.createContext({$:get,state:{operation:'',operations:[{operation_id:'ROP-test',status:'Open'}]},resourceSaving:false,pending:null,syncDraft:()=>calls.push('sync'),render:()=>calls.push('render'),renderResourceHistory:()=>calls.push('history')});
  vm.runInContext(source.slice(source.indexOf(' function setConfiguration('),source.indexOf(' function syncDraft(')),context);
  return {get,calls,context,run:s=>vm.runInContext(s,context)};
@@ -97,7 +97,7 @@ test('operation selection cannot change a distribution while its save is unresol
 });
 test('county setup guides one action at a time and resets after completion',()=>{
  const f=setupFixture();f.run("setCountyAction('stock')");assert.equal(f.get('riAddStock').hidden,false);assert.equal(f.get('riReceiveStock').hidden,true);
- f.run("setCountyAction('receipt')");assert.equal(f.get('riAddStock').hidden,true);assert.equal(f.get('riReceiveStock').hidden,false);assert.equal(f.get('riReceiveStockAction').attrs['aria-pressed'],'true');
+ f.run("setCountyAction('receipt')");assert.equal(f.get('riAddStock').hidden,true);assert.equal(f.get('riReceiveStock').hidden,false);assert.equal(f.get('riManagementDialog').dataset.page,'receipt');
  f.run('setCountyAction(null)');assert.equal(f.get('riAddStock').hidden,true);assert.equal(f.get('riReceiveStock').hidden,true);
 });
 test('active countywide activity combines open operations and routine assistance, excluding closed and unknown operations',async()=>{
@@ -161,4 +161,14 @@ test('metadata and status revisions do not discard receipts written before or af
 test('historical distributions retain the storage location in effect when they were recorded',async()=>{
  const entries=[{...stock('RINV-a','Water','case',100),recorded_at:10},{entry_id:'revision',inventory_id:'RINV-a',record_type:'stock_update',quantity:0,recorded_at:20,resource_type:'Supplies',resource_name:'Water',unit:'case',location:'North station'}];
  const f=fixture(entries);await f.api.refresh();assert.equal(f.api.describe({preset_id:'RINV-a',recorded_at:15}).location,'Warehouse');assert.equal(f.api.describe({preset_id:'RINV-a',recorded_at:25}).location,'North station');
+});
+test('resource setup opens in a modal and closing it restores the launch control without a write',()=>{
+ const f=setupFixture();f.run("setConfiguration(true,'county')");assert.equal(f.get('riManagementDialog').open,true);assert.equal(f.get('riManagementDialog').dataset.page,'county');
+ f.run("setCountyAction('revise')");assert.equal(f.get('riManagementDialog').dataset.page,'revise');assert.equal(f.get('riDialogTitle').textContent,'Edit supply details');
+ f.run("setConfiguration(false,'county')");assert.equal(f.get('riManagementDialog').open,false);assert.equal(f.get('riCountySetup').focused,true);assert.equal(f.calls.length,0);
+});
+test('an unconfirmed operation creation resumes its frozen form after closing and reopening the popup',()=>{
+ const f=setupFixture(),pending={kind:'operations',row:{operation_id:'ROP-pending'}};f.context.pending=pending;
+ f.run("setConfiguration(true,'operations')");assert.equal(f.get('riManagementDialog').dataset.page,'new-operation');assert.equal(f.get('riNewOperation').hidden,false);
+ f.run("setConfiguration(false,'operations');setConfiguration(true,'operations')");assert.equal(f.context.pending,pending);assert.equal(f.get('riNewOperation').hidden,false);assert.equal(f.get('riManagementDialog').open,true);
 });
