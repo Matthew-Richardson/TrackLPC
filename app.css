@@ -689,3 +689,55 @@ html[data-theme="dark"] #sarCheckModal .sar-direction-options .sar-btn.selected{
 #sarEventFeedback:empty{display:none}
 .sar-panel-heading h2{min-width:0;overflow-wrap:anywhere}
 @media(max-width:700px){.sar-modal .md{animation:none}}
+
+/* Event dashboard stays inside one scrollable workspace below the app header. */
+body[data-system="sar"]{height:100dvh;min-height:0;overflow:hidden}
+body[data-system="sar"] #sarRoot{flex:1 1 auto;min-height:0;width:100%;max-width:100%;overflow-y:auto;overflow-x:hidden;overscroll-behavior-y:contain}
+body[data-system="sar"] .sar-shell{width:100%;min-width:0;box-sizing:border-box}
+.sar-event-workspace{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;min-width:0;max-width:100%}
+.sar-event-workspace .sar-panel,.sar-event-workspace .sar-detail,#sarEventDetail,#sarSelectedEventTools{min-width:0;max-width:100%;box-sizing:border-box}
+.sar-selected-event{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;padding:10px 12px;border:1px solid var(--ui-border);border-radius:9px;background:var(--ui-panel);min-width:0}
+.sar-selected-label{font-size:11px;color:var(--ui-muted)}
+.sar-selected-event>strong{flex:1 1 140px;min-width:0;font-size:14px;color:var(--ui-text);overflow-wrap:anywhere}
+.sar-event-config{min-width:0;max-width:100%;border:1px solid var(--ui-border);border-radius:9px;background:var(--ui-panel)}
+.sar-event-config>summary,.sar-closed-events>summary{padding:12px;cursor:pointer;color:var(--ui-text);font-size:13px;font-weight:650;overflow-wrap:anywhere}
+.sar-config-body{padding:0 12px 12px;min-width:0}
+.sar-config-body .sar-panel-heading{padding:8px 0;gap:8px;flex-wrap:wrap}
+.sar-config-body .sar-panel-heading h2{font-size:12px;flex:1}
+.sar-config-body .sar-event-list{padding:6px 0;max-height:240px;min-width:0}
+.sar-config-body .sar-event-item{width:100%;min-width:0;white-space:normal}
+.sar-config-body .sar-empty{padding:12px;font-size:12px}
+.sar-closed-events{margin-top:8px;border-top:1px solid var(--ui-border)}
+.sar-closed-events>summary{color:var(--ui-muted);font-size:12px;padding-inline:0}
+#sarSelectedEventTools .sar-event-head{margin:12px 0 0;padding-top:12px;border-top:1px solid var(--ui-border);flex-wrap:wrap}
+#sarSelectedEventTools .sar-event-head>div{min-width:0;max-width:100%}
+#sarSelectedEventTools .sar-event-head h2{font-size:15px}
+#sarSelectedEventTools .sar-meta{overflow-wrap:anywhere}
+.sar-event-workspace .sar-attendance-head{flex-wrap:wrap;gap:8px;min-width:0}
+.sar-event-workspace .sar-table-wrap{width:100%;min-width:0;max-width:100%;overflow:auto;box-sizing:border-box}
+.sar-event-workspace .sar-table{width:100%;min-width:0;table-layout:fixed}
+.sar-event-workspace .sar-table td,.sar-event-workspace .sar-table th{white-space:normal;overflow-wrap:anywhere;word-break:normal}
+.sar-event-config>summary:focus-visible,.sar-closed-events>summary:focus-visible{outline:2px solid var(--ui-link,var(--ui-accent));outline-offset:2px}
+@media(max-width:700px){
+ body[data-system="sar"] #sarRoot{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden}
+ .sar-event-workspace .sar-detail{padding:12px}
+ .sar-event-workspace .sar-table{display:block;table-layout:auto}
+ .sar-event-workspace .sar-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+ .sar-event-workspace .sar-table tbody{display:block;width:100%;min-width:0}
+ .sar-event-workspace .sar-table tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 8px;padding:10px;border-bottom:1px solid var(--ui-border);min-width:0}
+ .sar-event-workspace .sar-table tr:last-child{border-bottom:0}
+ .sar-event-workspace .sar-table td{display:block;min-width:0;padding:0;border:0;font-size:12px;line-height:1.45}
+ .sar-event-workspace .sar-table td:first-child{font-weight:650}
+ .sar-event-workspace .sar-table td:nth-child(2){justify-self:end;text-align:right}
+ .sar-event-workspace .sar-table td:nth-child(3),.sar-event-workspace .sar-table td:nth-child(4),.sar-event-workspace .sar-table td[colspan]{grid-column:1/-1}
+ .sar-event-workspace .sar-table td:nth-child(3){color:var(--ui-muted);font-size:11px}
+ .sar-event-workspace .sar-table td:nth-child(4){padding-top:3px}
+ #sarEventModal .sar-form-grid{grid-template-columns:minmax(0,1fr)}
+ #sarEventModal input[type="datetime-local"]{appearance:none;-webkit-appearance:none;width:100%;min-width:0;max-width:100%;box-sizing:border-box}
+}
+/* Camera feed dimensions cannot be changed by a portrait/landscape stream. */
+:is(#liveScanner,#cardLiveScanner,#sarCameraWrap) .scanner-viewport{position:relative;width:100%;height:190px;min-height:0;overflow:hidden;padding:0}
+:is(#liveScanner,#cardLiveScanner,#sarCameraWrap) .scanner-viewport video{position:absolute;inset:0;display:block;width:100%;height:100%;min-width:100%;min-height:100%;max-width:none;max-height:none;object-fit:cover;object-position:center}
+:is(#liveScanner,#cardLiveScanner,#sarCameraWrap) .live-scanner-frame{z-index:1}
+:is(#liveScanner,#cardLiveScanner,#sarCameraWrap) .live-scanner-label{z-index:2}
+@media(max-width:700px){:is(#liveScanner,#cardLiveScanner,#sarCameraWrap) .scanner-viewport{height:clamp(80px,15dvh,120px)}}
