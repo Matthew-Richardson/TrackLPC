@@ -270,7 +270,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
 }
 </style>
 <link rel="stylesheet" href="sar.css"/>
-<link rel="stylesheet" href="app.css?v=operation-activity-scope-20261028"/>
+<link rel="stylesheet" href="app.css?v=inventory-revisions-20261028"/>
 </head>
 <body>
 
@@ -762,7 +762,7 @@ function rebuildZoneCatalog({fit=false}={}){
       selLayer.clearLayers();selLayer.addData(refreshed.feature);
       const banner=document.getElementById('zoneBanner');banner.textContent=[refreshed.name,refreshed.incident].filter(Boolean).join(' — ');banner.style.display='block';
     }else{
-      selZoneId=null;selZone=null;selGeom=null;clearResourceActivity();selLayer.clearLayers();
+      selZoneId=null;selZone=null;selGeom=null;selLayer.clearLayers();
       document.getElementById('zoneBanner').style.display='none';
       document.getElementById('zoneBar').classList.remove('has-zone');
       checkpointZoneConfirmed=false;if(workflowMode!=='resource'){window.LPCLiveScanner?.stop();wedge.setTarget(null);}
@@ -781,7 +781,7 @@ document.getElementById('zs').addEventListener('change',function(){requestZoneSe
 function requestZoneSelection(oid){
   closeModal();resetModal({resumeScanner:false});
   if(oid){selectZone(Number(oid));return}
-  selZone=null;selZoneId=null;selGeom=null;checkpointZoneConfirmed=false;clearResourceActivity();
+  selZone=null;selZoneId=null;selGeom=null;checkpointZoneConfirmed=false;
   selLayer.clearLayers();document.getElementById('zoneBanner').style.display='none';
   document.getElementById('zoneBar').classList.remove('has-zone');
   document.getElementById('zoneScanBtn').disabled=true;
@@ -791,8 +791,8 @@ async function selectZone(oid,{fit=true}={}){
   // Sync checkpoint selectors. Custom-card assignment remains independent.
   const zone=zones.find(z=>String(z.id)===String(oid));if(!zone)return;
   document.getElementById('zs').value=oid;
-  selZoneId=zone.id;selZone=zone;clearResourceActivity();checkpointZoneConfirmed=true;document.getElementById('zoneScanBtn').disabled=false;
-  logData=[];currentInsideRows=[];document.getElementById('tlc').textContent='0';document.getElementById('currentInCount').textContent='0';
+  selZoneId=zone.id;selZone=zone;checkpointZoneConfirmed=true;document.getElementById('zoneScanBtn').disabled=false;
+  logData=[];currentInsideRows=[];if(workflowMode!=='resource')document.getElementById('tlc').textContent='0';document.getElementById('currentInCount').textContent='0';
   if(activeTab==='log')renderLog();
   selGeom=selZone.feature.geometry;var _zb=document.getElementById('zoneBanner');_zb.textContent=[selZone.name,selZone.incident].filter(Boolean).join(' \u2014 ');_zb.style.display='block';selLayer.clearLayers();selLayer.addData(selZone.feature);
   if(fit)map.fitBounds(selLayer.getBounds(),{padding:[30,30]});
@@ -2739,7 +2739,7 @@ window.LPCCardLiveScanner=(()=>{
 
 </script>
 <script src="resource-config.js?v=connected-inventory-20261028"></script>
-<script src="resource.js?v=operation-activity-scope-20261028"></script>
-<script src="resource-inventory.js?v=operation-activity-scope-20261028"></script>
+<script src="resource.js?v=inventory-revisions-20261028"></script>
+<script src="resource-inventory.js?v=inventory-revisions-20261028"></script>
 </body>
 </html>
