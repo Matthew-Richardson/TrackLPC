@@ -1,0 +1,187 @@
+{
+  "tables": [
+    {
+      "id": 1,
+      "name": "Resource_Inventory",
+      "type": "Table",
+      "displayField": "resource_name",
+      "objectIdField": "OBJECTID",
+      "fields": [
+        {
+          "name": "OBJECTID",
+          "alias": "Object ID",
+          "type": "esriFieldTypeOID",
+          "nullable": false,
+          "editable": false
+        },
+        {
+          "name": "entry_id",
+          "alias": "Entry Id",
+          "type": "esriFieldTypeString",
+          "length": 80,
+          "nullable": true,
+          "editable": true
+        },
+        {
+          "name": "inventory_id",
+          "alias": "Inventory Id",
+          "type": "esriFieldTypeString",
+          "length": 80,
+          "nullable": true,
+          "editable": true
+        },
+        {
+          "name": "record_type",
+          "alias": "Record Type",
+          "type": "esriFieldTypeString",
+          "length": 20,
+          "nullable": true,
+          "editable": true
+        },
+        {
+          "name": "resource_type",
+          "alias": "Resource Type",
+          "type": "esriFieldTypeString",
+          "length": 80,
+          "nullable": true,
+          "editable": true
+        },
+        {
+          "name": "resource_name",
+          "alias": "Resource Name",
+          "type": "esriFieldTypeString",
+          "length": 150,
+          "nullable": true,
+          "editable": true
+        },
+        {
+          "name": "unit",
+          "alias": "Unit",
+          "type": "esriFieldTypeString",
+          "length": 40,
+          "nullable": true,
+          "editable": true
+        },
+        {
+          "name": "location",
+          "alias": "Location",
+          "type": "esriFieldTypeString",
+          "length": 150,
+          "nullable": true,
+          "editable": true
+        },
+        {
+          "name": "quantity",
+          "alias": "Quantity",
+          "type": "esriFieldTypeDouble",
+          "nullable": true,
+          "editable": true
+        },
+        {
+          "name": "recorded_at",
+          "alias": "Recorded At",
+          "type": "esriFieldTypeDate",
+          "nullable": true,
+          "editable": true
+        },
+        {
+          "name": "operator_name",
+          "alias": "Operator Name",
+          "type": "esriFieldTypeString",
+          "length": 150,
+          "nullable": true,
+          "editable": true
+        },
+        {
+          "name": "notes",
+          "alias": "Notes",
+          "type": "esriFieldTypeString",
+          "length": 2000,
+          "nullable": true,
+          "editable": true
+        }
+      ],
+      "capabilities": "Query,Create",
+      "indexes": [
+        {
+          "name": "resource_inventory_unique",
+          "fields": "entry_id",
+          "isUnique": true,
+          "isAscending": true
+        }
+      ],
+      "advancedQueryCapabilities": {
+        "supportsPagination": true,
+        "supportsOrderBy": true
+      }
+    },
+    {
+      "id": 2,
+      "name": "Resource_Operations",
+      "type": "Table",
+      "displayField": "name",
+      "objectIdField": "OBJECTID",
+      "fields": [
+        {
+          "name": "OBJECTID",
+          "alias": "Object ID",
+          "type": "esriFieldTypeOID",
+          "nullable": false,
+          "editable": false
+        },
+        {
+          "name": "operation_id",
+          "alias": "Operation Id",
+          "type": "esriFieldTypeString",
+          "length": 80,
+          "nullable": true,
+          "editable": true
+        },
+        {
+          "name": "name",
+          "alias": "Name",
+          "type": "esriFieldTypeString",
+          "length": 150,
+          "nullable": true,
+          "editable": true
+        },
+        {
+          "name": "status",
+          "alias": "Status",
+          "type": "esriFieldTypeString",
+          "length": 20,
+          "nullable": true,
+          "editable": true
+        },
+        {
+          "name": "created_at",
+          "alias": "Created At",
+          "type": "esriFieldTypeDate",
+          "nullable": true,
+          "editable": true
+        },
+        {
+          "name": "operator_name",
+          "alias": "Operator Name",
+          "type": "esriFieldTypeString",
+          "length": 150,
+          "nullable": true,
+          "editable": true
+        }
+      ],
+      "capabilities": "Query,Create,Update",
+      "indexes": [
+        {
+          "name": "resource_operations_unique",
+          "fields": "operation_id",
+          "isUnique": true,
+          "isAscending": true
+        }
+      ],
+      "advancedQueryCapabilities": {
+        "supportsPagination": true,
+        "supportsOrderBy": true
+      }
+    }
+  ]
+}
