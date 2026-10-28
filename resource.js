@@ -148,7 +148,7 @@ function updateResourceModeUI(){
   document.getElementById('zoneScanBtn').disabled=!on&&!selZone;
   document.getElementById('resourceActivityType').hidden=!on;
   document.getElementById('scanDetailsLabel').textContent=on?'Person':'check-in details';
-  document.getElementById('zoneScanBtn').textContent=on?'Distribute resources':'Check in';
+  document.getElementById('zoneScanBtn').textContent=on?'Scan / Enter':'Check in';
 }
 function resetResourceForm(){
   const panel=document.getElementById('resourcePanel');if(panel){panel.hidden=true;panel.replaceChildren()}
