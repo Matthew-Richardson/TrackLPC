@@ -270,7 +270,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
 }
 </style>
 <link rel="stylesheet" href="sar.css"/>
-<link rel="stylesheet" href="app.css?v=sar-phone-workflows-20261027"/>
+<link rel="stylesheet" href="app.css?v=fullscreen-card-20261027"/>
 </head>
 <body>
 
@@ -516,13 +516,13 @@ body[data-workflow="card"] #cardManageView{display:flex}
     </div>
     <div class="print-actions">
       <button class="cb" onclick="printCard()">Print to ZC300</button>
-      <button class="btn-outline" onclick="savePNG()">Save PNG</button>
+      <button class="btn-outline" type="button" onclick="openCardDisplay('cardPrintPreview')">Full screen</button>
     </div>
 
     <button class="cb checkin-card-btn" id="cardCheckinBtn" onclick="checkInLastCard()">Check in this cardholder</button>
     <div class="card-checkin-status" id="cardCheckinStatus" role="status"></div>
     <button class="rst" onclick="startNextCardScan()">Scan another license or EZcard</button>
-<details class="workflow-optional"><summary>More card actions &amp; print settings</summary>    <button class="rst" onclick="editLastCard()">Edit name or phone</button>
+<details class="workflow-optional"><summary>More card actions &amp; print settings</summary><button class="rst" type="button" onclick="savePNG()">Save PNG</button>    <button class="rst" onclick="editLastCard()">Edit name or phone</button>
     <button class="rst" onclick="duplicateLastCard()">Duplicate for another person</button>
     <button class="rst" onclick="nextCustomCard()">Create a card manually</button>
     <div class="print-hint"><strong>ZC300 print settings:</strong> CR‑80 card · Landscape · Actual size/100% · Margins None · Headers and footers Off · One copy. The app rotates the portrait badge onto one physical card.</div></details>
@@ -532,6 +532,11 @@ body[data-workflow="card"] #cardManageView{display:flex}
 
  </div>
 </div>
+
+<dialog id="cardDisplay" aria-labelledby="cardDisplayTitle">
+  <div class="card-display-toolbar"><span id="cardDisplayTitle">Full-screen card</span><button id="closeCardDisplay" type="button" aria-label="Close full-screen card" onclick="document.getElementById('cardDisplay').close()">×</button></div>
+  <div class="card-display-stage"><img id="cardDisplayImage" alt="Card with scannable QR code"/></div>
+</dialog>
 
 <!-- Hidden iframe for ZC300 printing -->
 <iframe id="printFrame"></iframe>
@@ -1963,7 +1968,7 @@ function renderCardRegistry(cards){
     const detail=document.createElement('div');detail.className='registry-detail';
     detail.textContent=[card.addr,card.phone,card.reason,card.status].filter(Boolean).join(' · ');
     const actions=document.createElement('div');actions.className='registry-actions';
-    [['Reprint',()=>reprintRegistryCard(card)],['Edit',()=>beginEditCard(card)],['Duplicate',()=>duplicateCard(card)],['Delete',()=>deleteRegistryCard(card)]].forEach(([label,handler])=>{
+    [['View card',()=>viewRegistryCard(card)],['Edit',()=>beginEditCard(card)],['Duplicate',()=>duplicateCard(card)],['Delete',()=>deleteRegistryCard(card)]].forEach(([label,handler])=>{
       const b=document.createElement('button');b.type='button';b.textContent=label;if(label==='Delete')b.className='danger';b.addEventListener('click',handler);actions.appendChild(b);
     });
     item.append(name,id,detail,actions);list.appendChild(item);
@@ -2172,13 +2177,19 @@ async function showCardPreview(card){
   return card;
 }
 
-async function reprintRegistryCard(card){
+function openCardDisplay(canvasId){
+  const canvas=document.getElementById(canvasId),dialog=document.getElementById('cardDisplay');
+  if(!canvas||!canvas.width||!canvas.height||dialog.open)return;
+  document.getElementById('cardDisplayImage').src=canvas.toDataURL('image/png');
+  dialog.showModal();
+}
+
+async function viewRegistryCard(card){
   resetCardModal();switchCardView('create');
   document.getElementById('cfn').value=card.fn;document.getElementById('cln').value=card.ln;
   document.getElementById('caddr').value=card.addr;document.getElementById('cphone').value=card.phone;
   document.getElementById('creason').value=card.reason;
   await showCardPreview({...card});
-  await printCard();
 }
 
 async function generateCard(){
@@ -2505,7 +2516,7 @@ function ray(px,py,ring){let ins=false;for(let i=0,j=ring.length-1;i<ring.length
 </script>
 
 <script src="sar-config.js"></script>
-<script src="sar.js?v=phone-workflows-20261027"></script>
+<script src="sar.js?v=fullscreen-card-20261027"></script>
 
 <script type="module">
 // ---- BARCODE DETECTOR (phone camera) ----
