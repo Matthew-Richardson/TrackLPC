@@ -1,7 +1,7 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const source=fs.readFileSync('resource-inventory.js','utf8'),schema=JSON.parse(fs.readFileSync('resource-inventory-table-definition.json','utf8'));
 function fixture(entries=[],distributions=[],operations=[]){
- const calls=[],metadata=schema.tables;let fail=false;
+ const calls=[],metadata=JSON.parse(JSON.stringify(schema.tables));let fail=false;
  const context=vm.createContext({window:{LPC_RESOURCE_CONFIG:{serviceUrl:'https://example.test/FeatureServer'}},document:{getElementById:()=>null},resourceRows:distributions,resourceHistoryState:'ready',resourceDraftItems:[],activeResourceItems:[],workflowMode:'resource',resourceSaving:false,operatorName:'Test',crypto:require('node:crypto').webcrypto,URLSearchParams,console,validateResourceItems:items=>{if(!items.length)throw Error('Add at least one resource')},getAgolToken:async()=> 'token',resourceMetadata:async url=>{if(fail)throw Error('Inventory unavailable');return url.endsWith('FeatureServer')?{tables:[{id:1,name:'Resource_Inventory'},{id:2,name:'Resource_Operations'}]}:metadata[Number(url.slice(-1))-1]},resourceQuery:async(url,token,params)=>{calls.push({url,params});if(fail)throw Error('Inventory unavailable');return {features:(url.endsWith('/1')?entries:operations).map(attributes=>({attributes}))}},loadResourceHistory:async()=>{}});
  vm.runInContext(source,context);return {api:context.window.LPCInventory,context,calls,fail:()=>{fail=true},metadata};
 }
@@ -39,4 +39,21 @@ test('failed refresh or history read blocks stock writes instead of treating sta
 });
 test('schema errors keep legacy entry available rather than enabling broken shared inventory',async()=>{
  const f=fixture();f.metadata[0]={...f.metadata[0],fields:f.metadata[0].fields.filter(f=>f.name!=='location')};await f.api.refresh();assert.equal(f.api.enabled(),false);
+});
+test('separate private service roots resolve actual table IDs without reading the distribution service',async()=>{
+ const f=fixture(),base='https://example.test',config={serviceUrl:base+'/Distributions/FeatureServer',inventoryTableUrl:base+'/Inventory/FeatureServer',operationsTableUrl:base+'/Operations/FeatureServer'};
+ f.context.window.LPC_RESOURCE_CONFIG=config;const reads=[];
+ f.context.resourceMetadata=async url=>{reads.push(url);if(url===config.inventoryTableUrl)return {tables:[{id:7,name:'Resource_Inventory'}]};if(url===config.operationsTableUrl)return {tables:[{id:12,name:'Resource_Operations'}]};if(url===config.inventoryTableUrl+'/7')return {...f.metadata[0],fields:f.metadata[0].fields.map(field=>field.type==='esriFieldTypeOID'?{...field,name:'FID'}:field)};if(url===config.operationsTableUrl+'/12')return f.metadata[1];throw Error('Unexpected metadata URL: '+url)};
+ await f.api.refresh();assert(f.api.enabled());assert.deepEqual(f.calls.map(c=>c.url),[config.inventoryTableUrl+'/7',config.operationsTableUrl+'/12']);assert(!reads.includes(config.serviceUrl));assert.equal(f.calls[0].params.orderByFields,'FID ASC');
+});
+test('separate service permits a sole CSV table with a different published name',async()=>{
+ const f=fixture();f.context.window.LPC_RESOURCE_CONFIG={inventoryTableUrl:'https://example.test/Stock/FeatureServer/',operationsTableUrl:'https://example.test/Ops/FeatureServer'};
+ f.context.resourceMetadata=async url=>url.endsWith('FeatureServer')?{tables:[{id:0,name:'Published_CSV'}]}:url.includes('/Stock/')?f.metadata[0]:f.metadata[1];
+ await f.api.refresh();assert(f.api.enabled());assert.deepEqual(f.calls.map(c=>c.url),['https://example.test/Stock/FeatureServer/0','https://example.test/Ops/FeatureServer/0']);
+});
+test('ambiguous separate services and spatial layers do not guess an inventory table',async()=>{
+ for(const service of [{tables:[{id:0,name:'OtherA'},{id:1,name:'OtherB'}]},{layers:[{id:0,name:'Resource_Inventory'}],tables:[]}]){
+  const f=fixture();f.context.window.LPC_RESOURCE_CONFIG={inventoryTableUrl:'https://example.test/Stock/FeatureServer',operationsTableUrl:'https://example.test/Ops/FeatureServer'};f.context.resourceMetadata=async()=>service;
+  await f.api.refresh();assert.equal(f.api.enabled(),false);assert.equal(f.calls.length,0);
+ }
 });
