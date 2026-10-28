@@ -94,11 +94,12 @@ function render(){
  $('sarEventList').innerHTML=open.length?eventButtons(open):'<div class="sar-empty">No open events. Create an event to begin.</div>';
  $('sarClosedEventList').innerHTML=eventButtons(closed);$('sarClosedEvents').hidden=!closed.length;
  $('sarClosedEventsTitle').textContent=`Closed events (${closed.length})`;
- if(!event())$('sarEventConfig').open=true;
+ syncEventConfiguration();
  renderDetail();renderMembers();
  const divisions=[...new Set(state.members.map(m=>m.division).filter(Boolean))].sort();$('sarDivisions').replaceChildren(...divisions.map(d=>new Option(d,d)));
  setScanTarget();
 }
+function syncEventConfiguration(){const selected=event(),config=$('sarEventConfig');if(!selected)config.open=true;else if(config.dataset.eventId!==selected.event_id)config.open=false;config.dataset.eventId=selected?.event_id||''}
 function eventButtons(events){return events.map(e=>`<button class="sar-event-item" type="button" data-sar-event="${esc(e.event_id)}" aria-pressed="${e.event_id===state.eventId}"><strong>${esc(e.name)}</strong><span>${esc(e.event_type)} · ${esc(e.status)}</span><span>${esc(fmt(e.event_date))}</span></button>`).join('')}
 function renderDetail(){
  const e=event(),root=$('sarEventDetail'),checkModal=$('sarCheckModal');
