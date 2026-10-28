@@ -6,20 +6,21 @@ const html=fs.readFileSync('index.html','utf8'),resource=fs.readFileSync('resour
 function fixture(){
  const elements=new Map();let context;
  class Element{
+  addEventListener(name,fn){(this.listeners??={})[name]=fn}
   constructor(){this.value='';this.textContent='';this.hidden=false;this.disabled=false;this.style={};this.dataset={};this.children=[];this.classes=new Set();this.classList={add:x=>this.classes.add(x),remove:x=>this.classes.delete(x),contains:x=>this.classes.has(x),toggle:(x,on)=>on?this.classes.add(x):this.classes.delete(x)};}
   set innerHTML(s){for(const m of s.matchAll(/id="([^"]+)"/g))elements.set(m[1],new Element())}
   get innerHTML(){return ''} append(x){this.children.push(x);if(!this.value&&x.value)this.value=x.value} replaceChildren(...nodes){this.children=nodes} appendChild(node){this.children.push(node);return node} setAttribute(name,value){this[name]=value}
   querySelectorAll(){return []} reportValidity(){return true} scrollIntoView(){} focus(){this.focused=true}
  }
  const get=id=>{if(!elements.has(id))elements.set(id,new Element());return elements.get(id)};
- // The removed manual Continue button must behave like an absent DOM element.
+ // The Enter button replaced resourceManual; absent elements must return null.
  const doc={getElementById:id=>id==='resourceManual'?null:get(id),createElement:()=>new Element(),createDocumentFragment:()=>new Element(),querySelector:()=>get('heading'),querySelectorAll:()=>[],body:{dataset:{}}};
  const calls=[];
  context=vm.createContext({console,document:doc,window:{LPC_RESOURCE_CONFIG:{tableUrl:''},LPCLiveScanner:{stop(){},pause(){},start(){calls.push('scanner')}}},crypto:require('node:crypto').webcrypto,URL,Blob,URLSearchParams,Date,setTimeout,clearTimeout,requestAnimationFrame:f=>f(),titleCase:s=>s,escapeHTML:s=>s,csvCell:s=>String(s),map:{invalidateSize(){}},wedge:{setTarget:x=>calls.push(x)},syncWorkflowButtons(){},closeCardModal(){},loadCardRegistry(){},fetchLog:async()=>{},switchTab(){},refreshAll(){},setInterval:()=>1,LOG_URL:'https://example.test/checkpoint',computeCurrentInside:()=>[],renderLog(){},renderTableHeader(headers){get('dth').headers=headers},makeElement(tag,options){const node=new Element();node.textContent=options?.text??'';return node},resetModal(){},closeModal(){get('modal').classList.remove('open')},updateCounts(){},renderTable(){},selLayer:{clearLayers(){}},clearInterval(){}});
  vm.runInContext(`let workflowMode='scan',checkpointZoneConfirmed=true,selZone={id:7,name:'TEST-7',incident:'Exercise'},selZoneId=7,selGeom={},parsedDL=null,operatorName='Test operator',manualAddressTimer=null,addressCheckSequence=0,pData=[],aData=[],logData=[],currentInsideRows=[],activeTab='parcels',logTimer=null;`,context);
  vm.runInContext(resource,context);
  const run=s=>vm.runInContext(s,context);
- const loadFunction=(name,next)=>run(html.slice(html.indexOf('function '+name+'('),html.indexOf('function '+next+'(')));
+ const loadFunction=(name,next)=>{let start=html.indexOf('function '+name+'(');if(html.slice(start-6,start)==='async ')start-=6;run(html.slice(start,html.indexOf('function '+next+'(')))};
  return {context,get,run,calls,loadFunction};
 }
 test('all scripts parse, map tab and confirmation markup are absent',()=>{
@@ -200,4 +201,56 @@ test('Resource history includes prior zoned records and filters by resource type
  f.context.fetch=async(url,options)=>{assert.equal(options.body.get('where'),'1=1');return {ok:true,json:async()=>({features:[{attributes:{name:'Jane',resource_name:'Water case',resource_type:'Water',quantity:1,unit:'case',zone_id:'7'}},{attributes:{name:'John',resource_name:'Food box',resource_type:'Food',quantity:1,unit:'box',zone_id:''}}]})}};
  await f.run('loadResourceHistory()');assert.equal(f.get('tlc').textContent,'2');assert.equal(f.get('dtb').children[0].children.length,2);
  f.get('resourceActivityType').value='Water';f.run('renderResourceActivity()');assert.equal(f.get('dtb').children[0].children.length,1);assert.equal(f.get('dtb').children[0].children[0].children[1].textContent,'Jane');
+});
+
+test('zone catalog loads from Esri FeatureLayer without a group getBounds method',()=>{
+ const f=fixture();f.context.zoneLabelLayer={clearLayers(){}};let fits=0,extended=0;
+ f.context.map.fitBounds=()=>fits++;
+ const layer={feature:{properties:{OBJECTID:7,zonename:'TEST-7'}},getBounds:()=>({getCenter:()=>[37,-108]})};
+ f.context.evacLayer={eachFeature:fn=>fn(layer)};
+ f.context.L={latLngBounds:()=>({extend(){extended++},isValid:()=>extended>0}),divIcon:x=>x,marker:()=>({addTo(){}})};
+ f.run('let zones=[],zoneLabelLayer=globalThis.zoneLabelLayer;selZoneId=null;selLayer={clearLayers(){},addData(){}};');
+ const start=html.indexOf('function rebuildZoneCatalog('),end=html.indexOf("evacLayer.once('load'",start);
+ f.run(html.slice(start,end));f.run('rebuildZoneCatalog({fit:true})');
+ assert.equal(fits,1);assert.equal(extended,1);assert.equal(f.run('zones.length'),1);
+ assert.equal(f.get('zs').children.length,2);
+ f.run("workflowMode='resource';rebuildZoneCatalog()");assert.equal(f.get('zoneScanBtn').disabled,false);
+});
+
+test('real Check-in form resets, opens, verifies typed addresses, and advances to IN/OUT',async()=>{
+ const f=fixture();
+ // Resolve only actual HTML IDs: do not invent missing controls for this path.
+ const ids=new Set([...html.matchAll(/id="([^"]+)"/g)].map(m=>m[1]));
+ f.context.document.getElementById=id=>ids.has(id)?f.get(id):null;
+ f.run('let lastCheck=null,selectedDir=null,scanMarker=null;');
+ f.loadFunction('resetModal','startNextCheckpointScan');f.loadFunction('openModal','closeModal');
+ f.loadFunction('doCheck','showS1');f.loadFunction('showS1','overrideZoneCheck');f.loadFunction('goStep2','pickDir');
+ f.context.map.removeLayer=()=>{};f.context.GEOCODE_URL='https://example.test/geocode';f.context.pip=()=>true;
+ f.context.L={circleMarker:()=>({addTo(){return this}})};f.context.renderKeyValueRows=()=>{};
+ f.context.fetch=async()=>({json:async()=>({candidates:[{location:{x:-108,y:37},attributes:{Match_addr:'10 Test St',Score:100}}]})});
+ f.run('openModal()');assert(f.get('modal').classList.contains('open'));
+ assert.equal(f.get('manualAddressEnter').hidden,true);
+ f.get('s1fn').value='Jane';f.get('s1ln').value='Test';f.get('ai').value='10 Test St';
+ await f.run('doCheck()');assert.equal(f.get('s1').style.display,'none');assert.equal(f.get('s2').style.display,'');
+ assert.equal(f.run('parsedDL.scanType'),'Manual');
+ f.run('resetModal({resumeScanner:false})');assert.equal(f.get('s1').style.display,'');assert.equal(f.get('s2').style.display,'none');
+ // Outside-zone addresses stay at step 1 for review instead of proceeding.
+ f.context.pip=()=>false;f.get('ai').value='20 Outside St';await f.run('doCheck()');
+ assert.equal(f.get('s2').style.display,'none');assert.equal(f.get('zoneOverrideBtn').style.display,'');
+});
+
+
+test('typed addresses wait for explicit Enter and work in both Check-in and Resource',async()=>{
+ for(const mode of ['scan','resource']){
+  const f=fixture();let submitted=0;
+  f.run("workflowMode='"+mode+"';let lastCheck=null;");
+  f.context.doCheck=async()=>{submitted++};f.context.hideS1ResolutionActions=()=>{};
+  f.run(html.slice(html.indexOf('const manualAddressInput='),html.indexOf('// ---- STEP 2 ----')));
+  f.get('ai').value='10 Test St';f.get('ai').listeners.input();
+  assert.equal(submitted,0);assert.equal(f.get('manualAddressEnter').hidden,false);
+  assert.equal(f.get('ai').listeners.blur,undefined);
+  await f.get('manualAddressEnter').listeners.click();assert.equal(submitted,1);
+  f.get('ai').listeners.keydown({key:'Enter',preventDefault(){}});await Promise.resolve();assert.equal(submitted,2);
+  f.get('ai').value='';f.get('ai').listeners.input();assert.equal(f.get('manualAddressEnter').hidden,true);
+ }
 });
