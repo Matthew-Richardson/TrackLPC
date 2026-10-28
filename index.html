@@ -270,7 +270,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
 }
 </style>
 <link rel="stylesheet" href="sar.css"/>
-<link rel="stylesheet" href="app.css?v=dark-zone-select-20261027"/>
+<link rel="stylesheet" href="app.css?v=phone-workflows-20261027"/>
 </head>
 <body>
 
@@ -433,8 +433,10 @@ body[data-workflow="card"] #cardManageView{display:flex}
     <div class="ss" id="ss"></div>
     <div class="pf" id="pf"></div>
     <div class="dv" id="s1dv"><span id="scanDetailsLabel">check-in details</span></div>
+<div class="workflow-fields">
     <div class="af"><label>First name</label><input type="text" id="s1fn" placeholder="Jane"/></div>
     <div class="af"><label>Last name</label><input type="text" id="s1ln" placeholder="Doe"/></div>
+</div>
     <input type="hidden" id="s1phone"/>
     <div class="af"><label for="ai">Address</label><div class="manual-address-row"><input type="text" id="ai" placeholder="Type an address, then press Enter"/><button id="manualAddressEnter" class="manual-address-enter" type="button" hidden>Enter</button></div></div>
     <div class="scan-resolution-actions" id="s1ResolutionActions" style="display:none">
@@ -453,7 +455,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
         <div class="dbtn ob2" onclick="pickDir('OUT',this)">OUT</div>
       </div>
     </div>
-    <div class="af"><label>Notes (optional)</label><input type="text" id="s2notes" placeholder="Vehicle, occupants, etc."/></div>
+<details class="workflow-optional"><summary>Add notes (optional)</summary>    <div class="af"><label>Notes (optional)</label><input type="text" id="s2notes" placeholder="Vehicle, occupants, etc."/></div></details>
     <button class="cb gn-btn" id="s2save" disabled onclick="saveRecord()">Save record</button>
     <button class="btn-outline next-scan-action" type="button" onclick="startNextCheckpointScan()">Scan another person</button>
     <div class="res" id="s2res"><div class="vd" id="s2rv"></div><div class="dt" id="s2rd"></div></div>
@@ -467,11 +469,6 @@ body[data-workflow="card"] #cardManageView{display:flex}
 <div class="mo" id="cardModal">
  <div class="md">
   <div class="mh"><h2>Custom Cards</h2><button class="mx" onclick="closeCardModal()">×</button></div>
-  <div class="card-tabs" aria-label="Custom card view">
-    <button class="card-tab on" data-card-view="create" onclick="switchCardView('create')">Create Card</button>
-    <button class="card-tab" data-card-view="manage" onclick="switchCardView('manage')">Card Registry</button>
-  </div>
-
   <div id="cardCreateView">
   <div id="cardForm">
 
@@ -499,12 +496,16 @@ body[data-workflow="card"] #cardManageView{display:flex}
 
   <div class="dv"><span id="cardDetailsLabel">Card details</span></div>
 
+<div class="workflow-fields">
   <div class="af"><label>First name</label><input type="text" id="cfn" placeholder="Jane"/></div>
   <div class="af"><label>Last name</label><input type="text" id="cln" placeholder="Doe"/></div>
+</div>
   <div class="af"><label for="caddr">Authorized property address</label><div class="card-address-entry"><input type="text" id="caddr" placeholder="123 Main St, Durango, CO 81301"/><button class="b" id="clearCardAddressBtn" type="button" onclick="clearCustomCardAddress()" aria-label="Clear authorized property address">Clear</button></div></div>
   <div id="cardDuplicateStatus" class="registry-status" role="status" aria-live="polite"></div>
+<div class="workflow-fields">
   <div class="af"><label>Phone</label><input type="tel" id="cphone" placeholder="(970) 555-1234"/></div>
   <div class="af"><label>Reason</label><input type="text" id="creason" placeholder="2nd homeowner, renter, student, etc."/></div>
+</div>
   <button class="cb" id="generateCardBtn" onclick="generateCard()">Generate card</button>
   <button class="btn-outline next-scan-action" id="cardNextScanBtn" type="button" style="display:none" onclick="startNextCardScan()">Scan another license or EZcard</button>
   </div>
@@ -517,13 +518,14 @@ body[data-workflow="card"] #cardManageView{display:flex}
       <button class="cb" onclick="printCard()">Print to ZC300</button>
       <button class="btn-outline" onclick="savePNG()">Save PNG</button>
     </div>
-    <div class="print-hint"><strong>ZC300 print settings:</strong> CR‑80 card · Landscape · Actual size/100% · Margins None · Headers and footers Off · One copy. The app rotates the portrait badge onto one physical card.</div>
+
     <button class="cb checkin-card-btn" id="cardCheckinBtn" onclick="checkInLastCard()">Check in this cardholder</button>
     <div class="card-checkin-status" id="cardCheckinStatus" role="status"></div>
-    <button class="rst" onclick="editLastCard()">Edit name or phone</button>
-    <button class="rst" onclick="duplicateLastCard()">Duplicate for another person</button>
     <button class="rst" onclick="startNextCardScan()">Scan another license or EZcard</button>
+<details class="workflow-optional"><summary>More card actions &amp; print settings</summary>    <button class="rst" onclick="editLastCard()">Edit name or phone</button>
+    <button class="rst" onclick="duplicateLastCard()">Duplicate for another person</button>
     <button class="rst" onclick="nextCustomCard()">Create a card manually</button>
+    <div class="print-hint"><strong>ZC300 print settings:</strong> CR‑80 card · Landscape · Actual size/100% · Margins None · Headers and footers Off · One copy. The app rotates the portrait badge onto one physical card.</div></details>
   </div>
   </div>
 
@@ -1034,6 +1036,7 @@ let manualAddressTimer=null,addressCheckSequence=0;
 function resetModal({resumeScanner=true,statusText=''}={}){
   clearTimeout(manualAddressTimer);addressCheckSequence++;
   lastCheck=null;parsedDL=null;selectedDir=null;
+  document.querySelectorAll('#modal .workflow-optional').forEach(d=>d.open=false);
   resetResourceForm();
   document.getElementById('s1').style.display='';document.getElementById('s2').style.display='none';
   document.getElementById('ai').value='';document.getElementById('manualAddressEnter').hidden=true;document.getElementById('s1fn').value='';document.getElementById('s1ln').value='';
@@ -1819,6 +1822,7 @@ async function checkInLastCard(){
   }
 }
 function resetCardModal({resumeScanner=true}={}){
+  document.querySelectorAll('#cardModal .workflow-optional').forEach(d=>d.open=false);
   editingCard=null;
   clearTimeout(cardDuplicateTimer);cardDuplicateRevision++;
   document.getElementById('cardDuplicateStatus').replaceChildren();
@@ -2568,7 +2572,7 @@ window.LPCLiveScanner=(()=>{
   const frameCtx=frame.getContext('2d',{willReadFrequently:true});
   let stream=null,running=false,paused=false,busy=false,timer=null,lastFingerprint='';
 
-  function setUI(message,isRunning=false){label.textContent=message;button.textContent=isRunning?'Stop camera':'Start camera'}
+  function setUI(message,isRunning=false){label.textContent=message;video.parentElement.dataset.running=String(isRunning);button.title=message;button.textContent=isRunning?'Stop camera':'Start camera'}
   function schedule(delay=260){clearTimeout(timer);if(running&&!paused)timer=setTimeout(scanFrame,delay)}
   async function scanFrame(){
     if(!running||paused||busy||video.readyState<2){schedule();return}
@@ -2665,7 +2669,7 @@ window.LPCCardLiveScanner=(()=>{
   const frameCtx=frame.getContext('2d',{willReadFrequently:true});
   let stream=null,running=false,paused=false,busy=false,timer=null,lastFingerprint='';
 
-  function setUI(message,isRunning=false){label.textContent=message;button.textContent=isRunning?'Stop camera':'Start camera'}
+  function setUI(message,isRunning=false){label.textContent=message;video.parentElement.dataset.running=String(isRunning);button.title=message;button.textContent=isRunning?'Stop camera':'Start camera'}
   function schedule(delay=260){clearTimeout(timer);if(running&&!paused)timer=setTimeout(scanFrame,delay)}
   async function scanFrame(){
     if(!running||paused||busy||video.readyState<2){schedule();return}
@@ -2717,6 +2721,6 @@ window.LPCCardLiveScanner=(()=>{
 
 </script>
 <script src="resource-config.js?v=compact-header-20261027"></script>
-<script src="resource.js?v=collapsed-items-20261027"></script>
+<script src="resource.js?v=phone-workflows-20261027"></script>
 </body>
 </html>
