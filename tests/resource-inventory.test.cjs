@@ -77,7 +77,7 @@ test('unavailable device storage does not block distribution defaults between re
 });
 function setupFixture(){
  const nodes=new Map(),get=id=>{if(!nodes.has(id))nodes.set(id,{hidden:true,attrs:{},setAttribute(k,v){this.attrs[k]=v},focus(){this.focused=true}});return nodes.get(id)};
- const calls=[],context=vm.createContext({$:get,state:{operation:'',operations:[{operation_id:'ROP-test',status:'Open'}]},resourceSaving:false,syncDraft:()=>calls.push('sync'),render:()=>calls.push('render'),renderResourceHistory:()=>calls.push('history')});
+ const calls=[],context=vm.createContext({$:get,state:{operation:'',operations:[{operation_id:'ROP-test',status:'Open'}]},resourceSaving:false,pending:null,syncDraft:()=>calls.push('sync'),render:()=>calls.push('render'),renderResourceHistory:()=>calls.push('history')});
  vm.runInContext(source.slice(source.indexOf(' function setConfiguration('),source.indexOf(' function syncDraft(')),context);
  return {get,calls,context,run:s=>vm.runInContext(s,context)};
 }
@@ -117,4 +117,48 @@ test('a selected closed operation shows only its own activity regardless of coun
  f.run(source.slice(source.indexOf(' function filterRows('),source.indexOf(' function describe(')));
  f.run("chooseOperation('ROP-closed')");f.context.rows=[dist('closed','RINV-a',1,'ROP-closed'),dist('other','RINV-a',2,'ROP-other')];
  assert.deepEqual(Array.from(f.run('filterRows(rows)'),r=>r.distribution_id),['closed']);f.run("chooseOperation('')");assert.equal(f.context.state.activityScope,'open');
+});
+function addRevisionBuilder(f){vm.runInContext(source.slice(source.indexOf(' function revisionRow('),source.indexOf(' function openSupplyEditor(')),f.context);return (stock,mode,fields,entries)=>{f.context.testStock=stock;f.context.testMode=mode;f.context.testFields=fields;f.context.testEntries=entries;return vm.runInContext('revisionRow(testStock,testMode,testFields,testEntries)',f.context)}}
+test('editing supply details appends a new current version without changing original rows or double counting prior receipts',()=>{
+ const f=fixture(),entries=[{...stock('RINV-a','Water','case',100),recorded_at:1},{entry_id:'receipt',inventory_id:'RINV-a',record_type:'receipt',quantity:50,recorded_at:2}],issues=[dist('issued','RINV-a',30)];
+ const before=JSON.stringify(entries),current=f.api.balances(entries,issues)[0],build=addRevisionBuilder(f);
+ const revision=build(current,'revise',{resource_name:'Bottled water',resource_type:'Water',location:'North station',notes:'Corrected location'},entries),result=f.api.balances([...entries,revision],issues)[0];
+ assert.equal(JSON.stringify(entries),before);assert.equal(revision.record_type,'stock_update');assert.equal(revision.quantity,0);assert.equal(result.supplied,150);assert.equal(result.remaining,120);assert.equal(result.resource_name,'Bottled water');assert.equal(result.location,'North station');assert.equal(result.versionId,revision.entry_id);
+});
+test('updating physical supply appends a corrected snapshot and later receipts add only once',()=>{
+ const f=fixture(),entries=[{...stock('RINV-a','Water','case',100),recorded_at:1},{entry_id:'receipt',inventory_id:'RINV-a',record_type:'receipt',quantity:20,recorded_at:2}],issues=[dist('issued','RINV-a',25)];
+ const current=f.api.balances(entries,issues)[0],revision=addRevisionBuilder(f)(current,'count',{quantity:60,notes:'Physical count'},entries);
+ assert.equal(revision.quantity,85);assert.equal(f.api.balances([...entries,revision],issues)[0].remaining,60);
+ const later={entry_id:'later',inventory_id:'RINV-a',record_type:'receipt',quantity:10,recorded_at:revision.recorded_at+1};assert.equal(f.api.balances([later,...entries,revision,revision],issues)[0].remaining,70);
+});
+test('deactivation and reactivation append versions, retain stock balances, and preserve distribution history',()=>{
+ const f=fixture(),entries=[stock('RINV-a','Water','case',100)],issues=[dist('issued','RINV-a',25)],build=addRevisionBuilder(f),first=f.api.balances(entries,issues)[0];
+ const inactive=build(first,'deactivate',{notes:'Not available'},entries),off=f.api.balances([...entries,inactive],issues)[0];assert.equal(off.active,false);assert.equal(off.remaining,75);
+ const active=build(off,'activate',{notes:'Available again'},[...entries,inactive]),on=f.api.balances([...entries,inactive,active],issues)[0];assert.equal(on.active,true);assert.equal(on.remaining,75);assert.equal(entries[0].record_type,'stock');assert.equal(issues.length,1);
+});
+test('inactive supplies cannot be distributed or restored as last-used selections',async()=>{
+ const entries=[stock('RINV-a','Water','case',100),{entry_id:'off',inventory_id:'RINV-a',record_type:'stock_inactive',quantity:100,recorded_at:1,resource_name:'Water',resource_type:'Supplies',unit:'case',location:'Warehouse'}];
+ const f=fixture(entries);f.context.window.localStorage={getItem:()=>JSON.stringify([['RINV-a',2]])};await f.api.refresh();assert.throws(()=>f.api.validateSelection(),/at least one resource/);await assert.rejects(f.api.checkStock([{preset:'RINV-a',quantity:1}]),/inactive/);
+});
+test('revision retries reuse the confirmed entry ID and never append a second update after a lost response',async()=>{
+ const f=fixture(),original=stock('RINV-a','Water','case',100),build=addRevisionBuilder(f),stored=[],fields={stock:{value:'RINV-a'},name:{value:'Updated water'},type:{value:'Water'},location:{value:'North'},notes:{value:'Corrected name'}};
+ const form={elements:{namedItem:n=>fields[n]},querySelectorAll:()=>Object.values(fields),reset(){},dataset:{}};
+ Object.assign(f.context,{pending:null,state:{entries:[original],tables:{stock:{url:'https://example.test/FeatureServer/1'}}},$:()=>({hidden:false}),refresh:async()=>{},loadResourceHistory:async()=>{},usable:()=>true,allStocks:()=>f.api.balances([original],[]),setCountyAction(){},setConfiguration(){},syncDraft(){},render(){},form});
+ f.context.resourceQuery=async()=>({features:stored.map(attributes=>({attributes}))});let writes=0;
+ f.context.edit=async(kind,row,update)=>{assert.equal(kind,'stock');assert.equal(update,undefined);writes++;stored.push({...row});throw Error('Lost response')};
+ vm.runInContext(source.slice(source.indexOf(' async function saveEntry('),source.indexOf(' function mount(section)')),f.context);
+ await assert.rejects(vm.runInContext("saveEntry(form,'revise')",f.context),/Lost response/);const id=f.context.pending.row.entry_id;fields.name.value='Should not overwrite pending revision';
+ const result=await vm.runInContext("saveEntry(form,'revise')",f.context);assert.equal(writes,1);assert.equal(result.entry_id,id);assert.equal(stored[0].resource_name,'Updated water');assert.equal(f.context.pending,null);
+});
+test('supply editor actions replace the list and return to the list after completion',()=>{
+ const f=setupFixture();for(const mode of ['revise','count','deactivate','activate']){f.run(`setCountyAction('${mode}')`);assert.equal(f.get('riSupplyEditor').hidden,false);assert.equal(f.get('riSupplyLists').hidden,true);assert.equal(f.get('riAddStock').hidden,true);assert.equal(f.get('riReceiveStock').hidden,true)}
+ f.run('setCountyAction(null)');assert.equal(f.get('riSupplyEditor').hidden,true);assert.equal(f.get('riSupplyLists').hidden,false);
+});
+test('metadata and status revisions do not discard receipts written before or after the revision',()=>{
+ const f=fixture(),entries=[{...stock('RINV-a','Water','case',100),recorded_at:1}],current=f.api.balances(entries,[])[0],revision=addRevisionBuilder(f)(current,'revise',{resource_name:'Water cases',resource_type:'Water',location:'North',notes:''},entries);
+ const concurrent={entry_id:'concurrent',inventory_id:'RINV-a',record_type:'receipt',quantity:40,recorded_at:revision.recorded_at-1};assert.equal(f.api.balances([...entries,concurrent,revision],[])[0].supplied,140);
+});
+test('historical distributions retain the storage location in effect when they were recorded',async()=>{
+ const entries=[{...stock('RINV-a','Water','case',100),recorded_at:10},{entry_id:'revision',inventory_id:'RINV-a',record_type:'stock_update',quantity:0,recorded_at:20,resource_type:'Supplies',resource_name:'Water',unit:'case',location:'North station'}];
+ const f=fixture(entries);await f.api.refresh();assert.equal(f.api.describe({preset_id:'RINV-a',recorded_at:15}).location,'Warehouse');assert.equal(f.api.describe({preset_id:'RINV-a',recorded_at:25}).location,'North station');
 });
