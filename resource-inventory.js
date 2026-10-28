@@ -164,9 +164,8 @@ window.LPCInventory=(()=>{
  function mount(section){
    if(state.mounted)return;state.mounted=true;
    const host=document.createElement('div');host.id='resourceInventory';section.prepend(host);
-   host.innerHTML=`<div class="ri-heading"><h2>Resource Tracker</h2><div class="ri-setup-actions"><button class="b" id="riOperationSetup" type="button" aria-expanded="false" aria-controls="riOperationConfig">Operation setup</button><button class="b" id="riCountySetup" type="button" aria-expanded="false" aria-controls="resourceInventoryConfig">County inventory</button><button class="b" id="riRefresh" type="button">Refresh</button></div></div>
+   host.innerHTML=`<div class="ri-heading"><h2>Resource Tracker</h2><button id="riSelectedOperation" class="ri-selected-operation sar-selected-event" type="button" aria-label="Select or change operation" aria-expanded="false" aria-controls="riOperationConfig"></button><div class="ri-setup-actions"><button class="b" id="riOperationSetup" type="button" aria-expanded="false" aria-controls="riOperationConfig">Operation setup</button><button class="b" id="riCountySetup" type="button" aria-expanded="false" aria-controls="resourceInventoryConfig">County inventory</button><button class="b" id="riRefresh" type="button">Refresh</button></div></div>
     <p id="riConnection" class="resource-help" role="status"></p><div id="riMetrics" class="ri-metrics"></div>
-    <button id="riSelectedOperation" class="ri-selected-operation sar-selected-event" type="button" aria-label="Select or change operation" aria-expanded="false" aria-controls="riOperationConfig"></button>
     <section id="riOperationConfig" hidden aria-label="Operation setup"><div class="ri-config-heading"><div><span class="ri-command-label">Command staff</span><h3>Operation setup</h3></div><button class="b" id="riOperationDone" type="button">Done</button></div>
       <p class="resource-help">Choose an open operation to track its distributions, or create one. County supplies stay shared.</p><div class="ri-panel-actions"><button class="b ba" id="riCreateOperation" type="button">New operation</button><button class="b" id="riCountyOperation" type="button">Countywide / no operation</button></div>
       <div id="riNewOperation" hidden><form id="riOperationForm" class="ri-form"><label>Operation name<input name="name" maxlength="150" required placeholder="Flood assistance"></label><button class="b ba" type="submit">Create &amp; use operation</button><button class="b" id="riCancelOperation" type="button">Cancel</button><p role="status"></p></form></div>
@@ -179,8 +178,8 @@ window.LPCInventory=(()=>{
       <section id="riSupplyLists"><h4 class="ri-section-label">Active supplies</h4><div id="riActiveSupplies" class="ri-supply-list"></div><details id="riInactiveGroup"><summary>Inactive supplies</summary><div id="riInactiveSupplies" class="ri-supply-list"></div></details></section>
       <a href="https://github.com/Matthew-Richardson/TrackLPC/blob/main/RESOURCE_GIS_SETUP.md" target="_blank" rel="noopener">Shared inventory setup guide</a>
     </section>
-    <details id="riFilters" class="ri-dashboard-filters"><summary>Filter dashboard &amp; activity</summary><h4 class="ri-section-label">Location</h4><div id="riLocationChoices" class="ri-pills"></div><h4 class="ri-section-label">Resource</h4><div id="riResourceChoices" class="ri-pills"></div></details>
-    <div id="riActivityScope" class="ri-activity-scope" aria-label="Countywide activity scope"><button class="ri-pill" id="riOpenActivity" type="button" aria-pressed="true">Open operations</button><button class="ri-pill" id="riAllActivity" type="button" aria-pressed="false">Open + closed</button><span>Includes routine countywide assistance.</span></div><p id="riOperationSummary" class="resource-help"></p><p class="resource-help ri-scan-help">Scan or enter a person, then choose resources and amounts inside check-in.</p>`;
+    <details id="riFilters" class="ri-dashboard-filters"><summary>Filter dashboard &amp; activity</summary><div id="riActivityScope" class="ri-activity-scope" aria-label="Countywide activity scope"><h4 class="ri-section-label">Countywide activity</h4><button class="ri-pill" id="riOpenActivity" type="button" aria-pressed="true">Open operations</button><button class="ri-pill" id="riAllActivity" type="button" aria-pressed="false">Open + closed</button></div><h4 class="ri-section-label">Location</h4><div id="riLocationChoices" class="ri-pills"></div><h4 class="ri-section-label">Resource</h4><div id="riResourceChoices" class="ri-pills"></div></details>
+    <p class="resource-help ri-scan-help">Scan or enter a person, then choose resources and amounts inside check-in.</p>`;
    $('riOpenActivity').onclick=()=>setActivityScope('open');$('riAllActivity').onclick=()=>setActivityScope('all');
    $('riSelectedOperation').onclick=()=>setConfiguration($('riOperationConfig').hidden,'operations');
    $('riOperationSetup').onclick=()=>setConfiguration($('riOperationConfig').hidden,'operations');
@@ -221,12 +220,15 @@ window.LPCInventory=(()=>{
  function render(){
    if(!state.mounted)return;
    $('riConnection').textContent=state.loading?'Refreshing shared supply counts…':state.error||(!state.ready?'Connect shared inventory to track supply.':'Shared county inventory · counts update from saved distributions.');
+   $('riConnection').hidden=state.ready&&!state.error;
    $('riConnection').dataset.error=state.error?'true':'false';$('riRefresh').disabled=state.loading;
-   for(const id of ['riConfigForms','riMetrics','riFilters','riOperationSummary'])$(id).hidden=!state.ready;
+   for(const id of ['riConfigForms','riMetrics','riFilters'])$(id).hidden=!state.ready;
    $('resourceSelection').dataset.inventory=String(state.ready);
    for(const id of ['resourceSelectionForm','resourceAddItem'])if($(id))$(id).hidden=state.ready;
    const all=allStocks(),stocks=visibleStocks(),groups=new Map(all.map(s=>[resourceKey(s),s]));
-   const selected=operation();$('riSelectedOperation').innerHTML='<span class="sar-selected-label">'+(selected?'Selected operation':'Tracking scope')+'</span><strong>'+esc(selected?.name||'Countywide assistance')+'</strong><span class="sar-pill">'+esc(selected?.status||'No operation')+'</span><span class="ri-change-operation" aria-hidden="true">Change ▾</span>';
+   const selected=operation(),operationName=selected?.name||'Countywide assistance';
+   $('riSelectedOperation').innerHTML='<strong>'+esc(operationName)+'</strong>'+(selected?'<span class="ri-selector-status">'+esc(selected.status)+'</span>':'')+'<svg class="ri-selector-chevron" viewBox="0 0 20 20" aria-hidden="true"><path d="m5 7 5 5 5-5"/></svg>';
+   $('riSelectedOperation').setAttribute('aria-label','Operation: '+operationName+'. Select operation');
    const filterButtons=(id,items,key)=>{const list=$(id);list.replaceChildren();for(const [value,label] of items){const b=document.createElement('button');b.type='button';b.className='ri-pill';b.textContent=label;b.setAttribute('aria-pressed',String(state[key]===value));b.onclick=()=>{state[key]=value;render();renderResourceHistory()};list.append(b)}};
    filterButtons('riLocationChoices',[['','All locations'],...[...new Set(all.map(s=>s.location))].sort().map(s=>[s,s])],'location');
    filterButtons('riResourceChoices',[['','All resources'],...[...groups].map(([key,s])=>[key,s.resource_name+' ('+s.unit+')'])],'resource');
@@ -244,7 +246,7 @@ window.LPCInventory=(()=>{
    const supplied=stocks.reduce((n,s)=>n+s.supplied,0),remaining=stocks.reduce((n,s)=>n+s.remaining,0),issued=stocks.reduce((n,s)=>n+s.issued,0);
    const metrics=state.resource?[[fmt(remaining),'Remaining '+(stocks[0]?.unit||'units')],[supplied>0?pct(remaining/supplied*100)+'%':'—','Supply remaining'],[fmt(state.operation?scoped.reduce((n,r)=>n+Number(r.quantity||0),0):issued),state.operation?'Issued · operation':'Issued from stock'],[fmt(people),'People served'+(state.operation?' · operation':'')]]:[[fmt(new Set(stocks.map(resourceKey)).size),'Configured resources'],[fmt(new Set(stocks.map(s=>s.location)).size),'Stock locations'],[fmt(people),'People served'+(state.operation?' · operation':'')],[fmt(stocks.filter(s=>s.remaining<=0||s.percent<=20).length),'Low / empty supplies']];
    $('riMetrics').innerHTML=metrics.map(([value,label])=>'<div'+(label==='Low / empty supplies'?' title="Resource/location supplies with 20% or less of total received remaining, including empty stock."':'')+'><strong>'+esc(usable()?value:'—')+'</strong><span>'+esc(label)+'</span></div>').join('');
-   $('riOperationSummary').textContent=state.operation?(operation()?.name||'Selected operation')+' · '+scoped.length+' item records. Supply balances include every operation.':(state.activityScope==='all'?'Countywide activity · open, closed, and historical operations.':'Active countywide activity · open operations and routine assistance.')+' Supply balances always include all distributions.';
+
 
    $('riClosedOperationsGroup').hidden=!state.operations.some(o=>o.status==='Closed');
    for(const [id,status] of [['riOpenOperations','Open'],['riClosedOperations','Closed']]){
