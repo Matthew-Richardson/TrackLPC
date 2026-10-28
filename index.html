@@ -270,7 +270,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
 }
 </style>
 <link rel="stylesheet" href="sar.css"/>
-<link rel="stylesheet" href="app.css?v=compact-scan-review-20261027"/>
+<link rel="stylesheet" href="app.css?v=two-step-checkin-20261027"/>
 </head>
 <body>
 
@@ -289,7 +289,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
     <button class="mt-btn" data-mode="resource" onclick="setWorkflowMode('resource')"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 7 9-4 9 4v10l-9 4-9-4zM3 7l9 5 9-5M12 12v9M7.5 5l9 4.5"/></svg><span>Resource</span></button>
     <button class="mt-btn" data-mode="card" onclick="setWorkflowMode('card')"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8" cy="11" r="2"/><path d="M5.5 16c.7-1.6 4.3-1.6 5 0M13 10h5m-5 4h5"/></svg><span>Custom Card</span></button>
   </div>
-  <nav class="sar-nav" id="sarModeToggle" aria-label="SAR workspace"><button type="button" data-sar-tab="events" aria-selected="true">IN/OUT Checkpoint</button><button type="button" data-sar-tab="members" aria-selected="false"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8" cy="11" r="2"/><path d="M5.5 16c.7-1.6 4.3-1.6 5 0M13 10h5m-5 4h5"/></svg><span>Member cards</span></button></nav>
+  <nav class="sar-nav" id="sarModeToggle" aria-label="SAR workspace"><button type="button" data-sar-tab="events" aria-selected="true">Check-in / out</button><button type="button" data-sar-tab="members" aria-selected="false"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8" cy="11" r="2"/><path d="M5.5 16c.7-1.6 4.3-1.6 5 0M13 10h5m-5 4h5"/></svg><span>Member cards</span></button></nav>
   <div class="hdr-right">
     <div class="hdr-meta">
     <div class="hs" id="stats" style="display:none"><span>P:<strong id="pc">0</strong></span><span>A:<strong id="ac">0</strong></span></div>
@@ -430,7 +430,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
       <div class="live-scanner-label" id="liveScannerLabel">Starting camera — hold a QR code or DL barcode in the frame</div>
     </div>
     <div class="live-scanner-actions">
-      <button class="b ba" id="liveCameraBtn" type="button" onclick="window.LPCLiveScanner?.toggle()">Start camera</button>
+      <button class="b ba scanner-camera-button" id="liveCameraBtn" type="button" onclick="window.LPCLiveScanner?.toggle()">Start camera</button>
     </div>
     <div class="ss" id="ss"></div>
     <div class="pf" id="pf"></div>
@@ -487,7 +487,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
       <div class="live-scanner-label" id="cardLiveScannerLabel">Starting camera — hold a QR code or DL barcode in the frame</div>
     </div>
     <div class="live-scanner-actions">
-      <button class="b ba" id="cardLiveCameraBtn" type="button" onclick="window.LPCCardLiveScanner?.toggle()">Start camera</button>
+      <button class="b ba scanner-camera-button" id="cardLiveCameraBtn" type="button" onclick="window.LPCCardLiveScanner?.toggle()">Start camera</button>
     </div>
     <div class="card-parsed" id="cardParsedInfo" style="display:none"></div>
   </div>
@@ -2523,7 +2523,7 @@ function ray(px,py,ring){let ins=false;for(let i=0,j=ring.length-1;i<ring.length
 </script>
 
 <script src="sar-config.js"></script>
-<script src="sar.js?v=compact-scan-review-20261027"></script>
+<script src="sar.js?v=two-step-checkin-20261027"></script>
 
 <script type="module">
 // ---- BARCODE DETECTOR (phone camera) ----
