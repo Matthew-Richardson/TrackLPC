@@ -370,3 +370,13 @@ test('closing a SAR event collapses its configuration and closed-event history',
  await f.run('toggleEvent()');assert.equal(f.context.state.events[0].status,'Closed');
  assert.equal(f.get('sarEventConfig').open,false);assert.equal(f.get('sarClosedEvents').open,false);
 });
+
+
+test('SAR configuration minimizes when an event is selected and stays open only when requested',()=>{
+ const f=sarFlowFixture();
+ f.run(f.sar.slice(f.sar.indexOf('function syncEventConfiguration('),f.sar.indexOf('function eventButtons(')));
+ f.get('sarEventConfig').open=true;f.run('syncEventConfiguration()');assert.equal(f.get('sarEventConfig').open,false);
+ f.get('sarEventConfig').open=true;f.run('syncEventConfiguration()');assert.equal(f.get('sarEventConfig').open,true);
+ f.context.event=()=>({event_id:'SAR-EVT-another'});f.run('syncEventConfiguration()');assert.equal(f.get('sarEventConfig').open,false);
+ f.context.event=()=>null;f.run('syncEventConfiguration()');assert.equal(f.get('sarEventConfig').open,true);
+});
