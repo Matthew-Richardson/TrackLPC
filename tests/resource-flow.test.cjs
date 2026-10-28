@@ -316,3 +316,39 @@ test('the previous check-in confirmation appears once when preparing the next sc
  assert(!f.get('wedgeStatusCP').textContent.includes('Saved IN'));
  assert.equal(f.get('modal').dataset.addressReview,'false');
 });
+
+function sarFlowFixture(){
+ const f=fixture(),sar=fs.readFileSync('sar.js','utf8');
+ const m={member_id:'SAR-MEM-test',name:'Jane Example',division:'Ground',status:'Active'},evt={event_id:'SAR-EVT-test',status:'Open'};
+ f.context.state={tab:'events',preview:true,members:[m],memberId:m.member_id,direction:'',loading:false,attendanceReady:true,busy:false,pending:null};
+ f.context.$=f.get;f.context.member=()=>f.context.state.members.find(x=>x.member_id===f.context.state.memberId);f.context.event=()=>evt;
+ f.context.enabled=()=>true;f.context.currentMap=()=>new Map();f.context.setScanTarget=()=>{};f.context.stopCamera=()=>{};f.context.feedback=()=>{};f.context.openCheck=()=>{};f.context.loadAttendance=async()=>{};
+ f.get('sarEventDetail').querySelector=()=>null;f.get('sarCheckModal').contains=()=>false;
+ f.context.document.body.dataset.system='sar';
+ f.run(sar.slice(sar.indexOf('function updatePicked('),sar.indexOf('function renderMembers(')));
+ return {...f,sar,m,evt};
+}
+test('SAR direction selection requires an explicit Save and respects current attendance',()=>{
+ const f=sarFlowFixture();let writes=0;f.context.record=()=>writes++;
+ f.run("setCheckStep('review')");assert.equal(f.get('sarCheckModal').dataset.step,'review');assert.equal(f.get('sarSaveAttendance').disabled,true);
+ f.run("pickDirection('IN')");assert.equal(writes,0);assert.equal(f.get('sarSaveAttendance').disabled,false);assert.equal(f.context.state.direction,'IN');
+ f.run("pickDirection('OUT')");assert.equal(f.context.state.direction,'IN');assert.equal(writes,0);
+ f.context.currentMap=()=>new Map([[f.m.member_id,{direction:'IN'}]]);f.run('updatePicked()');
+ assert.equal(f.context.state.direction,'');assert.equal(f.get('sarInBtn').disabled,true);assert.equal(f.get('sarOutBtn').disabled,false);assert.equal(f.get('sarSaveAttendance').disabled,true);
+ f.run("pickDirection('OUT')");assert.equal(f.get('sarSaveAttendance').disabled,false);assert.equal(writes,0);
+});
+test('SAR scanning advances to review without saving; next member resets direction and notes',async()=>{
+ const f=sarFlowFixture();let writes=0;f.context.record=()=>writes++;
+ f.run(f.sar.slice(f.sar.indexOf('async function scan(raw)'),f.sar.indexOf('async function record(direction)')));
+ f.context.raw=JSON.stringify({t:'sar-member',id:f.m.member_id});
+ await f.run('scan(raw)');assert.equal(f.get('sarCheckModal').dataset.step,'review');assert.equal(f.get('sarSaveAttendance').disabled,true);assert.equal(writes,0);
+ f.run("pickDirection('IN')");f.get('sarAttendanceNotes').value='Unsaved note';f.run('resetCheckin()');
+ assert.equal(f.get('sarCheckModal').dataset.step,'identify');assert.equal(f.context.state.direction,'');assert.equal(f.get('sarAttendanceNotes').value,'');assert.equal(f.get('sarReviewStep').hidden,true);
+});
+
+test('SAR event-configuration feedback stays visible outside the check-in popup',()=>{
+ const f=fixture(),sar=fs.readFileSync('sar.js','utf8');f.context.$=f.get;
+ f.run(sar.slice(sar.indexOf('function feedback('),sar.indexOf('function sql(')));
+ f.run("feedback('Check out remaining members first.',true)");assert.equal(f.get('sarEventFeedback').textContent,'Check out remaining members first.');
+ f.get('sarCheckModal').classList.add('open');f.run("feedback('Attendance saved.')");assert.equal(f.get('sarFeedback').textContent,'Attendance saved.');
+});
