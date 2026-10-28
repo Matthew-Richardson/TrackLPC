@@ -840,3 +840,38 @@ body[data-workflow="resource"]:not([data-system="sar"]) .ts{max-width:960px;widt
  #modal .ri-recipient-selection .ri-quantities{max-height:80px}
  #modal #resourceForm input[type="datetime-local"]{font-size:14px}
 }
+
+/* Resource setup follows the SAR in/out workspace: metrics, selected operation, quiet setup actions. */
+.ri-selected-operation{margin:10px 0}
+.ri-setup-actions{display:flex;gap:8px;margin:10px 0;flex-wrap:wrap}
+.ri-setup-actions>.b{flex:1 1 160px;min-height:44px;justify-content:center;background:var(--ui-panel);color:var(--ui-text)}
+.ri-setup-actions>.b[aria-expanded="true"]{border-color:var(--ui-accent);background:var(--ui-accent-light);color:var(--ui-accent-dark)}
+html[data-theme="dark"] .ri-setup-actions>.b[aria-expanded="true"]{color:var(--ui-link);background:var(--ui-raised,var(--ui-bg));border-color:var(--ui-link)}
+#riOperationConfig,#resourceInventoryConfig{margin:10px 0;padding:12px;min-width:0;max-width:100%;box-sizing:border-box;border:1px solid var(--ui-border);border-radius:9px;background:var(--ui-panel)}
+#riOperationConfig[hidden],#riNewOperation[hidden],#riAddStock[hidden],#riReceiveStock[hidden],#riClosedOperationsGroup[hidden]{display:none!important}
+.ri-panel-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0}
+.ri-panel-actions .b{min-height:42px;justify-content:center;flex:1 1 140px}
+.ri-panel-actions .b[aria-pressed="true"]{border-color:var(--ui-accent);background:var(--ui-accent-light);color:var(--ui-accent-dark)}
+.ri-section-label{font-size:12px;color:var(--ui-muted);font-weight:650;margin:14px 0 8px}
+.ri-operation-row{align-items:stretch;margin:7px 0;gap:8px}
+.ri-operation-choice{flex:1;min-width:0;text-align:left;padding:12px;border:1px solid var(--ui-border);border-radius:8px;background:var(--ui-bg);color:var(--ui-text)}
+.ri-operation-choice strong{display:block;font-size:13px;margin-bottom:4px;overflow-wrap:anywhere}
+.ri-operation-choice span{display:block;color:var(--ui-muted);font-size:11px}
+.ri-operation-choice[aria-pressed="true"],.ri-stock-choice[aria-pressed="true"]{border-color:var(--ui-accent);background:var(--ui-accent-light)}
+html[data-theme="dark"] .ri-operation-choice[aria-pressed="true"],html[data-theme="dark"] .ri-stock-choice[aria-pressed="true"],html[data-theme="dark"] .ri-panel-actions .b[aria-pressed="true"]{background:var(--ui-raised,var(--ui-bg));border-color:var(--ui-link);color:var(--ui-text)}
+.ri-operation-row>.b{flex:0 0 auto;align-self:center;min-height:38px}
+.ri-choice-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:8px}
+.ri-stock-choice{display:block;text-align:left;border:1px solid var(--ui-border);border-radius:8px;padding:12px;background:var(--ui-bg);color:var(--ui-text);font:inherit;cursor:pointer;min-width:0;overflow-wrap:anywhere}
+.ri-stock-choice strong{display:block;font-size:13px;margin-bottom:4px}.ri-stock-choice span{display:block;color:var(--ui-muted);font-size:11px}
+.ri-form-context{grid-column:1/-1;font-size:12px;font-weight:650;line-height:1.5;margin:6px 0;color:var(--ui-text)}
+.ri-dashboard-filters{border:1px solid var(--ui-border);border-radius:9px;padding:0 12px;margin:10px 0;background:var(--ui-panel)}
+.ri-dashboard-filters>summary{padding:12px 0;cursor:pointer;font-size:12px;color:var(--ui-muted)}
+.ri-dashboard-filters .ri-pills{margin-bottom:12px}
+#riCommonResources{max-height:150px;overflow-y:auto;padding:3px}
+#riOperationConfig .ri-form>label{grid-column:1/-1}
+#riOperationConfig .ri-form>.ba{grid-column:auto;justify-self:stretch;min-width:0}
+#riOperationConfig .ri-form>#riCancelOperation{justify-content:center;min-height:44px}
+@media(max-width:700px){.ri-setup-actions{flex-wrap:nowrap;gap:7px}.ri-setup-actions>.b{flex:1 1 0;min-width:0;font-size:12px;padding:10px 8px}.ri-panel-actions .b{flex-basis:110px}}
+#riReceiptForm[hidden],#riReceiptChoices[hidden],#riReceiptPrompt[hidden],#riChangeReceipt[hidden]{display:none!important}
+#riReceiptChoices{max-height:260px;overflow-y:auto;padding:2px}
+#riChangeReceipt{margin:4px 0 8px;color:var(--ui-muted);min-height:38px}
