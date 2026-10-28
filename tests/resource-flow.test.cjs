@@ -380,3 +380,59 @@ test('SAR configuration minimizes when an event is selected and stays open only 
  f.context.event=()=>({event_id:'SAR-EVT-another'});f.run('syncEventConfiguration()');assert.equal(f.get('sarEventConfig').open,false);
  f.context.event=()=>null;f.run('syncEventConfiguration()');assert.equal(f.get('sarEventConfig').open,true);
 });
+
+// Exercise the actual Zebra HID keyboard listener, rather than calling camera handlers.
+function zebraFixture(target='checkpoint'){
+ let now=1000,nextTimer=0,listener;const timers=new Map(),calls=[],elements=new Map();
+ const get=id=>{if(!elements.has(id))elements.set(id,{value:'',textContent:'',className:''});return elements.get(id)};
+ const input={tagName:'INPUT',type:'text',value:'Existing '};
+ const context=vm.createContext({console,Date:{now:()=>now},document:{activeElement:input,getElementById:get,addEventListener:(type,fn)=>{if(type==='keydown')listener=fn}},setTimeout:(fn,delay)=>{timers.set(++nextTimer,{fn,at:now+delay});return nextTimer},clearTimeout:id=>timers.delete(id),window:{SAR:{scan:async raw=>calls.push(['sar',raw])},LPCLiveScanner:{pause:()=>calls.push(['camera-pause'])}},applyCheckpointDL:async p=>calls.push(['checkpoint-dl',p]),beginIncomingCardScan:()=>calls.push(['card-reset']),populateCustomCardFromDL:p=>calls.push(['card-dl',p]),advanceCardAfterScan:t=>calls.push(['card-advance',t]),resetModal:()=>calls.push(['checkpoint-reset']),getApprovedCard:async q=>{calls.push(['registry',q.id]);return {firstName:'Test',lastName:'Member',fullAddress:'10 Test St',phone:'5551234567',reason:'Exercise'}},showParsed:()=>{},titleCase:s=>s,doCheck:async options=>calls.push(['checkpoint-review',options])});
+ vm.runInContext(html.slice(html.indexOf('function parseAAMVA('),html.indexOf('function buildAddrString(')),context);
+ vm.runInContext(html.slice(html.indexOf('const wedge=(function(){'),html.indexOf('// ---- CUSTOM CARD MODAL ----')),context);
+ vm.runInContext(`wedge.setTarget(${JSON.stringify(target)})`,context);
+ function key(key,gap=5){now+=gap;let prevented=false;listener({key,preventDefault(){prevented=true},stopPropagation(){}});if(!prevented&&key.length===1)input.value+=key;return prevented}
+ async function finish(){now+=1000;for(const [id,t] of [...timers])if(t.at<=now){timers.delete(id);t.fn()}for(let i=0;i<12;i++)await Promise.resolve()}
+ return {calls,input,get,key,finish,run:s=>vm.runInContext(s,context),async scan(raw,suffix='Enter'){for(const c of raw)key(c==='\n'?'Enter':c==='\t'?'Tab':c);if(suffix)key(suffix);await finish()}};
+}
+const zebraDL='X@\nANSI 636020090002DL00410288ZA03290015\nDAQTEST123\nDCSMEMBER\nDACTEST\nDADPERSON\nDAG10 TEST ST\nDAIDURANGO\nDAJCO\nDAK813010000\n';
+for(const target of ['checkpoint','card'])for(const suffix of ['Enter','Tab','']){
+ test(`Zebra ${target}: multiline prefixed DL with ${suffix||'idle'} terminator`,async()=>{
+  const f=zebraFixture(target);await f.scan(zebraDL,suffix);const result=f.calls.find(c=>c[0]===(target==='card'?'card-dl':'checkpoint-dl'));
+  assert(result);assert.equal(result[1].firstName,'TEST');assert.equal(result[1].lastName,'MEMBER');assert.equal(result[1].street,'10 TEST ST');assert.equal(f.input.value,'Existing ');
+  assert.equal(f.calls.filter(c=>c[0]===result[0]).length,1);
+ });
+ test(`Zebra ${target}: prefixed approved LPC QR with ${suffix||'idle'} terminator`,async()=>{
+  const f=zebraFixture(target);await f.scan('P01'+JSON.stringify({t:'card',id:'LPC-TEST-12345'}),suffix);
+  assert(f.calls.some(c=>c[0]==='registry'));assert(f.calls.some(c=>c[0]===(target==='card'?'card-advance':'checkpoint-review')));assert.equal(f.input.value,'Existing ');
+  assert.equal(f.get(target==='card'?'caddr':'ai').value,'10 Test St');
+ });
+}
+for(const suffix of ['Enter','Tab',''])test(`Zebra SAR member QR routes with ${suffix||'idle'} terminator`,async()=>{
+ const f=zebraFixture('sar'),raw=JSON.stringify({t:'sar-member',id:'SAR-MEM-test-12345678'});await f.scan('P01'+raw,suffix);
+ assert.equal(f.calls.length,1);assert.equal(f.calls[0][0],'sar');assert.equal(f.calls[0][1],raw);assert.equal(f.input.value,'Existing ');
+});
+test('Zebra target changes discard unfinished scans and closed workflows ignore scans',async()=>{
+ const f=zebraFixture();for(const c of zebraDL.slice(0,30))f.key(c);f.run('wedge.setTarget(null)');await f.finish();assert.equal(f.calls.length,0);
+ await f.scan(zebraDL);assert.equal(f.calls.length,0);
+ f.run("wedge.setTarget('card')");f.input.value='Existing ';await f.scan(zebraDL);assert(f.calls.some(c=>c[0]==='card-dl'));assert(!f.calls.some(c=>c[0]==='checkpoint-dl'));
+});
+test('Zebra listener preserves ordinary typing and Enter/Tab behavior',async()=>{
+ const f=zebraFixture();for(const c of 'Jane')assert.equal(f.key(c,120),false);assert.equal(f.key('Enter',120),false);assert.equal(f.key('Tab',120),false);await f.finish();assert.equal(f.input.value,'Existing Jane');assert.equal(f.calls.length,0);
+});
+test('Zebra route arms on Resource/Checkpoint launch and clears on closing',()=>{
+ const f=fixture();f.loadFunction('openModal','closeModal');f.run(html.slice(html.indexOf('function closeModal('),html.indexOf('let manualAddressTimer=')));
+ f.run("workflowMode='resource';setupResourceSelection();openModal()");assert(f.calls.includes('checkpoint'));
+ f.run('closeModal()');assert.equal(f.calls.at(-1),null);
+ f.run("workflowMode='scan';openModal()");assert(f.get('modal').classList.contains('open'));assert.equal(f.calls.filter(c=>c==='checkpoint').length,2);
+});
+test('Zebra SAR routing arms only during identification in an open event',()=>{
+ const f=sarFlowFixture();let blocked=false;f.context.document.querySelector=()=>blocked?{}:null;
+ f.run(f.sar.slice(f.sar.indexOf('function setScanTarget('),f.sar.indexOf('function stopCamera(')));
+ const check=expected=>{f.run('setScanTarget()');assert.equal(f.calls.at(-1),expected)};
+ f.get('sarCheckModal').classList.add('open');f.get('sarCheckModal').dataset.step='identify';check('sar');
+ f.get('sarCheckModal').dataset.step='review';check(null);
+ f.get('sarCheckModal').dataset.step='identify';blocked=true;check(null);blocked=false;
+ f.evt.status='Closed';check(null);f.evt.status='Open';check('sar');
+ f.get('sarCheckModal').classList.remove('open');check(null);
+ f.get('sarCheckModal').classList.add('open');f.context.document.body.dataset.system='evac';check(null);
+});
