@@ -436,3 +436,19 @@ test('Zebra SAR routing arms only during identification in an open event',()=>{
  f.get('sarCheckModal').classList.remove('open');check(null);
  f.get('sarCheckModal').classList.add('open');f.context.document.body.dataset.system='evac';check(null);
 });
+test('tracked Resource lines persist stock and operation IDs using existing GIS fields',()=>{
+ const f=fixture();f.run("person={firstName:'Jane',lastName:'Test',fullAddress:'10 Test',scanType:'Manual'};fields={id:'dist-test',type:'Water',name:'Cases',unit:'case',quantity:2,date:'2026-10-28T12:00',through:'',phone:'',notes:'',operator:'Test',preset:'RINV-stock',operationId:'ROP-operation'}");
+ const a=f.run("resourceAttributes(person,{id:'',name:'',incident:''},fields,'LPC-TEST')");assert.equal(a.preset_id,'RINV-stock');assert.equal(a.incident,'ROP-operation');assert.equal(a.quantity,2);
+});
+test('insufficient inventory permits editing before a distribution write has started',async()=>{
+ const f=preparedSave();let writes=0,cards=0;f.context.window.LPCInventory={checkStock:async()=>{throw Error('Not enough supply')},render(){}};
+ f.context.ensurePersonCard=async()=>{cards++};f.context.fetch=async(url)=>{if(url.endsWith('/applyEdits'))writes++;return {ok:true,json:async()=>({features:[]})}};
+ await f.run('saveResourceDistribution({preventDefault(){}})');assert.equal(writes,0);assert.equal(cards,0);assert.equal(f.get('resourceForm')._pendingResource,undefined);assert.equal(f.get('resourceNextPerson').disabled,false);assert.equal(f.get('resourceSave').disabled,false);assert.match(f.get('resourceStatus').textContent,/Not enough supply/);
+});
+test('inventory retries check stock for only missing distribution lines',async()=>{
+ const f=preparedSave(),saved=new Set(),checks=[];let batches=0;
+ f.context.window.LPCInventory={checkStock:async items=>checks.push(items.length),render(){}};f.context.ensurePersonCard=async()=>({card:{cardId:'LPC-TEST'},created:false});
+ f.context.fetch=async(url,opts)=>{if(url.endsWith('/applyEdits')){const adds=JSON.parse(opts.body.get('adds'));batches++;if(batches===1){saved.add(adds[0].attributes.distribution_id);throw Error('lost response')}return {ok:true,json:async()=>({addResults:adds.map(()=>({success:true}))})}}
+ return {ok:true,json:async()=>({features:opts.body.get('outFields')==='distribution_id'?[...saved].map(id=>({attributes:{distribution_id:id}})):[]})}};
+ await f.run('saveResourceDistribution({preventDefault(){}})');await f.run('saveResourceDistribution({preventDefault(){}})');assert.deepEqual(checks,[2,1]);assert.equal(f.get('resourceForm').dataset.saved,'true');
+});
