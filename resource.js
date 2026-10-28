@@ -177,23 +177,25 @@ async function prepareResourceRecipient(){
     <p id="resourceSetup" role="status"></p>
     <form id="resourceForm">
       <p id="resourceItemSummary"></p>
-      <div class="resource-grid">
+      <details class="workflow-optional"><summary>Date, phone &amp; notes</summary><div class="resource-grid">
         <div class="af"><label for="resourceDate">Distributed at (local)</label><input id="resourceDate" type="datetime-local" required></div>
         <div class="af"><label for="resourceThrough">Covers through (local, optional)</label><input id="resourceThrough" type="datetime-local"></div>
       </div>
       <div class="af"><label for="resourcePhone">Phone (optional)</label><input id="resourcePhone" type="tel" maxlength="40"></div>
       <div class="af"><label for="resourceNotes">Notes (optional)</label><textarea id="resourceNotes" maxlength="2000" placeholder="Package size, household needs, or other distribution notes"></textarea></div>
+      </details>
       <button class="cb" id="resourceSave" type="submit">Save distribution</button>
       <p id="resourceStatus" role="status" aria-live="polite"></p>
     </form>
     <button class="b" id="resourceNextPerson" type="button" onclick="startNextCheckpointScan()">Scan another person</button>
-    <div id="resourceCardResult" hidden></div>
+    <details id="resourceCardResult" class="workflow-optional" hidden></details>
     <details><summary>Distribution history</summary><button class="b" type="button" id="resourceRefresh">Refresh</button><button class="b" type="button" id="resourceExport">Export CSV</button><p id="resourceHistoryStatus" role="status"></p><div id="resourceHistory"></div></details>`;
   document.getElementById('resourcePerson').textContent=[fn,ln].join(' ')+' · '+addr;
   document.getElementById('resourceItemSummary').textContent='Distributing: '+describeResourceItems(activeResourceItems);
   document.getElementById('resourceDate').value=resourceLocalDate();
   document.getElementById('resourcePhone').value=document.getElementById('s1phone').value||parsedDL.phone||'';
   document.getElementById('resourceForm').onsubmit=saveResourceDistribution;
+  document.getElementById('resourceForm').addEventListener('invalid',e=>{const details=e.target.closest('details');if(details)details.open=true},true);
   document.getElementById('resourceRefresh').onclick=loadResourceHistory;
   document.getElementById('resourceExport').onclick=exportResourceHistory;
   document.getElementById('resourceSave').disabled=!resourceURL();
@@ -267,7 +269,7 @@ async function saveResourceDistribution(e){
 function showResourceCardReady(card,created){
   if(!card?.cardId)return;
   const result=document.getElementById('resourceCardResult');result.hidden=false;
-  result.innerHTML=`<p id="resourceCardReady" role="status"></p>
+  result.innerHTML=`<summary>Custom card (optional)</summary><p id="resourceCardReady" role="status"></p>
     <button class="b" type="button" id="resourceCardView">View custom card</button>
     <button class="b" type="button" id="resourceCardPrint">Print to ZC300</button>
     <button class="b" type="button" id="resourceCardPNG">Save card PNG</button>
