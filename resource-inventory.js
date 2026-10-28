@@ -2,7 +2,7 @@
 window.LPCInventory=(()=>{
  const $=id=>document.getElementById(id),esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const fmt=n=>Number(n).toLocaleString(undefined,{maximumFractionDigits:3}),pct=n=>Number(n).toLocaleString(undefined,{maximumFractionDigits:1});
- const state={ready:false,loading:false,error:'',entries:[],operations:[],tables:null,selected:new Map(),location:'',resource:'',operation:'',mounted:false,version:0};
+ const state={ready:false,loading:false,error:'',entries:[],operations:[],tables:null,selected:new Map(),location:'',resource:'',operation:'',activityScope:'open',mounted:false,version:0};
  let pending=null;
  function balances(entries,distributions){
    const stocks=new Map();
@@ -41,7 +41,7 @@ window.LPCInventory=(()=>{
  function chooseOperation(id){
    if(resourceSaving||$('resourceForm')?._pendingResource)return;
    if(id&&!state.operations.some(o=>o.operation_id===id))return;
-   state.operation=id;syncDraft();setConfiguration(false,'operations');render();renderResourceHistory();
+   state.operation=id;if(!id)state.activityScope='open';syncDraft();setConfiguration(false,'operations');render();renderResourceHistory();
  }
  function syncDraft(){if(!state.ready)return;resourceDraftItems=currentItems();if($('resourceForm')&&$('resourceForm').dataset.saved!=='true'&&!$('resourceForm')._pendingResource){activeResourceItems=currentItems();$('resourceItemSummary').textContent='Distributing: '+describeResourceItems(activeResourceItems);$('resourceSave').textContent=activeResourceItems.length?'Save '+activeResourceItems.length+' item'+(activeResourceItems.length===1?'':'s'):'Select resources to save';$('resourceSave').disabled=!activeResourceItems.length}}
  async function resolve(){
@@ -125,7 +125,8 @@ window.LPCInventory=(()=>{
       <a href="https://github.com/Matthew-Richardson/TrackLPC/blob/main/RESOURCE_GIS_SETUP.md" target="_blank" rel="noopener">Shared inventory setup guide</a>
     </section>
     <details id="riFilters" class="ri-dashboard-filters"><summary>Filter dashboard &amp; activity</summary><h4 class="ri-section-label">Location</h4><div id="riLocationChoices" class="ri-pills"></div><h4 class="ri-section-label">Resource</h4><div id="riResourceChoices" class="ri-pills"></div></details>
-    <p id="riOperationSummary" class="resource-help"></p><p class="resource-help ri-scan-help">Scan or enter a person, then choose resources and amounts inside check-in.</p>`;
+    <div id="riActivityScope" class="ri-activity-scope" aria-label="Countywide activity scope"><button class="ri-pill" id="riOpenActivity" type="button" aria-pressed="true">Open operations</button><button class="ri-pill" id="riAllActivity" type="button" aria-pressed="false">Open + closed</button><span>Includes routine countywide assistance.</span></div><p id="riOperationSummary" class="resource-help"></p><p class="resource-help ri-scan-help">Scan or enter a person, then choose resources and amounts inside check-in.</p>`;
+   $('riOpenActivity').onclick=()=>setActivityScope('open');$('riAllActivity').onclick=()=>setActivityScope('all');
    $('riSelectedOperation').onclick=()=>setConfiguration($('riOperationConfig').hidden,'operations');
    $('riOperationSetup').onclick=()=>setConfiguration($('riOperationConfig').hidden,'operations');
    $('riCountySetup').onclick=()=>setConfiguration($('resourceInventoryConfig').hidden,'county');
@@ -178,12 +179,14 @@ window.LPCInventory=(()=>{
    $('riReceiptSelected').textContent=receiptStock?'2. Add quantity received: '+receiptStock.resource_name+' · '+receiptStock.location+' ('+receiptStock.unit+')':'Select a resource above to continue.';
    $('riReceiptForm').querySelector('button[type="submit"]').disabled=!receiptStock||state.loading;
    for(const stock of all){const b=document.createElement('button');b.type='button';b.className='ri-stock-choice';b.innerHTML='<strong>'+esc(stock.resource_name)+'</strong><span>'+esc(stock.location+' · '+stock.unit)+'</span>';b.setAttribute('aria-pressed',String(stock.inventory_id===receiptId));b.disabled=!!pending;b.onclick=()=>{$('riRestockChoice').value=stock.inventory_id;render()};receiptChoices.append(b)}
-   const scoped=resourceRows.filter(r=>(!state.operation||r.incident===state.operation)&&(!state.location||all.some(s=>s.inventory_id===r.preset_id&&s.location===state.location))&&(!state.resource||all.some(s=>s.inventory_id===r.preset_id&&resourceKey(s)===state.resource)));
+   const scoped=filterRows(resourceRows);
+   $('riActivityScope').hidden=!state.ready||!!state.operation;
+   $('riOpenActivity').setAttribute('aria-pressed',String(state.activityScope==='open'));$('riAllActivity').setAttribute('aria-pressed',String(state.activityScope==='all'));
    const people=new Set(scoped.map(r=>r.card_id||JSON.stringify([r.name,r.address]))).size;
    const supplied=stocks.reduce((n,s)=>n+s.supplied,0),remaining=stocks.reduce((n,s)=>n+s.remaining,0),issued=stocks.reduce((n,s)=>n+s.issued,0);
    const metrics=state.resource?[[fmt(remaining),'Remaining '+(stocks[0]?.unit||'units')],[supplied>0?pct(remaining/supplied*100)+'%':'—','Supply remaining'],[fmt(state.operation?scoped.reduce((n,r)=>n+Number(r.quantity||0),0):issued),state.operation?'Issued · operation':'Issued from stock'],[fmt(people),'People served'+(state.operation?' · operation':'')]]:[[fmt(new Set(stocks.map(resourceKey)).size),'Configured resources'],[fmt(new Set(stocks.map(s=>s.location)).size),'Stock locations'],[fmt(people),'People served'+(state.operation?' · operation':'')],[fmt(stocks.filter(s=>s.remaining<=0||s.percent<=20).length),'Low / empty supplies']];
    $('riMetrics').innerHTML=metrics.map(([value,label])=>'<div'+(label==='Low / empty supplies'?' title="Resource/location supplies with 20% or less of total received remaining, including empty stock."':'')+'><strong>'+esc(usable()?value:'—')+'</strong><span>'+esc(label)+'</span></div>').join('');
-   $('riOperationSummary').textContent=state.operation?(operation()?.name||'Selected operation')+' · '+scoped.length+' item records. Supply balances include every operation.':'Countywide supply balances include all operations. Select a resource to see its remaining percentage.';
+   $('riOperationSummary').textContent=state.operation?(operation()?.name||'Selected operation')+' · '+scoped.length+' item records. Supply balances include every operation.':(state.activityScope==='all'?'Countywide activity · open, closed, and historical operations.':'Active countywide activity · open operations and routine assistance.')+' Supply balances always include all distributions.';
 
    $('riClosedOperationsGroup').hidden=!state.operations.some(o=>o.status==='Closed');
    for(const [id,status] of [['riOpenOperations','Open'],['riClosedOperations','Closed']]){
@@ -203,7 +206,13 @@ window.LPCInventory=(()=>{
    const required=new Map();for(const i of tracked){required.set(i.preset,(required.get(i.preset)||0)+Number(i.quantity));if(i.operationId&&!state.operations.some(o=>o.operation_id===i.operationId&&o.status==='Open'))throw new Error('The selected operation is closed or unavailable.')}
    for(const [id,q] of required){const stock=allStocks().find(s=>s.inventory_id===id);if(!stock||q>stock.remaining+1e-9)throw new Error('Not enough supply for '+(stock?.resource_name||'this resource')+'. Available: '+fmt(stock?.remaining||0)+'.')}
  }
- function filterRows(rows){if(!state.ready)return rows;const stocks=allStocks();return rows.filter(r=>(!state.operation||r.incident===state.operation)&&(!state.location||stocks.some(s=>s.inventory_id===r.preset_id&&s.location===state.location))&&(!state.resource||stocks.some(s=>s.inventory_id===r.preset_id&&resourceKey(s)===state.resource)))}
+ function setActivityScope(mode){
+   if(!['open','all'].includes(mode))return;state.activityScope=mode;render();if(typeof renderResourceHistory==='function')renderResourceHistory();
+ }
+ function filterRows(rows){
+   if(!state.ready)return rows;const stocks=allStocks(),open=new Set(state.operations.filter(o=>o.status==='Open').map(o=>o.operation_id));
+   return rows.filter(r=>(state.operation?r.incident===state.operation:state.activityScope==='all'||!String(r.incident||'').trim()||open.has(r.incident))&&(!state.location||stocks.some(s=>s.inventory_id===r.preset_id&&s.location===state.location))&&(!state.resource||stocks.some(s=>s.inventory_id===r.preset_id&&resourceKey(s)===state.resource)));
+ }
  function describe(row){const stock=allStocks().find(s=>s.inventory_id===row.preset_id);return {location:stock?.location||'',operation:state.operations.find(o=>o.operation_id===row.incident)?.name||''}}
- return {mount,refresh,render,mountRecipient,remember,validateSelection,checkStock,filterRows,describe,balances,enabled:()=>state.ready};
+ return {mount,refresh,render,mountRecipient,remember,validateSelection,checkStock,filterRows,setActivityScope,describe,balances,enabled:()=>state.ready};
 })();
