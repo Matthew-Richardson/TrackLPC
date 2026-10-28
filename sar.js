@@ -66,9 +66,10 @@ $('sarRoot').innerHTML=`<div class="sar-shell">
  <div id="sarMemberView" hidden><div class="sar-members-toolbar"><div class="sar-field"><label for="sarMemberSearch">Find a member</label><input id="sarMemberSearch" type="search" placeholder="Name, division, phone, or member ID"/></div><div class="sar-actions"><button class="sar-btn" data-sar-action="export-members" type="button">Export members</button><button class="sar-btn primary" id="sarNewMember" data-sar-action="new-member" type="button">+ Add member</button></div></div><div class="sar-member-grid" id="sarMemberList"></div></div>
  <footer class="sar-footer">La Plata County Search &amp; Rescue · <a href="https://laplatasar.org/" target="_blank" rel="noopener noreferrer">laplatasar.org</a></footer>
 </div>
+<div class="mo sar-modal" id="sarCheckModal" role="dialog" aria-modal="true" aria-labelledby="sarCheckTitle"><div class="md"><div class="mh"><h2 id="sarCheckTitle">SAR Check-in / Out</h2><button type="button" class="mx" data-sar-action="close-check" aria-label="Close SAR check-in">×</button></div><p id="sarCheckEvent" class="sar-help"></p><div id="sarCheckContent"></div></div></div>
 <div class="mo sar-modal" id="sarEventModal"><div class="md"><div class="mh"><h2 id="sarEventModalTitle">Create event</h2><button type="button" class="mx" data-sar-action="close-event" aria-label="Close event form">×</button></div><form id="sarEventForm"><div class="sar-field"><label for="sarEventName">Event name</label><input id="sarEventName" maxlength="150" required placeholder="Meeting, training, or mission name"/></div><div class="sar-form-grid"><div class="sar-field"><label for="sarEventType">Event type</label><select id="sarEventType"><option>Meeting</option><option>Training</option><option>Field mission</option><option>Other</option></select></div><div class="sar-field"><label for="sarEventDate">Date/time (local)</label><input id="sarEventDate" type="datetime-local"/></div></div><div class="sar-field"><label for="sarEventLocation">Location (optional)</label><input id="sarEventLocation" maxlength="255" placeholder="Station, trailhead, or other meeting place"/></div><div class="sar-field"><label for="sarEventNotes">Notes (optional)</label><textarea id="sarEventNotes" maxlength="2000"></textarea></div><div class="sar-feedback" id="sarEventFormStatus" role="status"></div><button class="sar-btn primary" type="submit" id="sarEventSave">Save event</button></form></div></div>
 <div class="mo sar-modal" id="sarMemberModal"><div class="md"><div class="mh"><h2 id="sarMemberModalTitle">Add member</h2><button type="button" class="mx" data-sar-action="close-member" aria-label="Close member form">×</button></div><form id="sarMemberForm"><div class="sar-field"><label for="sarMemberName">Name</label><input id="sarMemberName" maxlength="150" required autocomplete="name"/></div><div class="sar-field"><label for="sarMemberDivision">Division</label><input id="sarMemberDivision" list="sarDivisions" maxlength="100" required placeholder="Enter division"/><datalist id="sarDivisions"></datalist></div><div class="sar-field"><label for="sarMemberPhone">Phone number</label><input id="sarMemberPhone" type="tel" maxlength="40" autocomplete="tel"/></div><div class="sar-field" id="sarMemberStatusWrap" hidden><label for="sarMemberStatus">Member status</label><select id="sarMemberStatus"><option>Active</option><option>Inactive</option></select></div><div class="sar-feedback" id="sarMemberFormStatus" role="status"></div><button class="sar-btn primary" type="submit" id="sarMemberSave">Save member &amp; create card</button><p class="sar-help" style="margin-top:10px">A saved member has one reusable card ID. Printing is optional.</p></form></div></div>
-<div class="mo sar-modal" id="sarCardModal"><div class="md"><div class="mh"><h2>Member card</h2><button type="button" class="mx" data-sar-action="close-card" aria-label="Close member card">×</button></div><canvas id="sarCardCanvas" class="sar-card-canvas" aria-label="SAR member card preview"></canvas><p class="sar-card-hint">CR-80 · Landscape printer paper · Actual size / 100% · No margins<br>The QR contains a member ID; member details are read from the SAR registry.</p><div class="sar-actions"><button class="sar-btn primary" data-sar-action="print-card" type="button">Print to ZC300</button><button class="sar-btn" data-sar-action="save-card" type="button">Save PNG</button></div><div class="sar-feedback" id="sarCardStatus" role="status"></div></div></div>`;
+<div class="mo sar-modal" id="sarCardModal"><div class="md"><div class="mh"><h2>Member card</h2><button type="button" class="mx" data-sar-action="close-card" aria-label="Close member card">×</button></div><canvas id="sarCardCanvas" class="sar-card-canvas" aria-label="SAR member card preview"></canvas><details class="workflow-optional"><summary>Print settings &amp; card details</summary><p class="sar-card-hint">CR-80 · Landscape printer paper · Actual size / 100% · No margins<br>The QR contains a member ID; member details are read from the SAR registry.</p></details><div class="sar-actions"><button class="sar-btn primary" data-sar-action="print-card" type="button">Print to ZC300</button><button class="sar-btn" data-sar-action="save-card" type="button">Save PNG</button></div><div class="sar-feedback" id="sarCardStatus" role="status"></div></div></div>`;
 function connection(message){
  const box=$('sarConnection');
  box.dataset.state=enabled()&&!state.preview?'live':'setup';
@@ -84,6 +85,7 @@ function currentMap(rows=state.attendance){
 }
 function render(){
  stopCamera();
+ if(state.tab!=='events')$('sarCheckModal').classList.remove('open');
  $('sarEventView').hidden=state.tab!=='events';$('sarMemberView').hidden=state.tab!=='members';
  document.querySelectorAll('[data-sar-tab]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.sarTab===state.tab)));
  $('sarNewEvent').disabled=!enabled()||state.loading;$('sarNewMember').disabled=!enabled()||state.loading;
@@ -94,16 +96,23 @@ function render(){
  setScanTarget();
 }
 function renderDetail(){
- const e=event(),root=$('sarEventDetail');
- if(!e){root.innerHTML='<div class="sar-empty"><strong>Start with an event</strong>Create or select an event to check members in and out.<br>No address or map is needed.</div>';return}
+ const e=event(),root=$('sarEventDetail'),checkModal=$('sarCheckModal');
+ const keepDraft=checkModal.classList.contains('open')&&checkModal.dataset.eventId===e?.event_id;
+ const note=keepDraft?$('sarAttendanceNotes')?.value||'':'',scanText=keepDraft?$('sarScanInput')?.value||'':'';
+ if(!e){checkModal.classList.remove('open');$('sarCheckContent').replaceChildren();root.innerHTML='<div class="sar-empty"><strong>Start with an event</strong>Create or select an event to check members in and out.<br>No address or map is needed.</div>';return}
  const latest=currentMap(),inside=[...latest.values()].filter(r=>r.direction==='IN').length,unique=new Set(state.attendance.map(r=>r.member_id)).size;
  root.innerHTML=`<div class="sar-detail"><div class="sar-event-head"><div><div class="sar-eyebrow">${esc(e.event_type)}</div><h2>${esc(e.name)}</h2><div class="sar-meta">${esc(fmt(e.event_date))}${e.location?' · '+esc(e.location):''}${e.notes?'\n'+esc(e.notes):''}</div></div><div class="sar-actions"><span class="sar-pill ${e.status==='Open'?'':'closed'}">${esc(e.status)}</span><button class="sar-btn" data-sar-action="edit-event" type="button">Edit event</button><button class="sar-btn" data-sar-action="toggle-event" type="button" ${state.busy?'disabled':''}>${e.status==='Open'?'Close event':'Reopen event'}</button></div></div>
  <div class="sar-metrics"><div><strong>${inside}</strong><span>Currently IN</span></div><div><strong>${unique}</strong><span>Unique attendees</span></div><div><strong>${state.attendance.filter(r=>r.direction==='IN').length}</strong><span>Total check-ins</span></div></div>
+ <div class="sar-launch-actions"><button class="sar-btn primary" data-sar-action="open-check" type="button" ${e.status!=='Open'||!enabled()?'disabled':''}>Scan / Enter</button></div>
  <div class="sar-checkin"><h3>Member check-in / out</h3><p class="sar-help">Scan a SAR member card or choose a saved member. A scan selects the member; confirm IN or OUT below.</p>
  <div class="sar-check-grid"><div class="sar-field"><label for="sarScanInput">Scan member QR / enter member ID</label><input id="sarScanInput" type="text" autocomplete="off" placeholder="Scanner ready — scan a member card" ${e.status!=='Open'||!enabled()?'disabled':''}/></div><div class="sar-field"><label for="sarMemberPick">Choose member</label><select id="sarMemberPick" ${e.status!=='Open'||!enabled()?'disabled':''}><option value="">Select a member…</option>${state.members.filter(m=>m.status==='Active').sort((a,b)=>a.name.localeCompare(b.name)).map(m=>`<option value="${esc(m.member_id)}" ${m.member_id===state.memberId?'selected':''}>${esc(m.name)} · ${esc(m.division)}</option>`).join('')}</select></div></div>
  <div class="sar-actions"><button class="sar-btn" data-sar-action="camera" type="button" ${e.status!=='Open'||!enabled()?'disabled':''}>Start camera</button><button class="sar-btn" data-sar-action="add-for-event" type="button" ${e.status!=='Open'||!enabled()?'disabled':''}>+ Add member</button></div><div class="sar-scan-video" id="sarCameraWrap"><video id="sarCameraVideo" playsinline muted aria-label="SAR member card scanner"></video></div>
  <div class="sar-picked" id="sarPicked"></div><div class="sar-field"><label for="sarAttendanceNotes">Check-in/out note (optional)</label><input id="sarAttendanceNotes" maxlength="1000" placeholder="Assignment or attendance note"/></div><div class="sar-actions sar-check-actions"><button class="sar-btn primary" id="sarInBtn" data-sar-direction="IN" type="button">Check IN</button><button class="sar-btn out" id="sarOutBtn" data-sar-direction="OUT" type="button">Check OUT</button><button class="sar-btn" data-sar-action="clear-member" type="button">Clear</button></div><div id="sarFeedback" class="sar-feedback" role="status">${e.status==='Open'?'':'This event is closed. Reopen it to record attendance.'}</div></div>
  <div class="sar-attendance-head"><h3>Attendance log</h3><div class="sar-actions"><button class="sar-btn" data-sar-action="refresh-attendance" type="button">Refresh</button><button class="sar-btn" data-sar-action="export-attendance" type="button">Export CSV</button></div></div><div class="sar-table-wrap"><table class="sar-table"><thead><tr><th>Name / division</th><th>Direction</th><th>Time</th><th>Note / operator</th></tr></thead><tbody>${[...state.attendance].sort((a,b)=>b.check_time-a.check_time||Number(b.OBJECTID||0)-Number(a.OBJECTID||0)).map(r=>`<tr><td>${esc(r.member_name)}<small>${esc(r.division)}</small></td><td><span class="sar-pill ${r.direction==='OUT'?'closed':''}">${esc(r.direction)}</span></td><td>${esc(fmt(r.check_time))}</td><td>${esc(r.notes)}<small>${esc(r.operator_name)}</small></td></tr>`).join('')||'<tr><td colspan="4">No attendance recorded for this event.</td></tr>'}</tbody></table></div></div>`;
+ if(checkModal.dataset.eventId!==e.event_id)checkModal.classList.remove('open');
+ checkModal.dataset.eventId=e.event_id;$('sarCheckEvent').textContent=e.name;
+ $('sarCheckContent').replaceChildren(root.querySelector('.sar-checkin'));
+ $('sarAttendanceNotes').value=note;$('sarScanInput').value=scanText;
  updatePicked();
  $('sarMemberPick').addEventListener('change',()=>{state.memberId=$('sarMemberPick').value;state.pending=null;updatePicked();feedback('')});
  $('sarScanInput').addEventListener('keydown',e=>{if(e.key==='Enter'){const raw=e.target.value.trim();if(raw.length>10&&((!raw.startsWith('{')&&raw.startsWith('SAR-MEM-'))||raw.endsWith('}'))){e.preventDefault();e.stopPropagation();scan(raw)}}});
@@ -121,10 +130,15 @@ function renderMembers(){
  const rows=state.members.filter(m=>!q||[m.name,m.division,m.phone,m.member_id].some(v=>normalized(v).includes(q))).sort((a,b)=>a.name.localeCompare(b.name));
  $('sarMemberList').innerHTML=rows.length?rows.map(m=>`<article class="sar-member-tile ${m.status==='Active'?'':'inactive'}"><h3>${esc(m.name)}</h3><p>${esc(m.division)}<br>${esc(m.phone||'No phone entered')} · ${esc(m.status)}</p><div class="sar-actions"><button class="sar-btn" type="button" data-sar-card="${esc(m.member_id)}">View / print card</button><button class="sar-btn" type="button" data-sar-edit-member="${esc(m.member_id)}">Edit</button></div><div class="sar-id">${esc(m.member_id)}</div></article>`).join(''):'<div class="sar-empty"><strong>No members found</strong>Add members to create reusable cards.</div>';
 }
-function setScanTarget(){try{wedge.setTarget(document.body.dataset.system==='sar'&&state.tab==='events'&&event()?.status==='Open'&&!document.querySelector('.sar-modal.open')&&enabled()?'sar':null)}catch(e){/* Evac scanner may still be initializing. */}}
-function stopCamera(){cameraVersion++;clearTimeout(cameraTimer);cameraStream?.getTracks().forEach(t=>t.stop());cameraStream=null;const wrap=$('sarCameraWrap');if(wrap)wrap.classList.remove('active')}
+function setScanTarget(){try{wedge.setTarget(document.body.dataset.system==='sar'&&state.tab==='events'&&event()?.status==='Open'&&!document.querySelector('.sar-modal.open:not(#sarCheckModal)')&&enabled()?'sar':null)}catch(e){/* Evac scanner may still be initializing. */}}
+function stopCamera(){cameraVersion++;clearTimeout(cameraTimer);cameraStream?.getTracks().forEach(t=>t.stop());cameraStream=null;const wrap=$('sarCameraWrap');if(wrap)wrap.classList.remove('active');const button=$('sarCheckContent')?.querySelector('[data-sar-action="camera"]');if(button)button.textContent='Start camera'}
 function stop(){stopCamera();clearInterval(refreshTimer);refreshTimer=null;try{wedge.setTarget(null)}catch(e){}}
-function closeForms(){document.querySelectorAll('.sar-modal').forEach(m=>m.classList.remove('open'));setScanTarget()}
+function openCheck(){
+ if(!enabled()||state.busy||event()?.status!=='Open')return;
+ const modal=$('sarCheckModal'),opening=!modal.classList.contains('open');
+ modal.classList.add('open');setScanTarget();if(opening)modal.querySelector('.mx').focus({preventScroll:true});
+}
+function closeForms(){stopCamera();document.querySelectorAll('.sar-modal').forEach(m=>m.classList.remove('open'));setScanTarget()}
 function switchSystem(mode){
  const sar=mode==='sar';stop();window.LPCLiveScanner?.stop();window.LPCCardLiveScanner?.stop();
  ['modal','cardModal'].forEach(id=>$(id).classList.remove('open'));closeForms();
@@ -205,7 +219,7 @@ async function toggleEvent(){
  }catch(e){feedback(e.message,true)}finally{state.busy=false;updatePicked()}
 }
 function openMember(id=''){
- if(!enabled()||state.busy)return;stopCamera();state.editMember=state.members.find(m=>m.member_id===id)||null;const m=state.editMember;
+ if(!enabled()||state.busy)return;stopCamera();$('sarCheckModal').classList.remove('open');state.editMember=state.members.find(m=>m.member_id===id)||null;const m=state.editMember;
  $('sarMemberForm').reset();$('sarMemberModalTitle').textContent=m?'Edit member':'Add member';$('sarMemberSave').textContent=m?'Save member':'Save member & create card';$('sarMemberStatusWrap').hidden=!m;
  if(m){$('sarMemberName').value=m.name;$('sarMemberDivision').value=m.division;$('sarMemberPhone').value=m.phone||'';$('sarMemberStatus').value=m.status}
  $('sarMemberFormStatus').textContent='';$('sarMemberModal').classList.add('open');setScanTarget();$('sarMemberName').focus();
@@ -228,6 +242,7 @@ async function saveMember(e){
 }
 async function scan(raw){
  if(document.body.dataset.system!=='sar'||state.tab!=='events'||!enabled()||state.busy||!event()||event().status!=='Open')return;
+ openCheck();
  try{
    let data;try{data=JSON.parse(raw)}catch(e){data=null}
    if(data&&data.t!=='sar-member')throw new Error('This is not a SAR member card. LPC Evac cards are separate.');
@@ -264,7 +279,7 @@ async function afterRecord(row){
  state.pending=null;
  state.attendance=state.attendance.filter(r=>r.record_id!==row.record_id).concat(row);
  const message=`${state.preview?'Preview: ':''}${row.member_name} checked ${row.direction} · ${fmt(row.check_time)}.`;
- state.memberId='';renderDetail();setScanTarget();feedback(message);$('sarScanInput')?.focus();
+ state.memberId='';$('sarAttendanceNotes').value='';$('sarScanInput').value='';renderDetail();setScanTarget();feedback(message);
 }
 async function toggleCamera(){
  if(cameraStream){stopCamera();return}
@@ -277,7 +292,7 @@ async function toggleCamera(){
    const detector=new Detector({formats:['qr_code']});
    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
    if(version!==cameraVersion||document.body.dataset.system!=='sar'){stream.getTracks().forEach(t=>t.stop());return}
-   cameraStream=stream;const video=$('sarCameraVideo');video.srcObject=stream;await video.play();$('sarCameraWrap').classList.add('active');feedback('Camera active — hold a SAR QR in view.');
+   cameraStream=stream;const video=$('sarCameraVideo');video.srcObject=stream;await video.play();$('sarCameraWrap').classList.add('active');$('sarCheckContent').querySelector('[data-sar-action="camera"]').textContent='Stop camera';feedback('Camera active — hold a SAR QR in view.');
    const tick=async()=>{
      if(version!==cameraVersion||!cameraStream)return;
      try{const results=await detector.detect(video);if(results[0]?.rawValue){stopCamera();await scan(results[0].rawValue);return}}catch(e){/* Wait for a readable frame. */}
@@ -337,7 +352,7 @@ $('sarRoot').addEventListener('click',async e=>{
  if(button.dataset.sarEditMember){openMember(button.dataset.sarEditMember);return}
  if(button.dataset.sarDirection){await record(button.dataset.sarDirection);return}
  const action=button.dataset.sarAction;
- const handlers={'new-event':()=>openEvent(),'edit-event':()=>openEvent(true),'close-event':closeForms,'toggle-event':toggleEvent,'new-member':()=>openMember(),'add-for-event':()=>openMember(),'close-member':closeForms,'close-card':closeForms,'print-card':printCard,'save-card':saveCard,'camera':toggleCamera,'preview':()=>preview(true),'exit-preview':()=>preview(false),'export-members':()=>exportCSV('members'),'export-attendance':()=>exportCSV('attendance'),'refresh-attendance':async()=>{try{await loadAttendance()}catch(e){feedback(e.message,true)}},'clear-member':()=>{state.memberId='';state.pending=null;stopCamera();updatePicked();$('sarMemberPick').value='';$('sarScanInput').value='';feedback('')}};
+ const handlers={'open-check':openCheck,'close-check':closeForms,'new-event':()=>openEvent(),'edit-event':()=>openEvent(true),'close-event':closeForms,'toggle-event':toggleEvent,'new-member':()=>openMember(),'add-for-event':()=>openMember(),'close-member':closeForms,'close-card':closeForms,'print-card':printCard,'save-card':saveCard,'camera':toggleCamera,'preview':()=>preview(true),'exit-preview':()=>preview(false),'export-members':()=>exportCSV('members'),'export-attendance':()=>exportCSV('attendance'),'refresh-attendance':async()=>{try{await loadAttendance()}catch(e){feedback(e.message,true)}},'clear-member':()=>{state.memberId='';state.pending=null;stopCamera();updatePicked();$('sarMemberPick').value='';$('sarScanInput').value='';feedback('')}};
  try{await handlers[action]?.()}catch(e){if($('sarFeedback'))feedback(e.message,true);else connection(e.message)}
 });
 window.addEventListener('pagehide',stop);document.addEventListener('visibilitychange',()=>{if(document.hidden)stopCamera()});
