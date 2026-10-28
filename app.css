@@ -807,3 +807,36 @@ body[data-workflow="resource"]:not([data-system="sar"]) .ts{max-width:960px;widt
  body[data-workflow="resource"] #dt td:first-child,body[data-workflow="resource"] #dt td:nth-child(3),body[data-workflow="resource"] #dt td[data-label="Notes"],body[data-workflow="resource"] #dt td[data-label="Address"]{grid-column:1/-1}
  body[data-workflow="resource"] #dt td[data-label="Name"]{font-weight:700}
 }
+
+/* Routine resource selection belongs to the recipient popup; command setup stays closed. */
+.ri-heading-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.ri-configure-button{background:transparent!important;color:var(--ui-muted)!important;border-color:var(--ui-border)!important}
+.ri-config-heading{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+.ri-config-heading h3{font-size:15px;color:var(--ui-text);margin:3px 0}
+.ri-command-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ui-muted)}
+#resourceInventoryConfig{padding:14px;background:var(--ui-bg);border:1px solid var(--ui-border);border-radius:9px}
+#resourceInventoryConfig[hidden]{display:none!important}
+#riConfigForms>details{border-bottom:1px solid var(--ui-border);padding:10px 0}
+#riConfigForms>details>summary{font-weight:650;color:var(--ui-text);font-size:13px;padding:6px 0}
+.ri-preset-label{display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:600;margin:10px 0}
+#riConfigForms .resource-help{margin:6px 0;font-size:12px;line-height:1.5}
+#riConfigForms .ri-form{margin-bottom:0}
+.ri-scan-help{text-align:center;margin:12px 0 0}
+#modal .ri-recipient-selection{margin:5px 0 9px!important;padding:8px;border:1px solid var(--ui-border);border-radius:8px;min-width:0}
+#modal .ri-recipient-selection h3{font-size:12px;margin:0;font-weight:700;color:var(--ui-text)}
+#modal .ri-recipient-selection .ri-pills{flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-x:contain;max-width:100%;padding:3px;margin:5px 0;gap:6px}
+#modal .ri-recipient-selection .ri-pill{flex:0 0 auto;max-width:180px;min-height:38px;padding:7px 11px;font-size:11px}
+#modal .ri-recipient-selection .ri-quantities{grid-template-columns:repeat(2,minmax(0,1fr));max-height:clamp(80px,16dvh,150px);overflow-y:auto;margin:6px 0;gap:7px}
+#modal .ri-recipient-selection .ri-quantities label{font-size:10px;line-height:1.35;overflow-wrap:anywhere}
+#modal .ri-recipient-selection input{min-height:38px;margin:0;padding:6px 8px;font-size:16px}
+#modal .ri-choice-hint{font-size:10px;line-height:1.35;margin:4px 0 0;color:var(--ui-muted)}
+#modal #resourceItemSummary[hidden]{display:none!important}
+@media(max-width:420px){.ri-heading{flex-wrap:wrap}.ri-heading-actions{margin-left:auto}#resourceInventoryConfig{padding:10px}}
+@media(max-width:700px) and (max-height:650px){
+ #modal #resourceForm .resource-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ #modal #resourceForm .resource-grid .af{min-width:0}
+ #modal #resourceNotes{min-height:44px;height:44px}
+ #modal .ri-choice-hint{display:none}
+ #modal .ri-recipient-selection .ri-quantities{max-height:80px}
+ #modal #resourceForm input[type="datetime-local"]{font-size:14px}
+}
