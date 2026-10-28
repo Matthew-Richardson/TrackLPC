@@ -456,3 +456,11 @@ test('tracked resource check-in opens with no items and defers resource choice u
  const f=fixture();f.context.window.LPCInventory={enabled:()=>true,mount(){},validateSelection:options=>assert.equal(options.allowEmpty,true)};
  f.run("workflowMode='resource';setupResourceSelection();resourceDraftItems=[]");assert.equal(f.run('beginResourceScan()'),true);assert.equal(f.run('activeResourceItems.length'),0);assert.match(f.get('resourceScanSummary').textContent,/after scanning/);
 });
+test('Resource Activity badge matches visible operation rows and updates for search and empty results',()=>{
+ const f=fixture();let operation='ROP-open';f.context.window.LPCInventory={filterRows:rows=>rows.filter(r=>r.incident===operation),enabled:()=>false,render(){}};
+ f.run("workflowMode='resource';activeTab='log';resourceHistoryState='ready';resourceRows=[{incident:'ROP-open',name:'Jane',resource_type:'Water'},{incident:'ROP-open',name:'Pat',resource_type:'Food'},{incident:'ROP-closed',name:'Alex',resource_type:'Water'}]");
+ f.run('renderResourceHistory()');assert.equal(f.get('tlc').textContent,'2');assert.equal(f.get('dtb').children[0].children.length,2);
+ f.get('tsr').value='Jane';f.run('renderResourceActivity()');assert.equal(f.get('tlc').textContent,'1');assert.equal(f.get('dtb').children[0].children.length,1);
+ f.get('tsr').value='';operation='ROP-closed';f.run('renderResourceHistory()');assert.equal(f.get('tlc').textContent,'1');
+ operation='ROP-empty';f.run('renderResourceHistory()');assert.equal(f.get('tlc').textContent,'0');assert.equal(f.get('dt').style.display,'none');assert.equal(f.get('dtb').children.length,0);
+});
