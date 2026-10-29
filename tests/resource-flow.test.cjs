@@ -525,3 +525,54 @@ test('OEM and SAR tables cap at 15 measured rows and remove the cap when filters
  assert.equal(wrap.style.maxHeight,'630px');assert.equal(wrap.tabIndex,0);assert.equal(watched.length,1);
  count=15;callback();assert.equal(wrap.style.maxHeight,'');
 });
+
+
+test('daily product totals use Mountain Time including DST and preserve separate units and types',()=>{
+ const f=fixture();
+ f.run(`resourceRows=[
+  {resource_name:'Water',resource_type:'Water',unit:'case',quantity:2,distributed_at:Date.parse('2026-10-29T05:59:59Z')},
+  {resource_name:'Water',resource_type:'Water',unit:'case',quantity:3,distributed_at:Date.parse('2026-10-29T06:00:00Z')},
+  {resource_name:'Water',resource_type:'Water',unit:'case',quantity:0,distributed_at:Date.parse('2026-10-29T18:00:00Z')},
+  {resource_name:'Water',resource_type:'Water',unit:'gallon',quantity:8,distributed_at:Date.parse('2026-10-29T18:00:00Z')},
+  {resource_name:'Water',resource_type:'Other',unit:'case',quantity:4,distributed_at:Date.parse('2026-10-29T18:00:00Z')}
+ ]`);
+ const groups=JSON.parse(f.run('JSON.stringify(resourceDailyTotals(resourceRows))'));
+ assert.equal(groups.length,4);assert.equal(groups[0].day,'2026-10-28');assert.equal(groups[0].quantity,2);
+ const cases=groups.find(r=>r.day==='2026-10-29'&&r.unit==='case'&&r.resource_type==='Water');
+ assert.equal(cases.quantity,3);assert.equal(cases.records,2);
+ assert.equal(f.run("resourceDay(Date.parse('2026-11-03T06:59:59Z'))"),'2026-11-02');
+ assert.equal(f.run("resourceDay(Date.parse('2026-11-03T07:00:00Z'))"),'2026-11-03');
+ assert.equal(f.run('resourceDay(null)'),'');
+});
+test('date and product queries combine with scope and search, and reject reversed ranges',()=>{
+ const f=fixture();
+ f.run(`resourceHistoryState='ready';resourceRows=[
+  {name:'Jane',resource_name:'Water',resource_type:'Water',unit:'case',quantity:2,incident:'A',distributed_at:Date.parse('2026-10-29T05:59:59Z')},
+  {name:'Jane',resource_name:'Water',resource_type:'Water',unit:'case',quantity:3,incident:'A',distributed_at:Date.parse('2026-10-29T06:00:00Z')},
+  {name:'Jane',resource_name:'Water',resource_type:'Water',unit:'gallon',quantity:8,incident:'A',distributed_at:Date.parse('2026-10-29T12:00:00Z')},
+  {name:'Jane',resource_name:'Water',resource_type:'Water',unit:'case',quantity:9,incident:'B',distributed_at:Date.parse('2026-10-29T12:00:00Z')},
+  {name:'Other',resource_name:'Water',resource_type:'Water',unit:'case',quantity:5,incident:'A',distributed_at:Date.parse('2026-10-29T12:00:00Z')},
+  {name:'Jane',resource_name:'Water',resource_type:'Water',unit:'case',quantity:7,incident:'A',distributed_at:null}
+ ];window.LPCInventory={enabled:()=>false,filterRows:rows=>rows.filter(r=>r.incident==='A')}`);
+ f.get('resourceActivityFrom').value='2026-10-29';f.get('resourceActivityTo').value='2026-10-29';f.get('tsr').value='Jane';
+ f.get('resourceActivityProduct').value=f.run('resourceProductKey(resourceRows[1])');
+ assert.equal(f.run('resourceFilteredRows().length'),1);assert.equal(f.run('resourceFilteredRows()[0].quantity'),3);
+ f.get('resourceActivityFrom').value='2026-10-30';assert.equal(f.run('resourceFilteredRows().length'),0);
+ f.run('renderResourceActivity()');assert.match(f.get('emp').textContent,/From date must/);assert(f.get('csv').disabled);
+ f.get('resourceActivityView').value='daily';f.run('resetResourceActivityQuery()');assert.equal(f.get('tsr').value,'');assert.equal(f.get('resourceActivityFrom').value,'');assert.equal(f.get('resourceActivityView').value,'daily');
+});
+test('daily table and CSV export contain the same filtered totals',async()=>{
+ const f=fixture();
+ f.run(`workflowMode='resource';activeTab='log';resourceHistoryState='ready';resourceRows=[
+  {name:'One',resource_name:'Water',resource_type:'Water',unit:'case',quantity:2,distributed_at:Date.parse('2026-10-29T12:00:00Z')},
+  {name:'Two',resource_name:'Water',resource_type:'Water',unit:'case',quantity:3,distributed_at:Date.parse('2026-10-29T13:00:00Z')},
+  {name:'Old',resource_name:'Water',resource_type:'Water',unit:'case',quantity:10,distributed_at:Date.parse('2026-10-28T12:00:00Z')}
+ ]`);
+ f.get('resourceActivityView').value='daily';f.get('resourceActivityFrom').value='2026-10-29';f.run('renderResourceActivity()');
+ assert.equal(f.get('dtb').children[0].children.length,1);
+ const cells=f.get('dtb').children[0].children[0].children;assert.equal(cells[0].textContent,'2026-10-29');assert.equal(cells[3].textContent,5);assert.equal(cells[5].textContent,2);
+ let blob,download;f.context.URL={createObjectURL:b=>{blob=b;return 'blob:test'},revokeObjectURL(){}};
+ const create=f.context.document.createElement;f.context.document.createElement=tag=>{const el=create(tag);el.click=()=>{download=el.download};return el};
+ f.run('exportResourceHistory()');assert.equal(download,'LPC_Resource_Daily_Totals.csv');
+ const csv=await blob.text();assert.equal(csv.split('\r\n').length,2);assert.match(csv,/2026-10-29,Water,Water,5,case,2/);
+});

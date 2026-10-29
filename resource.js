@@ -159,6 +159,7 @@ function updateResourceModeUI(){
   document.getElementById('zoneHint').textContent=on?'':'Choose a zone to begin checkpoint scanning';
   document.getElementById('zoneScanBtn').disabled=!on&&!selZone;
   document.getElementById('resourceActivityType').hidden=!on;
+  document.getElementById('resourceActivityQuery').hidden=!on;
   document.getElementById('scanDetailsLabel').textContent=on?'Person':'check-in details';
   document.getElementById('zoneScanBtn').textContent=on?'Scan / Enter':'Check in';
 }
@@ -307,12 +308,46 @@ function clearResourceActivity(){
   resourceHistoryVersion++;resourceRows=[];resourceHistoryState='idle';resourceHistoryError='';
   if(workflowMode==='resource')renderResourceHistory();
 }
+// Query controls stay inside the existing Activity table; dates use county local time.
+function resetResourceActivityQuery(){
+  ['resourceActivityType','resourceActivityProduct','resourceActivityFrom','resourceActivityTo','tsr'].forEach(id=>document.getElementById(id).value='');
+  renderResourceActivity();
+}
+function resourceProductKey(row){return JSON.stringify([row.resource_type||'',row.resource_name||'',row.unit||''])}
+function resourceDay(value){
+  if(value==null||value==='')return '';
+  const date=new Date(value);if(!Number.isFinite(date.getTime()))return '';
+  const parts=new Intl.DateTimeFormat('en-US',{timeZone:'America/Denver',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(date);
+  const part=type=>parts.find(p=>p.type===type).value;
+  return `${part('year')}-${part('month')}-${part('day')}`;
+}
+function resourceDateRangeInvalid(){
+  const from=document.getElementById('resourceActivityFrom')?.value,to=document.getElementById('resourceActivityTo')?.value;
+  return Boolean(from&&to&&from>to);
+}
 function resourceFilteredRows(){
   const query=document.getElementById('tsr').value.toLowerCase().trim();
   const type=document.getElementById('resourceActivityType').value;
+  const product=document.getElementById('resourceActivityProduct')?.value;
+  const from=document.getElementById('resourceActivityFrom')?.value,to=document.getElementById('resourceActivityTo')?.value;
+  if(resourceDateRangeInvalid())return [];
   const rows=type?resourceRows.filter(row=>row.resource_type===type):resourceRows;
   const scoped=window.LPCInventory?.filterRows(rows)||rows;
-  return query?scoped.filter(row=>['name','address','phone','resource_type','resource_name','unit','notes','operator_name','card_id'].some(key=>String(row[key]??'').toLowerCase().includes(query))):scoped;
+  return scoped.filter(row=>{
+    if(product&&resourceProductKey(row)!==product)return false;
+    if(from||to){const day=resourceDay(row.distributed_at);if(!day||(from&&day<from)||(to&&day>to))return false}
+    return !query||['name','address','phone','resource_type','resource_name','unit','notes','operator_name','card_id'].some(key=>String(row[key]??'').toLowerCase().includes(query));
+  });
+}
+function resourceDailyTotals(rows){
+  const groups=new Map();
+  rows.forEach(row=>{
+    const day=resourceDay(row.distributed_at),key=JSON.stringify([day,resourceProductKey(row)]);
+    if(!groups.has(key))groups.set(key,{day,resource_type:row.resource_type||'',resource_name:row.resource_name||'',unit:row.unit||'',quantity:0,records:0});
+    const group=groups.get(key),quantity=Number(row.quantity);
+    group.quantity+=Number.isFinite(quantity)?quantity:0;group.records++;
+  });
+  return [...groups.values()].sort((a,b)=>a.day.localeCompare(b.day)||a.resource_name.localeCompare(b.resource_name)||a.unit.localeCompare(b.unit)||a.resource_type.localeCompare(b.resource_type));
 }
 function resourceHistoryAvailable(){return resourceHistoryState==='ready'||resourceHistoryState==='refreshing'}
 function resourceHistoryMessage(){
@@ -325,6 +360,7 @@ function resourceHistoryMessage(){
 }
 function renderResourceActivity(){
   document.getElementById('activityFilters').style.display='none';
+  document.getElementById('resourceActivityQuery').hidden=false;
   const scopeRows=window.LPCInventory?.filterRows(resourceRows)||resourceRows;
   const typeFilter=document.getElementById('resourceActivityType'),selectedType=typeFilter.value;
   typeFilter.replaceChildren();
@@ -333,20 +369,34 @@ function renderResourceActivity(){
   typeFilter.value=selectedType;
   if(![...new Set(scopeRows.map(row=>row.resource_type))].includes(selectedType))typeFilter.value='';
   typeFilter.hidden=false;
+  const productFilter=document.getElementById('resourceActivityProduct'),selectedProduct=productFilter.value;
+  productFilter.replaceChildren();
+  const allProducts=document.createElement('option');allProducts.value='';allProducts.textContent='All products';productFilter.append(allProducts);
+  const products=new Map();scopeRows.filter(row=>!typeFilter.value||row.resource_type===typeFilter.value).forEach(row=>products.set(resourceProductKey(row),row));
+  [...products].sort((a,b)=>String(a[1].resource_name).localeCompare(String(b[1].resource_name))).forEach(([key,row])=>{
+    const option=document.createElement('option');option.value=key;option.textContent=`${row.resource_name||'Unnamed product'} (${row.unit||'no unit'}) · ${row.resource_type||'Other'}`;productFilter.append(option);
+  });
+  productFilter.value=products.has(selectedProduct)?selectedProduct:'';
+  const from=document.getElementById('resourceActivityFrom'),to=document.getElementById('resourceActivityTo');
+  from.max=to.value;to.min=from.value;
+  const daily=document.getElementById('resourceActivityView').value==='daily';
   const rows=resourceFilteredRows(),empty=document.getElementById('emp'),table=document.getElementById('dt');
   const ready=resourceHistoryAvailable();
+  document.getElementById('resourceActivitySummary').textContent=resourceDateRangeInvalid()?'From date must be on or before To date.':ready?`${rows.length} item records · Mountain Time${resourceHistoryState==='refreshing'?' · Refreshing…':''}`:resourceHistoryMessage();
+  document.getElementById('csv').disabled=!ready||!rows.length||resourceDateRangeInvalid();
   document.getElementById('tlc').textContent=ready?String(rows.length):resourceHistoryState==='error'?'—':resourceHistoryState==='loading'?'…':'0';
   table.style.display=ready&&rows.length?'':'none';empty.style.display=ready&&rows.length?'none':'';
-  if(!ready||!rows.length){empty.textContent=ready?(resourceRows.length?'No distributions match this filter.':'No resource distributions recorded.'):resourceHistoryMessage();document.getElementById('dtb').replaceChildren();return}
+  if(!ready||!rows.length){empty.textContent=resourceDateRangeInvalid()?'From date must be on or before To date.':ready?(resourceRows.length?'No distributions match this filter.':'No resource distributions recorded.'):resourceHistoryMessage();document.getElementById('dtb').replaceChildren();return}
   const inventoryOn=window.LPCInventory?.enabled();
-  const headers=['Distributed','Name','Resource','Quantity','Unit',...(inventoryOn?['Location','Operation']:[]),'Address','Phone','Notes','Operator'];
+  const headers=daily?['Day (Mountain Time)','Resource','Type','Quantity','Unit','Item records']:['Distributed','Name','Resource','Quantity','Unit',...(inventoryOn?['Location','Operation']:[]),'Address','Phone','Notes','Operator'];
   renderTableHeader(headers);
   const fragment=document.createDocumentFragment();
-  rows.forEach(record=>{
+  (daily?resourceDailyTotals(rows):rows).forEach(record=>{
     const row=document.createElement('tr');
-    const date=record.distributed_at==null?'':new Date(record.distributed_at).toLocaleString();
-    const detail=inventoryOn?window.LPCInventory.describe(record):null;
-    [date,record.name,record.resource_name,record.quantity,record.unit,...(detail?[detail.location,detail.operation]:[]),record.address,record.phone,record.notes,record.operator_name].forEach((value,index)=>{const cell=makeElement('td',{text:value??''});cell.dataset.label=headers[index];row.appendChild(cell)});
+    const date=record.distributed_at==null?'':new Date(record.distributed_at).toLocaleString('en-US',{timeZone:'America/Denver'});
+    const detail=inventoryOn&&!daily?window.LPCInventory.describe(record):null;
+    const values=daily?[record.day||'Unknown date',record.resource_name,record.resource_type,Number(record.quantity.toFixed(6)),record.unit,record.records]:[date,record.name,record.resource_name,record.quantity,record.unit,...(detail?[detail.location,detail.operation]:[]),record.address,record.phone,record.notes,record.operator_name];
+    values.forEach((value,index)=>{const cell=makeElement('td',{text:value??''});cell.dataset.label=headers[index];row.appendChild(cell)});
     fragment.appendChild(row);
   });
   document.getElementById('dtb').replaceChildren(fragment);
@@ -391,10 +441,13 @@ async function loadResourceHistory(){
   }
 }
 function exportResourceHistory(){
-  if(!resourceRows.length)return;
+  const activity=workflowMode==='resource'&&activeTab==='log';
+  const selected=activity?resourceFilteredRows():resourceRows;
+  if(!resourceHistoryAvailable()||!selected.length)return;
+  const daily=activity&&document.getElementById('resourceActivityView')?.value==='daily';
   const fields=['location','operation','distribution_id','card_id','name','address','phone','zone_id','zone_name','incident','resource_type','resource_name','preset_id','quantity','unit','distributed_at','covers_through','recorded_at','operator_name','scan_type','notes'];
-  const rows=[fields.map(csvCell).join(','),...resourceRows.map(a=>fields.map(k=>csvCell(k==='location'||k==='operation'?window.LPCInventory?.describe(a)?.[k]||'':k.endsWith('_at')||k==='covers_through'?a[k]==null?'':new Date(a[k]).toISOString():a[k])).join(','))];
-  const url=URL.createObjectURL(new Blob([rows.join('\r\n')],{type:'text/csv;charset=utf-8'})),link=document.createElement('a');link.href=url;link.download='LPC_Resource_Distributions.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  const rows=daily?[['day_mountain_time','resource_name','resource_type','quantity','unit','item_records'].map(csvCell).join(','),...resourceDailyTotals(selected).map(a=>[a.day||'Unknown date',a.resource_name,a.resource_type,Number(a.quantity.toFixed(6)),a.unit,a.records].map(csvCell).join(','))]:[fields.map(csvCell).join(','),...selected.map(a=>fields.map(k=>csvCell(k==='location'||k==='operation'?window.LPCInventory?.describe(a)?.[k]||'':k.endsWith('_at')||k==='covers_through'?a[k]==null?'':new Date(a[k]).toISOString():a[k])).join(','))];
+  const url=URL.createObjectURL(new Blob([rows.join('\r\n')],{type:'text/csv;charset=utf-8'})),link=document.createElement('a');link.href=url;link.download=daily?'LPC_Resource_Daily_Totals.csv':'LPC_Resource_Distributions.csv';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 
 // On touch screens, native page scrolling takes priority until map movement is enabled.
@@ -416,3 +469,4 @@ if(typeof matchMedia==='function'){
   media.addEventListener('change',()=>{mobileMapPan=false;syncMobileMapInteraction()});
   syncMobileMapInteraction();
 }
+

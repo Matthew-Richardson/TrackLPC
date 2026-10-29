@@ -270,7 +270,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
 }
 </style>
 <link rel="stylesheet" href="sar.css"/>
-<link rel="stylesheet" href="app.css?v=fifteen-row-tables-20261028"/>
+<link rel="stylesheet" href="app.css?v=activity-daily-totals-20261029"/>
 </head>
 <body>
 
@@ -338,7 +338,16 @@ body[data-workflow="card"] #cardManageView{display:flex}
     <button class="activity-filter" data-log-filter="in" onclick="setActivityFilter('in')">IN only</button>
     <button class="activity-filter" data-log-filter="out" onclick="setActivityFilter('out')">OUT only</button>
   </div>
-  <div class="sb2" id="sbar"><select id="resourceActivityType" hidden aria-label="Filter resource type" onchange="renderResourceActivity()"><option value="">All resource types</option></select><input type="text" id="tsr" placeholder="Filter name, address, phone…" oninput="filterTable()"/></div>
+  <div class="sb2" id="sbar"><select id="resourceActivityType" hidden aria-label="Filter resource type" onchange="renderResourceActivity()"><option value="">All resource types</option></select><input type="text" id="tsr" placeholder="Filter name, address, phone…" oninput="filterTable()"/>
+    <div id="resourceActivityQuery" hidden onchange="renderResourceActivity()">
+      <select id="resourceActivityView" aria-label="Activity view"><option value="activity">Activity</option><option value="daily">Daily totals</option></select>
+      <select id="resourceActivityProduct" aria-label="Filter product"><option value="">All products</option></select>
+      <label>From <input id="resourceActivityFrom" type="date"></label>
+      <label>To <input id="resourceActivityTo" type="date"></label>
+      <button class="b" type="button" onclick="resetResourceActivityQuery()">Reset</button>
+      <span id="resourceActivitySummary" role="status" aria-live="polite"></span>
+    </div>
+  </div>
   <div class="tw">
     <div class="em" id="emp"><div class="empty-mark"></div><div>Select a zone to begin</div></div>
     <table id="dt" style="display:none"><thead id="dth"></thead><tbody id="dtb"></tbody></table>
@@ -2788,7 +2797,7 @@ window.LPCCardLiveScanner=(()=>{
 
 </script>
 <script src="resource-config.js?v=connected-inventory-20261028"></script>
-<script src="resource.js?v=entry-instructions-phone-20261028"></script>
+<script src="resource.js?v=activity-daily-totals-20261029"></script>
 <script src="resource-inventory.js?v=entry-instructions-phone-20261028"></script>
 <script>
 // Bound long tables by their first 15 actual rows, including wrapped mobile rows.
@@ -2821,3 +2830,4 @@ window.LPCCardLiveScanner=(()=>{
 </script>
 </body>
 </html>
+

@@ -42,6 +42,8 @@ In **Custom Card**, scan a license to populate details or enter them manually. E
 
 The registry supports searching, filtering, editing name/phone, reprinting, creating a card for another person, and deleting cards. Deleting a registry card makes its printed QR fail subsequent approval checks.
 
+Resource **Activity** includes a compact **Activity / Daily totals** selector, product and resource-type filters, and an inclusive From/To date range. Daily totals group the matching distributions by Mountain Time calendar day, product, type, and unit; unlike units are never summed together. Existing operation/location filters and text search apply to both views. **CSV** exports the matching rows or daily totals in the selected view. “Item records” counts distribution line items, not unique recipients. Days without matching distributions are omitted; undated records appear as Unknown date unless a date filter is applied.
+
 ### LPC SAR
 
 1. Switch to **LPC SAR mode**. Connect the SAR tables first, or choose the labeled preview.
@@ -210,3 +212,4 @@ In Resource mode, the main Activity tab shows all resource distributions, with a
 On mobile, the Resource page scrolls through item selection and the Activity table. The map appears only in Checkpoint. Wide tables scroll horizontally inside their panel. In Checkpoint, swiping over the map scrolls the page by default; tap **Move map** to pan/zoom, then **Scroll page** to restore page scrolling. Resource pages also scroll normally on desktop when item selections and activity exceed the viewport.
 
 Resource no longer assigns new distributions to an evacuation zone. The existing CSV/table schema stays compatible: zone_id, zone_name, and incident remain available for earlier records and are blank on new Resource saves. Earlier zoned distributions remain visible in Resource Activity.
+

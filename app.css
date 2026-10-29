@@ -952,3 +952,20 @@ html:has(.ri-management-dialog[open]),body:has(.ri-management-dialog[open]){over
 /* Long OEM/SAR logs scroll within their first 15 rows; measurements follow content. */
 .tw.bounded-table-scroll,.sar-table-wrap.bounded-table-scroll{overflow:auto;overscroll-behavior-y:auto;-webkit-overflow-scrolling:touch}
 .bounded-table-scroll:focus-visible{outline:2px solid var(--ui-accent);outline-offset:-2px}
+
+
+/* Compact queries and day-by-product totals within Activity. */
+#resourceActivityQuery[hidden]{display:none!important}
+#resourceActivityQuery{display:flex;flex:1 0 100%;flex-wrap:wrap;align-items:center;gap:6px;min-width:0}
+#resourceActivityQuery select,#resourceActivityQuery input{box-sizing:border-box;min-width:0;max-width:100%;min-height:36px;margin:0;padding:6px 8px;border:1px solid var(--ui-border);border-radius:7px;background:var(--ui-panel);color:var(--ui-text);font:inherit;font-size:12px}
+#resourceActivityProduct{flex:1 1 180px;width:180px}
+#resourceActivityQuery label{display:flex;flex:0 1 auto;align-items:center;gap:4px;min-width:0;margin:0;color:var(--ui-muted);font-size:11px}
+#resourceActivityQuery input[type="date"]{width:132px}
+#resourceActivityQuery .b{min-height:36px;padding:6px 9px}
+#resourceActivitySummary{flex:1 0 100%;color:var(--ui-muted);font-size:11px;overflow-wrap:anywhere}
+@media(max-width:700px){
+ #resourceActivityQuery select,#resourceActivityQuery input{font-size:16px}
+ #resourceActivityQuery label{flex:1 1 130px}
+ #resourceActivityQuery input[type="date"]{flex:1;width:0}
+ #resourceActivityQuery .b{font-size:12px}
+}
