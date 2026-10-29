@@ -30,12 +30,12 @@ window.LPCInventory=(()=>{
  function preferenceKey(){return 'lpc-resource-last-items:'+String(window.LPC_RESOURCE_CONFIG?.inventoryTableUrl||window.LPC_RESOURCE_CONFIG?.serviceUrl||'')}
  function restoreChoices(){
    try{const rows=JSON.parse(window.localStorage?.getItem(preferenceKey())||'[]');if(!Array.isArray(rows))return;
-     state.selected=new Map(rows.slice(0,50).filter(row=>Array.isArray(row)&&row.length===2&&typeof row[0]==='string'&&Number.isFinite(Number(row[1]))&&Number(row[1])>0&&allStocks().some(s=>s.active&&s.inventory_id===row[0])).map(([id,q])=>[id,Number(q)]));
+     state.selected=new Map(rows.slice(0,50).filter(row=>Array.isArray(row)&&row.length===2&&typeof row[0]==='string'&&Number.isFinite(Number(row[1]))&&String(row[1]??'').trim()!==''&&Number(row[1])>=0&&allStocks().some(s=>s.active&&s.inventory_id===row[0])).map(([id,q])=>[id,Number(q)]));
    }catch{/* Choices still persist between recipients when device storage is unavailable. */}
  }
  function remember(items){
    if(!state.ready)return;const stocks=new Set(allStocks().filter(s=>s.active).map(s=>s.inventory_id));
-   const rows=items.filter(i=>stocks.has(i.preset)&&Number.isFinite(Number(i.quantity))&&Number(i.quantity)>0).map(i=>[i.preset,Number(i.quantity)]);
+   const rows=items.filter(i=>stocks.has(i.preset)&&Number.isFinite(Number(i.quantity))&&String(i.quantity??'').trim()!==''&&Number(i.quantity)>=0).map(i=>[i.preset,Number(i.quantity)]);
    state.selected=new Map(rows);try{window.localStorage?.setItem(preferenceKey(),JSON.stringify(rows))}catch{/* Shared records are saved independently of device preferences. */}
  }
  function setConfiguration(open,kind='county'){
@@ -223,7 +223,7 @@ window.LPCInventory=(()=>{
    for(const stock of choices.values()){
      const on=state.selected.has(stock.inventory_id),button=document.createElement('button');button.type='button';button.className='ri-pill';button.setAttribute('aria-pressed',String(on));button.textContent=stock.resource_name+' · '+stock.location+(stock.active?'':' · Inactive');button.disabled=locked||!usable()||(!on&&(!stock.active||stock.remaining<=0))||operation()?.status==='Closed';button.onclick=()=>selectStock(stock.inventory_id);pills.append(button);
    }
-   for(const [id,q] of state.selected){const stock=allStocks().find(s=>s.inventory_id===id);if(!stock)continue;const label=document.createElement('label');label.textContent=stock.resource_name+' · '+stock.location+' ('+stock.unit+')';const input=document.createElement('input');input.type='number';input.min='0.001';input.step='any';input.value=q;input.required=true;input.disabled=locked||!stock.active;input.setAttribute('aria-label','Quantity of '+stock.resource_name+' from '+stock.location);input.oninput=()=>{state.selected.set(id,input.value);syncDraft()};label.append(input);quantities.append(label)}
+   for(const [id,q] of state.selected){const stock=allStocks().find(s=>s.inventory_id===id);if(!stock)continue;const label=document.createElement('label');label.textContent=stock.resource_name+' · '+stock.location+' ('+stock.unit+')';const input=document.createElement('input');input.type='number';input.min='0';input.step='any';input.value=q;input.required=true;input.disabled=locked||!stock.active;input.setAttribute('aria-label','Quantity of '+stock.resource_name+' from '+stock.location);input.oninput=()=>{state.selected.set(id,input.value);syncDraft()};label.append(input);quantities.append(label)}
  }
  function renderSelection(){if(document.activeElement?.closest?.('.ri-quantities'))return;renderPills($('riRecipientPills'),$('riRecipientQuantities'))}
  function mountRecipient(panel){
