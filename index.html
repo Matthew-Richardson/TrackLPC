@@ -270,7 +270,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
 }
 </style>
 <link rel="stylesheet" href="sar.css"/>
-<link rel="stylesheet" href="app.css?v=scanner-monochrome-zero-20261028"/>
+<link rel="stylesheet" href="app.css?v=entry-instructions-phone-20261028"/>
 </head>
 <body>
 
@@ -436,8 +436,8 @@ body[data-workflow="card"] #cardManageView{display:flex}
     <div class="pf" id="pf"></div>
     <div class="dv" id="s1dv"><span id="scanDetailsLabel">check-in details</span></div>
 <div class="workflow-fields">
-    <div class="af"><label>First name</label><input type="text" id="s1fn" placeholder="Jane"/></div>
-    <div class="af"><label>Last name</label><input type="text" id="s1ln" placeholder="Doe"/></div>
+    <div class="af"><label>First name</label><input type="text" id="s1fn" placeholder="Enter first name"/></div>
+    <div class="af"><label>Last name</label><input type="text" id="s1ln" placeholder="Enter last name"/></div>
 </div>
     <input type="hidden" id="s1phone"/>
     <div class="af"><label for="ai">Address</label><div class="manual-address-row"><input type="text" id="ai" placeholder="Type an address, then press Enter"/><button id="manualAddressEnter" class="manual-address-enter" type="button" hidden>Enter</button></div></div>
@@ -450,14 +450,14 @@ body[data-workflow="card"] #cardManageView{display:flex}
   <!-- STEP 2: phone + direction + save -->
   <div id="s2" style="display:none">
     <div class="pf" id="s2info" style="display:block"></div>
-    <div class="af"><label>Phone number</label><input type="tel" id="s2phone" placeholder="(970) 555-1234"/></div>
+    <div class="af"><label>Phone number</label><input type="tel" inputmode="tel" autocomplete="tel" id="s2phone" placeholder="Enter phone number"/></div>
     <div class="af"><label>Direction</label>
       <div class="db">
         <div class="dbtn ib" onclick="pickDir('IN',this)">IN</div>
         <div class="dbtn ob2" onclick="pickDir('OUT',this)">OUT</div>
       </div>
     </div>
-<details class="workflow-optional"><summary>Add notes (optional)</summary>    <div class="af"><label>Notes (optional)</label><input type="text" id="s2notes" placeholder="Vehicle, occupants, etc."/></div></details>
+<details class="workflow-optional"><summary>Add notes (optional)</summary>    <div class="af"><label>Notes (optional)</label><input type="text" id="s2notes" placeholder="Enter any check-in notes"/></div></details>
     <button class="cb gn-btn" id="s2save" disabled onclick="saveRecord()">Save record</button>
     <button class="btn-outline next-scan-action" type="button" onclick="startNextCheckpointScan()">Scan another person</button>
     <div class="res" id="s2res"><div class="vd" id="s2rv"></div><div class="dt" id="s2rd"></div></div>
@@ -501,14 +501,14 @@ body[data-workflow="card"] #cardManageView{display:flex}
   <div class="dv"><span id="cardDetailsLabel">Card details</span></div>
 
 <div class="workflow-fields">
-  <div class="af"><label>First name</label><input type="text" id="cfn" placeholder="Jane"/></div>
-  <div class="af"><label>Last name</label><input type="text" id="cln" placeholder="Doe"/></div>
+  <div class="af"><label>First name</label><input type="text" id="cfn" placeholder="Enter first name"/></div>
+  <div class="af"><label>Last name</label><input type="text" id="cln" placeholder="Enter last name"/></div>
 </div>
-  <div class="af"><label for="caddr">Authorized property address</label><div class="card-address-entry"><input type="text" id="caddr" placeholder="123 Main St, Durango, CO 81301"/><button class="b" id="clearCardAddressBtn" type="button" onclick="clearCustomCardAddress()" aria-label="Clear authorized property address">Clear</button></div></div>
+  <div class="af"><label for="caddr">Authorized property address</label><div class="card-address-entry"><input type="text" id="caddr" placeholder="Enter the property address"/><button class="b" id="clearCardAddressBtn" type="button" onclick="clearCustomCardAddress()" aria-label="Clear authorized property address">Clear</button></div></div>
   <div id="cardDuplicateStatus" class="registry-status" role="status" aria-live="polite"></div>
 <div class="workflow-fields">
-  <div class="af"><label>Phone</label><input type="tel" id="cphone" placeholder="(970) 555-1234"/></div>
-  <div class="af"><label>Reason</label><input type="text" id="creason" placeholder="2nd homeowner, renter, student, etc."/></div>
+  <div class="af"><label>Phone</label><input type="tel" inputmode="tel" autocomplete="tel" id="cphone" placeholder="Enter phone number"/></div>
+  <div class="af"><label>Reason</label><input type="text" id="creason" placeholder="Enter the reason for this card"/></div>
 </div>
   <button class="cb" id="generateCardBtn" onclick="generateCard()">Generate card</button>
   <button class="btn-outline next-scan-action" id="cardNextScanBtn" type="button" style="display:none" onclick="startNextCardScan()">Scan another license or EZcard</button>
@@ -892,6 +892,41 @@ function getFilteredLogRows(){
   if(q)rows=rows.filter(r=>[r.name,r.address,r.phone,r.license_num,r.operator_name,r.card_type,r.notes].some(v=>String(v||'').toLowerCase().includes(q)));
   return rows;
 }
+
+// Format North American numbers without truncating international numbers or extensions.
+function formatPhoneNumber(value){
+  const raw=String(value??'');
+  if(!/^[\d\s()+.\-]*$/.test(raw))return raw;
+  const digits=raw.replace(/\D/g,'');
+  if(!digits)return raw.trim()==='+'?'+':'';
+  if(raw.trim().startsWith('+')&&!raw.trim().startsWith('+1'))return raw;
+  const country=digits.startsWith('1')&&(digits.length===11||raw.trim().startsWith('+1'));
+  if(digits.length>11||digits.length>10&&!country)return raw;
+  const local=country?digits.slice(1):digits,prefix=country?'+1 ':'';
+  if(!local)return prefix.trim();
+  if(local.length<=3)return prefix+'('+local;
+  if(local.length<=6)return prefix+'('+local.slice(0,3)+') '+local.slice(3);
+  return prefix+'('+local.slice(0,3)+') '+local.slice(3,6)+'-'+local.slice(6);
+}
+function formatPhoneInput(input){
+  const raw=input.value,formatted=formatPhoneNumber(raw);
+  if(raw===formatted)return;
+  const start=input.selectionStart,end=input.selectionEnd;
+  const caret=position=>{
+    if(position===null)return formatted.length;
+    if(position===raw.length)return formatted.length;
+    const count=raw.slice(0,position).replace(/\D/g,'').length;
+    if(!count)return formatted.startsWith('(')?1:0;
+    let seen=0;for(let i=0;i<formatted.length;i++)if(/\d/.test(formatted[i])&&++seen===count)return i+1;
+    return formatted.length;
+  };
+  input.value=formatted;
+  if(start!==null&&typeof input.setSelectionRange==='function')input.setSelectionRange(caret(start),caret(end));
+}
+for(const eventName of ['input','focusin','focusout'])document.addEventListener(eventName,event=>{
+  if(event.isComposing||event.target?.type!=='tel')return;
+  formatPhoneInput(event.target);
+});
 
 function phoneLink(value){
   const label=String(value||'').trim();
@@ -2537,7 +2572,7 @@ function ray(px,py,ring){let ins=false;for(let i=0,j=ring.length-1;i<ring.length
 </script>
 
 <script src="sar-config.js"></script>
-<script src="sar.js?v=scanner-monochrome-zero-20261028"></script>
+<script src="sar.js?v=entry-instructions-phone-20261028"></script>
 
 <script type="module">
 // ---- BARCODE DETECTOR (phone camera) ----
@@ -2753,7 +2788,7 @@ window.LPCCardLiveScanner=(()=>{
 
 </script>
 <script src="resource-config.js?v=connected-inventory-20261028"></script>
-<script src="resource.js?v=scanner-monochrome-zero-20261028"></script>
-<script src="resource-inventory.js?v=scanner-monochrome-zero-20261028"></script>
+<script src="resource.js?v=entry-instructions-phone-20261028"></script>
+<script src="resource-inventory.js?v=entry-instructions-phone-20261028"></script>
 </body>
 </html>
