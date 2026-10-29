@@ -492,3 +492,27 @@ test('OEM and SAR card renderers produce opaque binary monochrome at native card
  assert.match(html,/resolve\(monochromeCardCanvas\(canvas\)\)/);
  assert.match(fs.readFileSync('sar.js','utf8'),/return window.monochromeCardCanvas\(canvas\)/);
 });
+
+
+function phoneFixture(){
+ const handlers={},context=vm.createContext({document:{addEventListener:(name,handler)=>handlers[name]=handler}});
+ vm.runInContext(html.slice(html.indexOf('function formatPhoneNumber('),html.indexOf('function phoneLink(')),context);
+ const input={type:'tel',value:'',selectionStart:0,selectionEnd:0,setSelectionRange(start,end){this.selectionStart=start;this.selectionEnd=end}};
+ return {input,handlers,format:value=>{context.raw=value;return vm.runInContext('formatPhoneNumber(raw)',context)}};
+}
+test('phone fields format progressively, preserve international numbers and extensions, and remain optional',()=>{
+ const f=phoneFixture();
+ for(const [raw,expected] of [['',''],['9','(9'],['970','(970'],['9707','(970) 7'],['970749','(970) 749'],['9707495273','(970) 749-5273'],['19707495273','+1 (970) 749-5273'],['+','+'],['+1','+1'],['+1970','+1 (970'],['+44 20 7946 0958','+44 20 7946 0958'],['9707495273 ext 2','9707495273 ext 2'],['123456789012','123456789012']])assert.equal(f.format(raw),expected,raw);
+});
+test('delegated phone formatting handles typing, paste, edits, deletion, and dynamically created fields',()=>{
+ const {input,handlers}=phoneFixture();
+ for(const digit of '9707495273'){input.value+=digit;input.selectionStart=input.selectionEnd=input.value.length;handlers.input({target:input});}
+ assert.equal(input.value,'(970) 749-5273');assert.equal(input.selectionStart,input.value.length);
+ input.value='(970) 849-5273';input.selectionStart=input.selectionEnd=7;handlers.input({target:input});assert.equal(input.selectionStart,7);
+ input.value='9707495273';input.selectionStart=input.selectionEnd=10;handlers.input({target:input});assert.equal(input.value,'(970) 749-5273');
+ while(input.value){input.value=input.value.slice(0,-1);input.selectionStart=input.selectionEnd=input.value.length;handlers.input({target:input});}
+ assert.equal(input.value,'');
+ const dynamic={...input,value:'9707495273',selectionStart:null,selectionEnd:null};handlers.focusin({target:dynamic});assert.equal(dynamic.value,'(970) 749-5273');
+ const text={...input,type:'text',value:'9707495273'};handlers.input({target:text});assert.equal(text.value,'9707495273');
+ input.value='9707';handlers.input({target:input,isComposing:true});assert.equal(input.value,'9707');
+});
