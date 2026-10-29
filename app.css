@@ -454,7 +454,7 @@ html[data-theme="dark"] #zoneBar .zone-bar-select::after{color:var(--ui-link)}
  #modal .zone-confirmed .b{min-height:32px;padding:6px 8px;font-size:11px}
  #modal .wedge-status,#cardModal .wedge-status{padding:6px 8px;margin-bottom:6px;font-size:10px;line-height:1.35}
  #modal .live-scanner,#cardModal .live-scanner{min-height:0;margin-bottom:6px;border-radius:7px}
- #modal .live-scanner video,#cardModal .live-scanner video{height:clamp(80px,15dvh,120px)}
+ #modal .live-scanner video,#cardModal .live-scanner video{height:clamp(180px,30dvh,250px)}
  #modal .live-scanner:not([data-running="true"]),#cardModal .live-scanner:not([data-running="true"]){background:transparent}
  #modal .live-scanner:not([data-running="true"]) video,#cardModal .live-scanner:not([data-running="true"]) video,
  #modal .live-scanner:not([data-running="true"]) .live-scanner-frame,#cardModal .live-scanner:not([data-running="true"]) .live-scanner-frame{display:none}
@@ -651,7 +651,7 @@ html[data-theme="dark"] #resourceSelection .resource-item-summary:focus-visible{
 #modal #liveCameraBtn:hover,#cardModal #cardLiveCameraBtn:hover,#sarCheckModal .scanner-camera-button:hover{background:var(--ui-accent-light)!important}
 html[data-theme="dark"] #modal #liveCameraBtn,html[data-theme="dark"] #cardModal #cardLiveCameraBtn,html[data-theme="dark"] #sarCheckModal .scanner-camera-button{color:var(--ui-link);border-color:var(--ui-link)}
 @media(max-width:700px){
- :is(#liveScanner,#cardLiveScanner,#sarCameraWrap) .scanner-viewport video{height:clamp(80px,15dvh,120px)}
+ :is(#liveScanner,#cardLiveScanner,#sarCameraWrap) .scanner-viewport video{height:clamp(180px,30dvh,250px)}
 }
 
 /* SAR follows the same identify → review → save sequence as OEM. */
@@ -740,7 +740,7 @@ body[data-system="sar"] .sar-shell{width:100%;min-width:0;box-sizing:border-box}
 #modal #scannerVideo,#cardModal #cardScannerVideo,#sarCheckModal #sarCameraVideo{position:absolute;inset:0;display:block;width:100%;height:100%;min-width:100%;min-height:100%;max-width:none;max-height:none;margin:0;padding:0;border:0;border-radius:0;object-fit:cover;object-position:50% 50%;aspect-ratio:auto}
 :is(#liveScanner,#cardLiveScanner,#sarCameraWrap) .live-scanner-frame{z-index:1}
 :is(#liveScanner,#cardLiveScanner,#sarCameraWrap) .live-scanner-label{z-index:2}
-@media(max-width:700px){:is(#liveScanner,#cardLiveScanner,#sarCameraWrap) .scanner-viewport{height:clamp(80px,15dvh,120px)}}
+@media(max-width:700px){:is(#liveScanner,#cardLiveScanner,#sarCameraWrap) .scanner-viewport{height:clamp(180px,30dvh,250px)}}
 
 /* County supply dashboard, with an optional operation using the same inventory. */
 #resourceInventory{color:var(--ui-text);min-width:0;max-width:100%}
