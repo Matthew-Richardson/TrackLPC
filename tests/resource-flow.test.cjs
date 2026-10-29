@@ -46,17 +46,18 @@ test('item selection comes before scanning and supports custom items and multipl
  await f.run('prepareResourceRecipient()');assert(f.get('resourceSave').disabled);assert.equal(f.get('resourceSave').textContent,'Save 2 items');
  f.run('resetResourceForm()');assert.equal(f.run('resourceDraftItems.length'),2);assert.equal(f.run('activeResourceItems.length'),2);
 });
-test('empty, incomplete, and zero-quantity selections block the scanner',()=>{
+test('empty and incomplete selections block the scanner; explicit zero is accepted',()=>{
  const f=fixture();f.run("setupResourceSelection();resourceDraftItems=[]");assert.equal(f.run('beginResourceScan()'),false);
  f.run("resourceDraftItems=[newResourceDraft('custom')]");assert.equal(f.run('beginResourceScan()'),false);
- f.run("resourceDraftItems=[{...newResourceDraft(),quantity:0}]");assert.equal(f.run('beginResourceScan()'),false);
  assert(!f.calls.includes('scanner'));
+ f.run("resourceDraftItems=[{...newResourceDraft(),quantity:0}]");assert.equal(f.run('beginResourceScan()'),true);
 });
 test('GIS payload validates quantity and dates and links the shared card',()=>{
  const f=fixture();f.run(`globalThis.fields={id:'test',type:'Water',name:'Case',quantity:'2',unit:'case',date:'2026-10-27T12:00',through:'',phone:'',preset:'water-case',operator:'Test',notes:''}`);
  const a=f.run("resourceAttributes({firstName:'Jane',lastName:'Test',fullAddress:'10 Test St',scanType:'Card'},selZone,fields,'LPC-SHARED')");
  assert.equal(a.card_id,'LPC-SHARED');assert.equal(a.quantity,2);assert.equal(a.zone_id,'7');assert.equal(a.covers_through,null);assert(!('license_num' in a));assert(!('direction' in a));
- assert.throws(()=>f.run("resourceAttributes({},selZone,{...fields,quantity:'0'},'')"),/greater than zero/);
+ assert.equal(f.run("resourceAttributes({},selZone,{...fields,quantity:'0'},'')").quantity,0);
+ for(const quantity of ['','-1','NaN'])assert.throws(()=>f.run(`resourceAttributes({},selZone,{...fields,quantity:${JSON.stringify(quantity)}},'')`),/zero or greater/);
  assert.throws(()=>f.run("resourceAttributes({},selZone,{...fields,through:'2026-10-26T12:00'},'')"),/after the distribution/);
 });
 function preparedSave(){
@@ -272,10 +273,10 @@ test('adding a resource collapses earlier items, keeps their values, and permits
 });
 test('incomplete collapsed resources reopen for correction before scanning',()=>{
  const f=fixture();f.run('setupResourceSelection()');const key=f.run('resourceDraftItems[0].key');
- const quantity=f.get('resourceItem'+key+'Quantity');quantity.value='0';quantity.oninput();f.get('resourceAddItem').onclick();
+ const quantity=f.get('resourceItem'+key+'Quantity');quantity.value='-1';quantity.oninput();f.get('resourceAddItem').onclick();
  assert.equal(f.get('resourceItemRows').children[0].open,false);
  assert.equal(f.run('beginResourceScan()'),false);assert.equal(f.get('resourceItemRows').children[0].open,true);
- assert.match(f.get('resourceSelectionStatus').textContent,/greater than zero/);
+ assert.match(f.get('resourceSelectionStatus').textContent,/zero or greater/);
 });
 
 test('opening a registry card previews it without starting a print job',async()=>{
@@ -477,4 +478,17 @@ test('checkpoint zone selection cannot clear Resource activity or overwrite its 
  let clears=0;f.context.clearResourceActivity=()=>clears++;f.run('renderResourceHistory()');
  f.run(html.slice(html.indexOf('async function selectZone('),html.indexOf('async function spQ(')));await f.run('selectZone(7,{fit:false})');
  assert.equal(clears,0);assert.equal(f.run('resourceRows.length'),2);assert.equal(f.get('tlc').textContent,'2');
+});
+
+
+test('OEM and SAR card renderers produce opaque binary monochrome at native card resolution',()=>{
+ const pixels=new Uint8ClampedArray([0,0,0,255,255,255,255,255,232,30,44,255,102,119,151,255,136,136,136,255,248,250,252,255,0,0,0,0]);
+ let written;const ctx={getImageData:()=>({data:pixels}),putImageData:image=>written=image};
+ const canvas={width:7,height:1,getContext:()=>ctx};
+ const start=html.indexOf('function monochromeCardCanvas('),end=html.indexOf('window.monochromeCardCanvas=',start);
+ const context=vm.createContext({canvas});vm.runInContext(html.slice(start,end),context);
+ assert.equal(vm.runInContext('monochromeCardCanvas(canvas)',context),canvas);
+ assert(written);assert.deepEqual([...pixels],[0,0,0,255,255,255,255,255,0,0,0,255,0,0,0,255,0,0,0,255,255,255,255,255,255,255,255,255]);
+ assert.match(html,/resolve\(monochromeCardCanvas\(canvas\)\)/);
+ assert.match(fs.readFileSync('sar.js','utf8'),/return window.monochromeCardCanvas\(canvas\)/);
 });
