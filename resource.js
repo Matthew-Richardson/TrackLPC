@@ -53,7 +53,7 @@ function renderResourceDraftItems(){
       <div class="resource-item-body"><div class="resource-item-heading"><span>Edit item</span><button class="b" id="${prefix}Remove" type="button" aria-label="Remove item ${index+1}">Remove</button></div>
       <div class="resource-grid">
         <div class="af"><label for="${prefix}Preset">Resource</label><select id="${prefix}Preset"></select></div>
-        <div class="af"><label for="${prefix}Quantity">Quantity per person</label><input id="${prefix}Quantity" type="number" min="0.001" step="any" required></div>
+        <div class="af"><label for="${prefix}Quantity">Quantity per person</label><input id="${prefix}Quantity" type="number" min="0" step="any" required></div>
       </div>
       <details ${item.preset==='custom'?'open':''}><summary>Edit type, description, or unit</summary><div class="resource-grid">
         <div class="af"><label for="${prefix}Type">Type</label><input id="${prefix}Type" maxlength="80" required></div>
@@ -79,7 +79,7 @@ function validateResourceItems(items){
   if(items.length>50)throw new Error('Use up to 50 items per person.');
   items.forEach((item,index)=>{
     if(!String(item.type).trim()||!String(item.name).trim()||!String(item.unit).trim())throw new Error(`Complete type, description, and unit for item ${index+1}.`);
-    if(!Number.isFinite(Number(item.quantity))||Number(item.quantity)<=0)throw new Error(`Enter a quantity greater than zero for item ${index+1}.`);
+    if(String(item.quantity??'').trim()===''||!Number.isFinite(Number(item.quantity))||Number(item.quantity)<0)throw new Error(`Enter a quantity of zero or greater for item ${index+1}.`);
   });
 }
 function describeResourceItems(items){return items.map(i=>`${i.quantity} ${i.unit} ${i.name}`).join(' · ')}
@@ -208,7 +208,7 @@ async function prepareResourceRecipient(){
 }
 function resourceAttributes(person,zone,fields,cardId){
   const quantity=Number(fields.quantity),distributed=Date.parse(fields.date),through=fields.through?Date.parse(fields.through):null;
-  if(!Number.isFinite(quantity)||quantity<=0)throw new Error('Enter a quantity greater than zero.');
+  if(String(fields.quantity??'').trim()===''||!Number.isFinite(quantity)||quantity<0)throw new Error('Enter a quantity of zero or greater.');
   if(!Number.isFinite(distributed)||(fields.through&&!Number.isFinite(through)))throw new Error('Enter valid distribution dates.');
   if(through!==null&&through<distributed)throw new Error('Covers through must be after the distribution date.');
   if(!fields.type.trim()||!fields.name.trim()||!fields.unit.trim())throw new Error('Type, resource description, and unit are required.');
