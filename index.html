@@ -270,7 +270,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
 }
 </style>
 <link rel="stylesheet" href="sar.css"/>
-<link rel="stylesheet" href="app.css?v=compact-resource-activity-20261028"/>
+<link rel="stylesheet" href="app.css?v=twenty-row-tables-20261028"/>
 </head>
 <body>
 
@@ -2790,5 +2790,34 @@ window.LPCCardLiveScanner=(()=>{
 <script src="resource-config.js?v=connected-inventory-20261028"></script>
 <script src="resource.js?v=entry-instructions-phone-20261028"></script>
 <script src="resource-inventory.js?v=entry-instructions-phone-20261028"></script>
+<script>
+// Bound long tables by their first 20 actual rows, including wrapped mobile rows.
+(()=>{
+  const selector='.tw > table, .sar-table-wrap > table',observed=new WeakSet();
+  let queued=false;
+  const schedule=()=>{if(!queued){queued=true;requestAnimationFrame(update)}};
+  const resize=new ResizeObserver(schedule);
+  function update(){
+    queued=false;
+    for(const table of document.querySelectorAll(selector)){
+      if(!observed.has(table)){observed.add(table);resize.observe(table)}
+      const wrap=table.parentElement,rows=table.querySelectorAll('tbody > tr');
+      if(!table.getClientRects().length)continue;
+      const limit=rows.length>20?Math.ceil(rows[19].getBoundingClientRect().bottom-table.getBoundingClientRect().top):0;
+      const height=limit>0?limit+'px':'';
+      if(wrap.style.maxHeight!==height)wrap.style.maxHeight=height;
+      wrap.classList.add('bounded-table-scroll');
+      if(!wrap.hasAttribute('tabindex'))wrap.tabIndex=0;
+      if(!wrap.hasAttribute('aria-label'))wrap.setAttribute('aria-label','Scrollable records');
+    }
+  }
+  new MutationObserver(schedule).observe(document.body,{childList:true,subtree:true});
+  window.addEventListener('resize',schedule);
+  // Tabs and system switches can reveal tables without adding any rows.
+  new MutationObserver(schedule).observe(document.body,{attributes:true,attributeFilter:['data-system','data-workflow']});
+  document.addEventListener('click',schedule);
+  schedule();
+})();
+</script>
 </body>
 </html>
