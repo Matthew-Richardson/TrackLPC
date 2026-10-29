@@ -796,17 +796,6 @@ body[data-workflow="resource"]:not([data-system="sar"]) .ts{max-width:960px;widt
 #resourceSelection[data-inventory="true"]>strong{display:none}
 .ri-stock-detail{margin:10px 0}.ri-stock-detail>summary{font-weight:600;color:var(--ui-text)!important}
 #resourceSelectionForm[hidden],#resourceAddItem[hidden]{display:none!important}
-@media(max-width:700px){
- body[data-workflow="resource"] #dt{display:block;width:100%;min-width:0;table-layout:fixed}
- body[data-workflow="resource"] #dt thead{display:none}
- body[data-workflow="resource"] #dt tbody{display:block;width:100%}
- body[data-workflow="resource"] #dt tr{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;padding:12px;border-bottom:1px solid var(--ui-border);max-width:100%}
- body[data-workflow="resource"] #dt td{display:block;min-width:0;max-width:100%;padding:0;border:0;white-space:normal;overflow-wrap:anywhere;font-size:12px}
- body[data-workflow="resource"] #dt td:empty{display:none}
- body[data-workflow="resource"] #dt td::before{content:attr(data-label);display:block;color:var(--ui-muted);font-size:10px;margin-bottom:3px}
- body[data-workflow="resource"] #dt td:first-child,body[data-workflow="resource"] #dt td:nth-child(3),body[data-workflow="resource"] #dt td[data-label="Notes"],body[data-workflow="resource"] #dt td[data-label="Address"]{grid-column:1/-1}
- body[data-workflow="resource"] #dt td[data-label="Name"]{font-weight:700}
-}
 
 /* Routine resource selection belongs to the recipient popup; command setup stays closed. */
 .ri-heading-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
