@@ -362,7 +362,7 @@ async function renderCard(m){
  ctx.fillStyle='#7b879d';ctx.font='15px monospace';ctx.fillText(m.member_id,319,928);ctx.font='21px Arial, sans-serif';ctx.fillText('LPCSAR · MEMBER CARD',319,970);
  if(state.preview){ctx.fillStyle='#a12836';ctx.font='bold 20px Arial, sans-serif';ctx.fillText('PREVIEW — NOT A SAVED MEMBER',319,340)}
  if(m.status!=='Active'){ctx.fillStyle='#a12836';ctx.font='bold 20px Arial, sans-serif';ctx.fillText('INACTIVE',319,340)}
- return canvas;
+ return window.monochromeCardCanvas(canvas);
 }
 async function viewCard(id){
  const m=state.members.find(m=>m.member_id===id);if(!m)return;stopCamera();state.card=null;$('sarCardStatus').textContent='Loading card…';$('sarCardModal').classList.add('open');setScanTarget();
