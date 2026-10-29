@@ -180,12 +180,12 @@ async function prepareResourceRecipient(){
     <form id="resourceForm">
       <p id="resourceItemSummary"></p>
       <div class="resource-fields">
-        <div class="af"><label for="resourcePhone">Phone</label><input id="resourcePhone" type="tel" maxlength="40"></div>
+        <div class="af"><label for="resourcePhone">Phone</label><input id="resourcePhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="Enter phone number" maxlength="40"></div>
         <div class="resource-grid">
           <div class="af"><label for="resourceDate">Date</label><input id="resourceDate" type="datetime-local" required></div>
           <div class="af"><label for="resourceThrough">Covers through (optional)</label><input id="resourceThrough" type="datetime-local"></div>
         </div>
-        <div class="af"><label for="resourceNotes">Notes (optional)</label><textarea id="resourceNotes" maxlength="2000" placeholder="Package size, household needs, or other distribution notes"></textarea></div>
+        <div class="af"><label for="resourceNotes">Notes (optional)</label><textarea id="resourceNotes" maxlength="2000" placeholder="Enter distribution notes"></textarea></div>
       </div>
       <button class="cb" id="resourceSave" type="submit">Save distribution</button>
       <p id="resourceStatus" role="status" aria-live="polite"></p>
