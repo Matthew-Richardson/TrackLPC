@@ -949,6 +949,6 @@ html:has(.ri-management-dialog[open]),body:has(.ri-management-dialog[open]){over
 }
 #riManagementDialog #riSupplyEditForm>label{grid-column:1/-1}
 
-/* Long OEM/SAR logs scroll within their first 20 rows; measurements follow content. */
+/* Long OEM/SAR logs scroll within their first 15 rows; measurements follow content. */
 .tw.bounded-table-scroll,.sar-table-wrap.bounded-table-scroll{overflow:auto;overscroll-behavior-y:auto;-webkit-overflow-scrolling:touch}
 .bounded-table-scroll:focus-visible{outline:2px solid var(--ui-accent);outline-offset:-2px}
