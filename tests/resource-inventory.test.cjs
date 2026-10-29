@@ -172,3 +172,13 @@ test('an unconfirmed operation creation resumes its frozen form after closing an
  f.run("setConfiguration(true,'operations')");assert.equal(f.get('riManagementDialog').dataset.page,'new-operation');assert.equal(f.get('riNewOperation').hidden,false);
  f.run("setConfiguration(false,'operations');setConfiguration(true,'operations')");assert.equal(f.context.pending,pending);assert.equal(f.get('riNewOperation').hidden,false);assert.equal(f.get('riManagementDialog').open,true);
 });
+
+
+test('zero distribution preserves stock and is remembered across reloads for testing',async()=>{
+ const store=new Map(),storage={getItem:k=>store.get(k)||null,setItem:(k,v)=>store.set(k,v)};
+ const f=fixture([stock('RINV-a','Water','case',0)]);f.context.window.localStorage=storage;await f.api.refresh();
+ await f.api.checkStock([{preset:'RINV-a',quantity:0}]);f.api.remember([{preset:'RINV-a',quantity:0}]);
+ const next=fixture([stock('RINV-a','Water','case',0)]);next.context.window.localStorage=storage;await next.api.refresh();next.api.validateSelection();
+ assert.equal(next.context.resourceDraftItems[0].quantity,0);
+ const balance=next.api.balances([stock('RINV-a','Water','case',10)],[dist('test','RINV-a',0)])[0];assert.equal(balance.issued,0);assert.equal(balance.remaining,10);
+});
