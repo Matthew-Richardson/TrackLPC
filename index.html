@@ -270,7 +270,7 @@ body[data-workflow="card"] #cardManageView{display:flex}
 }
 </style>
 <link rel="stylesheet" href="sar.css"/>
-<link rel="stylesheet" href="app.css?v=twenty-row-tables-20261028"/>
+<link rel="stylesheet" href="app.css?v=fifteen-row-tables-20261028"/>
 </head>
 <body>
 
@@ -2791,7 +2791,7 @@ window.LPCCardLiveScanner=(()=>{
 <script src="resource.js?v=entry-instructions-phone-20261028"></script>
 <script src="resource-inventory.js?v=entry-instructions-phone-20261028"></script>
 <script>
-// Bound long tables by their first 20 actual rows, including wrapped mobile rows.
+// Bound long tables by their first 15 actual rows, including wrapped mobile rows.
 (()=>{
   const selector='.tw > table, .sar-table-wrap > table',observed=new WeakSet();
   let queued=false;
@@ -2803,7 +2803,7 @@ window.LPCCardLiveScanner=(()=>{
       if(!observed.has(table)){observed.add(table);resize.observe(table)}
       const wrap=table.parentElement,rows=table.querySelectorAll('tbody > tr');
       if(!table.getClientRects().length)continue;
-      const limit=rows.length>20?Math.ceil(rows[19].getBoundingClientRect().bottom-table.getBoundingClientRect().top):0;
+      const limit=rows.length>15?Math.ceil(rows[14].getBoundingClientRect().bottom-table.getBoundingClientRect().top):0;
       const height=limit>0?limit+'px':'';
       if(wrap.style.maxHeight!==height)wrap.style.maxHeight=height;
       wrap.classList.add('bounded-table-scroll');
