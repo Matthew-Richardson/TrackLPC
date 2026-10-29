@@ -517,11 +517,11 @@ test('delegated phone formatting handles typing, paste, edits, deletion, and dyn
  input.value='9707';handlers.input({target:input,isComposing:true});assert.equal(input.value,'9707');
 });
 
-test('OEM and SAR tables cap at 20 measured rows and remove the cap when filters shorten the list',()=>{
+test('OEM and SAR tables cap at 15 measured rows and remove the cap when filters shorten the list',()=>{
  let count=25,callback;const watched=[],wrap={style:{},classList:{add(){}},hasAttribute:()=>false,setAttribute(){}};
  const table={parentElement:wrap,getClientRects:()=>[{}],getBoundingClientRect:()=>({top:100}),querySelectorAll:()=>Array.from({length:count},(_,i)=>({getBoundingClientRect:()=>({bottom:130+(i+1)*40})}))};
  const context=vm.createContext({WeakSet,Math,ResizeObserver:class{constructor(fn){callback=fn}observe(t){watched.push(t)}},MutationObserver:class{observe(){}},requestAnimationFrame:fn=>{callback=fn},window:{addEventListener(){}},document:{body:{},addEventListener(){},querySelectorAll:selector=>{assert.match(selector,/sar-table-wrap/);assert.match(selector,/\.tw/);return [table]}}});
  const start=html.indexOf('// Bound long tables'),end=html.indexOf('</script>',start);vm.runInContext(html.slice(start,end),context);callback();
- assert.equal(wrap.style.maxHeight,'830px');assert.equal(wrap.tabIndex,0);assert.equal(watched.length,1);
- count=20;callback();assert.equal(wrap.style.maxHeight,'');
+ assert.equal(wrap.style.maxHeight,'630px');assert.equal(wrap.tabIndex,0);assert.equal(watched.length,1);
+ count=15;callback();assert.equal(wrap.style.maxHeight,'');
 });
