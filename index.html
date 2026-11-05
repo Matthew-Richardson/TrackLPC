@@ -2344,7 +2344,7 @@ function renderCardCanvas(c){
 
       // --- ADDRESS (word wrap for long addresses) ---
       ctx.fillStyle='#444';
-      ctx.font='30px -apple-system, sans-serif';
+      ctx.font='31px -apple-system, sans-serif';
       const addrLines=wrapText(ctx,c.addr,W-66).slice(0,3);
       let addrY=435;
       addrLines.forEach(line=>{
@@ -2355,7 +2355,7 @@ function renderCardCanvas(c){
       // --- PHONE ---
       if(c.phone){
         ctx.fillStyle='#666';
-        ctx.font='28px -apple-system, sans-serif';
+        ctx.font='29px -apple-system, sans-serif';
         ctx.fillText(c.phone,W/2,addrY+12);
       }
 
@@ -2363,7 +2363,7 @@ function renderCardCanvas(c){
       if(c.reason){
         const reasonY=c.phone?addrY+54:addrY+24;
         ctx.fillStyle='#555';
-        setCanvasFontToFit(ctx,c.reason,25,17,W-78,'italic');
+        setCanvasFontToFit(ctx,c.reason,27,19,W-78,'normal');
         ctx.fillText(c.reason,W/2,reasonY);
       }
 
